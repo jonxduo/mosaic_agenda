@@ -1,0 +1,82 @@
+# Le chiavi di primo livello che iniziano con x- sono ignorate dal loader:
+# servono solo a contenere ancoraggi, validi solo in questo file.
+x-requirements:
+  elder: &elder { has_qualification: elder }
+  elder_or_ms: &elder_or_ms { any: [ { has_qualification: elder }, { has_qualification: ministerial_servant } ] }
+  male: &male { attribute: { name: sex, op: eq, value: m } }
+  baptized: &baptized { has_qualification: baptized }
+program_types:
+  - id: midweek
+    label: p.midweek
+    event_type: midweek_meeting
+    period: week
+    owner_role: lmm_overseer
+    acceptance: true                     # ⚙
+    publish_audience: board_public
+    remind_before: { days: 2 }
+    retention: { years: 2 }              # ⚙
+    slots:                               # ⚙ struttura da verificare con il sorvegliante; requisiti modificabili
+      - { id: chairman, label: s.chairman, requires: *elder }   # ⚙ da confermare
+      - { id: opening_prayer, label: s.opening_prayer, requires: *baptized }
+      - { id: treasures_talk, label: s.treasures_talk, requires: *elder_or_ms, extra_fields: [ { id: title, type: text } ] }
+      - { id: spiritual_gems, label: s.spiritual_gems, requires: *elder_or_ms }
+      - { id: bible_reading, label: s.bible_reading, requires: *male }
+      - { id: student_part, label: s.student_part, repeat: { count: 4 }, requires: { has_qualification: publisher },
+          extra_fields: [ { id: title, type: text }, { id: minutes, type: integer, min: 0 } ], pair_with: student_assistant }
+      - { id: student_assistant, label: s.student_assistant, repeat: { count: 4 }, requires: { has_qualification: publisher } }
+      - { id: living_part, label: s.living_part, repeat: { count: 2 }, requires: *elder_or_ms, extra_fields: [ { id: title, type: text } ] }
+      - { id: cbs_conductor, label: s.cbs_conductor, requires: *elder_or_ms }
+      - { id: cbs_reader, label: s.cbs_reader, requires: *male }
+      - { id: closing_prayer, label: s.closing_prayer, requires: *baptized }
+  - id: weekend
+    label: p.weekend
+    event_type: weekend_meeting
+    period: week
+    owner_role: public_meeting_coordinator
+    acceptance: true
+    publish_audience: board_public
+    remind_before: { days: 2 }
+    retention: { years: 2 }
+    slots:
+      - { id: talk, label: s.public_talk, allow_external: true, requires: *elder_or_ms,
+          extra_fields: [ { id: theme, type: text }, { id: home_congregation, type: text } ] }
+      - { id: opening_prayer, label: s.opening_prayer, requires: *baptized }
+      - { id: closing_prayer, label: s.closing_prayer, requires: *baptized }
+      - { id: wt_reader, label: s.wt_reader, requires: *male }
+  - id: av
+    label: p.av
+    event_type: [midweek_meeting, weekend_meeting]
+    period: month
+    owner_role: av_manager
+    assistant_roles: [av_assistant]
+    acceptance: true
+    publish_audience: board_public
+    remind_before: { days: 2 }
+    retention: { years: 2 }
+    slots:
+      - { id: mixer, label: s.mixer, count: 1, requires: *baptized }   # ⚙
+      - { id: microphones, label: s.microphones, count: 2, requires: *baptized }   # ⚙ numero
+  - id: attendants
+    label: p.attendants
+    event_type: [midweek_meeting, weekend_meeting]
+    period: month
+    owner_role: attendant_manager
+    assistant_roles: [attendant_assistant]
+    acceptance: true
+    publish_audience: board_public
+    remind_before: { days: 2 }
+    retention: { years: 2 }
+    slots:
+      - { id: entrance, label: s.entrance, count: 1, requires: *baptized }   # ⚙
+      - { id: hall, label: s.hall, count: 1, requires: *baptized }           # ⚙
+  - id: field_service
+    label: p.field_service
+    event_type: field_service_meeting
+    period: week
+    owner_role: field_service_organizer
+    acceptance: true
+    publish_audience: board_public
+    remind_before: { days: 2 }
+    retention: { years: 2 }
+    slots:
+      - { id: conductor, label: s.fs_conductor, requires: *elder_or_ms }   # ⚙

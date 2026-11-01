@@ -1,0 +1,5 @@
+notifications:
+  - { id: sent, trigger: document.state_changed, filter: { form: log, to_state: sent },
+      audience: team_leads, text: n.sent }
+reminders:
+  - { id: before, kind: event.assignment_before, days: 1, audience: assignee, text: n.before }

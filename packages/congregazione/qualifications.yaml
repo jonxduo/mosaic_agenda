@@ -1,0 +1,28 @@
+sets: [full_time]
+qualifications:
+  - { id: publisher, label: q.publisher, duration: permanent, visibility: congregation }
+  - { id: baptized, label: q.baptized, duration: permanent, implies: [publisher], visibility: elders }
+  - id: elder
+    label: q.elder
+    duration: permanent
+    requires: { all: [ { has_qualification: baptized }, { attribute: { name: sex, op: eq, value: m } } ] }
+    excludes: [ministerial_servant]
+    visibility: congregation            # ⚙
+  - id: ministerial_servant
+    label: q.ministerial_servant
+    duration: permanent
+    requires: { all: [ { has_qualification: baptized }, { attribute: { name: sex, op: eq, value: m } } ] }
+    excludes: [elder]
+    visibility: congregation            # ⚙
+  - { id: auxiliary_pioneer, label: q.auxiliary_pioneer, duration: fixed_period, fixed_period_unit: month,
+      requires: { has_qualification: baptized }, sets: [full_time],
+      excludes: [regular_pioneer, special_pioneer, field_missionary], visibility: elders }
+  - { id: regular_pioneer, label: q.regular_pioneer, duration: permanent,
+      requires: { has_qualification: baptized }, sets: [full_time],
+      excludes: [auxiliary_pioneer, special_pioneer, field_missionary], visibility: congregation }   # ⚙
+  - { id: special_pioneer, label: q.special_pioneer, duration: permanent,
+      requires: { has_qualification: baptized }, sets: [full_time],
+      excludes: [auxiliary_pioneer, regular_pioneer, field_missionary], visibility: congregation }
+  - { id: field_missionary, label: q.field_missionary, duration: permanent,
+      requires: { has_qualification: baptized }, sets: [full_time],
+      excludes: [auxiliary_pioneer, regular_pioneer, special_pioneer], visibility: congregation }

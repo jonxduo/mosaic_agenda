@@ -1,0 +1,3 @@
+board:
+  default_audience: all_members
+  default_visibility: { from: period_start_minus_days_7, until: period_end }

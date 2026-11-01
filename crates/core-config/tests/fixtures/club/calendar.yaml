@@ -1,0 +1,2 @@
+event_types:
+  - { id: gathering, label: e.gathering, default_recurrence: "FREQ=WEEKLY;BYDAY=MO", default_time: "20:30" }

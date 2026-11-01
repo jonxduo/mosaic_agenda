@@ -1,0 +1,10 @@
+aggregates:
+  - id: log_summary
+    label: a.log_summary
+    source: { form: log, state: filed }
+    group_by: [variant, unit:team]
+    measures:
+      - { id: done_count, op: count_true, field: done }
+      - { id: count_sum, op: sum, field: count, filter: { field: { name: done, op: set } } }
+      - { id: extra_count, op: count, filter: { in_set: extra } }
+    read_audience: keepers

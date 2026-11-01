@@ -1,0 +1,36 @@
+id: congregazione
+version: 1.0.0
+core_compat: ">=1.0, <2.0"
+default_locale: it
+locales: [it]
+branding:
+  app_name: app.name
+  identifier: it.example.congregazione   # da personalizzare prima della pubblicazione sugli store
+  icon: branding/icon.png
+  primary_color: "#2952CC"               # dal mockup di riferimento (canvas "Mockup app Congregazione")
+files:
+  - qualifications.yaml
+  - units.yaml
+  - roles.yaml
+  - audiences.yaml
+  - forms.yaml
+  - workflows.yaml
+  - aggregates.yaml
+  - calendar.yaml
+  - programs.yaml
+  - resources.yaml
+  - board.yaml
+  - notifications.yaml
+  - ui.yaml
+person_attributes:
+  # serve per i requisiti di alcuni incarichi e parti
+  - { id: sex, type: choice, options: [m, f], read_audience: admins_and_elders }
+  - { id: phone, type: text, max_length: 40, read_audience: contacts_readers }
+  - { id: email, type: text, max_length: 120, read_audience: contacts_readers }
+  # false = un incaricato compila per conto
+  - { id: uses_app, type: boolean, read_audience: elders }
+privacy_notice: privacy/it.md
+domain_terms: [anzian, elder, servitor, servant, pionier, pioneer, proclamator, publisher,
+               congregaz, congregation, territor, uscier, attendant, rapporto, service_report,
+               adunanz, meeting, sorvegliant, overseer, segretari, secretary,
+               "torre di guardia", watchtower]

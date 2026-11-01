@@ -1,0 +1,18 @@
+workflows:
+  - id: service_report
+    states: [draft, submitted, collected, forwarded, registered]
+    initial: draft
+    steps:
+      - { id: submit, label: st.submit, kind: transition, from: [draft], to: submitted, by: subject_or_on_behalf }
+      - { id: collect, kind: collect, from: [submitted], to: collected }            # automatico nel lotto del gruppo
+      - { id: forward, label: st.forward, kind: forward, from: [collected], to: forwarded, by: group_oversight, rule: any,
+          allow_incomplete_after: { offset_days: 8 },                              # ⚙
+          effects: [ { notify: { audience: secretariat, text: n.batch_forwarded } } ] }
+      - { id: register, label: st.register, kind: register, from: [forwarded], to: registered, by: secretariat }
+      - { id: send_back, label: st.send_back, kind: transition, from: [submitted, collected], to: draft, by: group_oversight, note: required,
+          effects: [ { notify: { audience: subject_only, text: n.report_sent_back } } ] }
+    # I promemoria sui rapporti stanno qui (non anche in notifications.yaml) per non duplicarli.
+    timers:
+      - { at: { offset_days: 5, from: period_end }, do: { remind: { audience: subject_missing, text: n.report_missing } } }
+      - { at: { offset_days: 8, from: period_end }, do: { remind: { audience: group_oversight, text: n.batch_incomplete } } }
+      - { at: { offset_days: 15, from: period_end }, do: { remind: { audience: secretariat, text: n.batches_missing } } }

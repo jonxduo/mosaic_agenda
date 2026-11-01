@@ -1,0 +1,44 @@
+app.name: Club
+q:
+  member: Member
+  senior: Senior
+  junior: Junior
+  temp: Temporary
+u.team: Team
+r.lead: Lead
+r.keeper: Keeper
+f.log: Monthly log
+fld.level: Level
+fld.size: Size
+fld.count: Count
+fld.bonus: Bonus
+fld.total: Total
+fld.done: Done
+fld.topic: Topic
+fld.name: Name
+fld.kind: Kind
+fld.used_on: Used on
+opt.s: Small
+opt.l: Large
+opt.a: Kind A
+opt.kind_b: Kind B
+opt.returned: Returned
+step.send: Send
+step.forward: Forward
+step.file: File
+a.log_summary: Summary
+msr.done_count: Done
+msr.count_sum: Count
+msr.extra_count: Extra
+e.gathering: Gathering
+p.weekly_plan: Weekly plan
+s.host: Host
+s.talker: Talker
+s.helper: Helper
+res.tool: Tool
+rq.give_back: Give it back
+n.forwarded: "Forwarded {period}"
+n.missing: Missing
+n.sent: "{subject} sent the log"
+n.before: Reminder
+menu.logs: Logs

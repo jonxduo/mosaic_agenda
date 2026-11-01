@@ -1,0 +1,13 @@
+resource_types:
+  - id: tool
+    label: res.tool
+    attributes:
+      - { id: name, type: text }
+      - { id: kind, type: choice, options: [a, { id: b, label: opt.kind_b }] }
+    holder_requires: { has_qualification: member }
+    manager_role: keeper
+    log_fields: [ { id: used_on, type: date } ]
+    requests:
+      - { id: give_back, label: rq.give_back, answers: [returned], due: { days: 7 } }
+    rules: { max_per_holder: 2 }
+    read_audience: { list: keepers, history: keepers }

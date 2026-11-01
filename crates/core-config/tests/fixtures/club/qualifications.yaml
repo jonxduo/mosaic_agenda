@@ -1,0 +1,8 @@
+sets: [extra]
+qualifications:
+  - { id: member, label: q.member, duration: permanent }
+  - { id: senior, label: q.senior, duration: permanent, implies: [member],
+      requires: { attribute: { name: level, op: ge, value: 2 } } }
+  - { id: junior, label: q.junior, duration: permanent, implies: [member], excludes: [senior] }
+  - { id: temp, label: q.temp, duration: fixed_period, fixed_period_unit: month, sets: [extra],
+      requires: { has_qualification: member } }

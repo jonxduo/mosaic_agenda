@@ -1,0 +1,30 @@
+forms:
+  - id: service_report
+    label: f.service_report
+    subject: { has_qualification: publisher }
+    periodicity: monthly
+    open_at: { offset_days: 0 }          # 1° del mese successivo
+    due: { offset_days: 5 }              # ⚙
+    batching: { unit_type: group }
+    workflow: service_report
+    fillers_on_behalf: group_oversight
+    retention: { years: 5 }              # ⚙
+    read_audience_by_state:
+      draft: subject_only
+      submitted: report_submitted_readers
+      collected: report_submitted_readers
+      forwarded: report_submitted_readers
+      registered: report_registered_readers
+    variants:
+      - id: full_time
+        when: { in_set: full_time }      # valutato sul mese del rapporto
+        fields:
+          - { id: hours, type: duration, label: fld.hours, min: 0, max: 31000 }       # ⚙ max in minuti
+          - { id: extra_hours, type: duration, label: fld.extra_hours, min: 0 }       # ⚙ significato da confermare
+          - { id: bible_studies, type: integer, label: fld.bible_studies, min: 0, max: 99 }
+          - { id: notes, type: long_text, label: fld.notes, max_length: 1000 }
+      - id: publisher
+        when: { always: true }
+        fields:
+          - { id: participated, type: boolean, label: fld.participated }
+          - { id: bible_studies, type: integer, label: fld.bible_studies, min: 0, max: 99 }

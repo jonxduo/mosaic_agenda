@@ -1,0 +1,32 @@
+# Tabella §13.12. I promemoria sui rapporti (mancante dopo 5 giorni, lotto incompleto
+# dopo 8, lotti mancanti dopo 15) sono i timer del flusso in workflows.yaml.
+notifications:
+  - { id: report_open, trigger: document.opened, filter: { form: service_report },
+      audience: subject_only, text: n.report_open, category: reports }
+  - { id: report_received, trigger: document.state_changed, filter: { form: service_report, to_state: submitted },
+      audience: group_oversight, text: n.report_received, category: reports }
+  - { id: batch_forwarded, trigger: batch.forwarded, filter: { form: service_report },
+      audience: secretariat, text: n.batch_forwarded, category: reports }
+  - { id: summary_available, trigger: aggregate.distributed, filter: { aggregate: monthly_summary },
+      audience: elders, text: n.summary_available, category: reports }
+  - { id: assignment_new, trigger: assignment.created,
+      audience: assignee, text: n.assignment_new, category: assignments }
+  - { id: assignment_declined, trigger: assignment.declined,
+      audience: object_team, text: n.assignment_declined, category: assignments }
+  - { id: program_published, trigger: program.published,
+      audience: board_public, text: n.program_published, category: board }
+  - { id: territory_assigned, trigger: resource.assigned, filter: { resource_type: territory },
+      audience: resource_holder, text: n.territory_assigned, category: territories }
+  - { id: territory_request, trigger: resource.request_opened, filter: { resource_type: territory },
+      audience: resource_holder, text: n.territory_request, category: territories, mandatory: true }
+  - { id: aux_pioneer_ending, trigger: qualification.expiring,
+      filter: { qualification: auxiliary_pioneer, days_before: 7 },          # ⚙ giorni di preavviso
+      audience: subject_only, text: n.aux_pioneer_ending, category: reports }
+  - { id: admin_role_uncovered, trigger: role.uncovered,
+      audience: app_admins, text: n.admin_role_uncovered, category: admin, mandatory: true }
+  - { id: admin_grant_invalid, trigger: grant.invalid,
+      audience: app_admins, text: n.admin_grant_invalid, category: admin, mandatory: true }
+
+reminders:
+  - { id: assignment_reminder, kind: event.assignment_before, days: 2,
+      audience: assignee, text: n.assignment_reminder, category: assignments }

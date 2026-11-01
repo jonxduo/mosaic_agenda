@@ -1,0 +1,4 @@
+home:
+  - view: my_documents_due
+menu:
+  - { label: menu.logs, view: work_queue, params: { workflow: log }, visible_to: keepers }

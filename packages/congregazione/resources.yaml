@@ -1,0 +1,27 @@
+resource_types:
+  - id: territory
+    label: res.territory
+    attributes:
+      - { id: number, type: text, label: fld.territory_number, max_length: 20 }
+      - { id: name, type: text, label: fld.territory_name, max_length: 120 }
+      - { id: kind, type: choice, options: [residential, business, rural, other], label: fld.territory_kind }
+      - { id: notes, type: long_text, label: fld.notes, max_length: 2000 }
+      - { id: map, type: photos, max_count: 3, label: fld.map }
+    holder_requires: { has_qualification: publisher }
+    manager_role: territory_manager
+    assistant_roles: [territory_assistant]
+    log_fields:
+      - { id: completed_on, type: date, label: fld.completed_on }
+      - { id: notes, type: long_text, label: fld.notes, max_length: 1000 }
+    requests:
+      - { id: log_or_return, label: rq.log_or_return, answers: [logged, returned, not_yet], due: { days: 14 } }
+      - { id: return, label: rq.return, answers: [returned], due: { days: 14 } }
+    rules:
+      max_per_holder: 3                                  # ⚙
+      remind_holder_after_no_log: { days: 120 }          # ⚙
+      alert_manager_not_worked: { days: 365 }            # ⚙
+    read_audience:
+      list: territory_team
+      history: territory_team
+      attachments_holder: true
+    retention: { forever: true }                         # storico senza scadenza

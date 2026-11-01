@@ -1,0 +1,52 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/core-model",
+    "crates/core-config",
+    "crates/core-crypto",
+    "crates/core-events",
+    "crates/core-engine",
+    "crates/core-sync",
+    "crates/core-push",
+    "crates/core-api",
+    "crates/core-testkit",
+    "crates/xtask",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "UNLICENSED"
+publish = false
+
+[workspace.dependencies]
+core-model = { path = "crates/core-model" }
+core-config = { path = "crates/core-config" }
+
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_norway = "0.9"
+serde_path_to_error = "0.1"
+schemars = "1.2"
+postcard = { version = "1.1", default-features = false, features = ["use-std"] }
+blake3 = "1.8"
+thiserror = "2.0"
+anyhow = "1.0"
+time = { version = "0.3", features = ["serde", "serde-human-readable", "macros", "parsing", "formatting"] }
+data-encoding = "2.11"
+getrandom = "0.4"
+jsonschema = { version = "0.60", default-features = false }
+clap = { version = "4.6", features = ["derive"] }
+walkdir = "2.5"
+proptest = "1.12"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+
+[profile.release]
+lto = "thin"

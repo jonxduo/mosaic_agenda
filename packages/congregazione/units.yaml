@@ -1,0 +1,2 @@
+unit_types:
+  - { id: group, label: u.group, membership: exclusive, member_requires: { has_qualification: publisher } }

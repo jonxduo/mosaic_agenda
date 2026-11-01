@@ -1,0 +1,26 @@
+[package]
+name = "core-config"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Loading, validation and compilation of configuration packages."
+
+[dependencies]
+core-model.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_norway.workspace = true
+serde_path_to_error.workspace = true
+schemars.workspace = true
+postcard.workspace = true
+blake3.workspace = true
+thiserror.workspace = true
+jsonschema.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true

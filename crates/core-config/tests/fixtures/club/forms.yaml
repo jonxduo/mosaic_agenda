@@ -1,0 +1,21 @@
+forms:
+  - id: log
+    label: f.log
+    subject: { has_qualification: member }
+    periodicity: monthly
+    due: { offset_days: 5 }
+    batching: { unit_type: team }
+    workflow: log
+    read_audience_by_state: { draft: subject_only, sent: log_readers, filed: log_readers }
+    variants:
+      - id: extra
+        when: { in_set: extra }
+        fields:
+          - { id: count, type: integer, min: 0 }
+          - { id: bonus, type: integer, min: 0 }
+          - { id: total, type: computed, expr: { sum: [ { field: count }, { field: bonus } ] } }
+      - id: base
+        when: { always: true }
+        fields:
+          - { id: done, type: boolean }
+          - { id: count, type: integer, min: 0 }

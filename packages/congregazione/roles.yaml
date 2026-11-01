@@ -1,0 +1,82 @@
+# Gli ancoraggi YAML (&, *) valgono solo all'interno di questo file.
+roles:
+  # --- di gruppo ---
+  - id: group_overseer
+    label: r.group_overseer
+    scope: unit:group
+    requires: { has_qualification: elder }
+    holders: { min: 0, max: 1 }
+    exclusive_with: [group_servant]
+    priority: 300
+    permissions: &group_report_perms
+      - { permission: document.read, on: form:service_report, target: own_scope }
+      - { permission: batch.collect, on: form:service_report, target: own_scope }
+      - { permission: batch.forward, on: form:service_report, target: own_scope }
+      - { permission: document.fill_on_behalf, on: form:service_report, target: own_scope }
+    mandatory: { always: true }          # coperto da questo o da group_servant
+  - id: group_servant
+    label: r.group_servant
+    scope: unit:group
+    requires: { has_qualification: ministerial_servant }
+    holders: { min: 0, max: 1 }
+    substitute_for: group_overseer
+    exclusive_with: [group_overseer]
+    priority: 250
+    permissions: *group_report_perms
+  - id: group_supervisor
+    label: r.group_supervisor
+    scope: unit:group
+    requires: { has_qualification: elder }
+    holders: { min: 0, max: 1 }
+    supervises: group_servant
+    mandatory: { holds_role: { role: group_servant, where: subject_unit } }
+    priority: 300
+    permissions:
+      - { permission: document.read, on: form:service_report, target: own_scope }
+      - { permission: batch.forward, on: form:service_report, target: own_scope }
+  - id: group_assistant
+    label: r.group_assistant
+    scope: unit:group
+    requires: { any: [ { has_qualification: elder }, { has_qualification: ministerial_servant } ] }
+    holders: { min: 0, max: 1 }
+    priority: 200
+    permissions: *group_report_perms
+  # --- di congregazione ---
+  - id: secretary
+    label: r.secretary
+    scope: organization
+    requires: { has_qualification: elder }
+    holders: { min: 1, max: 1 }
+    priority: 400
+    permissions:
+      - { permission: document.read, on: form:service_report, target: organization }
+      - { permission: batch.register, on: form:service_report, target: organization }
+      - { permission: aggregate.generate, on: aggregate:monthly_summary, target: organization }
+      - { permission: document.distribute, on: aggregate:monthly_summary, target: organization }
+      - { permission: document.fill_on_behalf, on: form:service_report, target: organization }
+  - { id: lmm_overseer, label: r.lmm_overseer, scope: organization, requires: { has_qualification: elder }, holders: { min: 1, max: 1 },
+      permissions: [ { permission: program.draft, on: program:midweek }, { permission: program.assign, on: program:midweek },
+                     { permission: assignment.respond_on_behalf, on: program:midweek } ] }
+  - { id: public_meeting_coordinator, label: r.public_meeting_coordinator, scope: organization, requires: { has_qualification: elder }, holders: { min: 1, max: 1 },
+      permissions: [ { permission: program.draft, on: program:weekend }, { permission: program.assign, on: program:weekend },
+                     { permission: assignment.respond_on_behalf, on: program:weekend } ] }
+  - { id: av_manager, label: r.av_manager, scope: organization, requires: &elder_or_ms { any: [ { has_qualification: elder }, { has_qualification: ministerial_servant } ] }, holders: { min: 1, max: 1 },
+      permissions: [ { permission: program.draft, on: program:av }, { permission: program.assign, on: program:av } ] }
+  - { id: av_assistant, label: r.av_assistant, scope: organization, requires: *elder_or_ms, holders: { min: 0, max: null }, assistant_of: av_manager,
+      permissions: [ { permission: program.draft, on: program:av }, { permission: program.assign, on: program:av } ] }
+  - { id: attendant_manager, label: r.attendant_manager, scope: organization, requires: *elder_or_ms, holders: { min: 1, max: 1 },
+      permissions: [ { permission: program.draft, on: program:attendants }, { permission: program.assign, on: program:attendants } ] }
+  - { id: attendant_assistant, label: r.attendant_assistant, scope: organization, requires: *elder_or_ms, holders: { min: 0, max: null }, assistant_of: attendant_manager,
+      permissions: [ { permission: program.draft, on: program:attendants }, { permission: program.assign, on: program:attendants } ] }
+  - { id: territory_manager, label: r.territory_manager, scope: organization, requires: *elder_or_ms, holders: { min: 1, max: 1 },
+      permissions: [ { permission: resource.manage, on: resource:territory }, { permission: resource.assign, on: resource:territory }, { permission: resource.request, on: resource:territory } ] }
+  - { id: territory_assistant, label: r.territory_assistant, scope: organization, requires: *elder_or_ms, holders: { min: 0, max: null }, assistant_of: territory_manager,
+      permissions: [ { permission: resource.assign, on: resource:territory }, { permission: resource.request, on: resource:territory } ] }
+  - { id: field_service_organizer, label: r.field_service_organizer, scope: organization, requires: *elder_or_ms, holders: { min: 0, max: null },   # ⚙
+      permissions: [ { permission: program.draft, on: program:field_service }, { permission: program.assign, on: program:field_service } ] }
+  # pubblica in bacheca i programmi assegnati (§13.10) e gli avvisi liberi
+  - { id: board_manager, label: r.board_manager, scope: organization, requires: *elder_or_ms, holders: { min: 1, max: null },   # ⚙
+      permissions: [ { permission: board.publish }, { permission: board.withdraw }, { permission: program.publish } ] }
+  - { id: app_admin, label: r.app_admin, scope: organization, requires: { has_qualification: elder }, holders: { min: 2, max: null },   # ⚙
+      permissions: [ { permission: people.manage }, { permission: qualifications.manage }, { permission: units.manage },
+                     { permission: roles.grant }, { permission: devices.manage }, { permission: calendar.manage }, { permission: config.publish } ] }

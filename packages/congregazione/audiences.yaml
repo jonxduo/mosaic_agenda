@@ -1,0 +1,28 @@
+# Pubblici di sistema sempre disponibili (non ridefinibili): subject_only, subject_or_on_behalf,
+# subject_missing, assignee, resource_holder, object_team, root_admins.
+audiences:
+  - { id: congregation, select: { with_qualification: publisher } }
+  - { id: elders, select: { with_qualification: elder } }
+  - { id: elders_and_servants, select: { union: [ { with_qualification: elder }, { with_qualification: ministerial_servant } ] } }
+  - { id: full_time, select: { with_set: full_time } }
+  - id: group_oversight
+    select: { union: [ { role_holders: { role: group_overseer, where: subject_unit } },
+                       { role_holders: { role: group_servant, where: subject_unit } },
+                       { role_holders: { role: group_assistant, where: subject_unit } },
+                       { supervisors_of: subject_unit } ] }
+  # chiunque sorvegli un gruppo, senza riferimento a un soggetto (menu, code di lavoro)
+  - id: group_leaders
+    select: { union: [ { role_holders: { role: group_overseer, where: anywhere } },
+                       { role_holders: { role: group_servant, where: anywhere } },
+                       { role_holders: { role: group_assistant, where: anywhere } },
+                       { role_holders: { role: group_supervisor, where: anywhere } } ] }
+  - { id: secretariat, select: { role_holders: { role: secretary, where: anywhere } } }
+  - { id: report_submitted_readers, select: { union: [ { subject: true }, { audience: group_oversight }, { audience: secretariat } ] } }
+  - { id: report_registered_readers, select: { union: [ { audience: report_submitted_readers }, { audience: elders } ] } }
+  - { id: av_team, select: { union: [ { role_holders: { role: av_manager, where: anywhere } }, { role_holders: { role: av_assistant, where: anywhere } } ] } }
+  - { id: attendant_team, select: { union: [ { role_holders: { role: attendant_manager, where: anywhere } }, { role_holders: { role: attendant_assistant, where: anywhere } } ] } }
+  - { id: territory_team, select: { union: [ { role_holders: { role: territory_manager, where: anywhere } }, { role_holders: { role: territory_assistant, where: anywhere } } ] } }
+  - { id: board_public, select: { audience: congregation } }           # ⚙
+  - { id: contacts_readers, select: { union: [ { audience: elders }, { audience: group_oversight }, { subject: true } ] } }   # ⚙
+  - { id: app_admins, select: { role_holders: { role: app_admin, where: anywhere } } }
+  - { id: admins_and_elders, select: { union: [ { audience: elders }, { audience: app_admins } ] } }

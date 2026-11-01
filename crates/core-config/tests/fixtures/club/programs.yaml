@@ -1,0 +1,14 @@
+x-req:
+  senior: &senior { has_qualification: senior }
+program_types:
+  - id: weekly_plan
+    label: p.weekly_plan
+    event_type: gathering
+    period: week
+    owner_role: keeper
+    publish_audience: all_members
+    slots:
+      - { id: host, label: s.host, requires: *senior }
+      - { id: talker, label: s.talker, repeat: { count: 2 }, pair_with: helper,
+          extra_fields: [ { id: topic, type: text } ] }
+      - { id: helper, label: s.helper, repeat: { count: 2 } }

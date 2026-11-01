@@ -1,0 +1,5 @@
+audiences:
+  - { id: all_members, select: { with_qualification: member } }
+  - { id: team_leads, select: { role_holders: { role: lead, where: subject_unit } } }
+  - { id: keepers, select: { role_holders: { role: keeper } } }
+  - { id: log_readers, select: { union: [ { subject: true }, { audience: team_leads }, { audience: keepers } ] } }

@@ -1,0 +1,6 @@
+# I programmi in stato "assigned" compaiono nella coda del responsabile della bacheca,
+# che li pubblica (program.published + board.posted).
+board:
+  default_audience: board_public
+  default_visibility: { from: period_start_minus_days_30, until: period_end }
+  free_notices: { allowed: true, audiences: [board_public, elders_and_servants, elders] }

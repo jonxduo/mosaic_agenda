@@ -1,0 +1,37 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests (fixed proptest seed)
+        run: cargo test --workspace
+        env:
+          PROPTEST_RNG_SEED: "20261101"
+      - name: Tests (random proptest seed)
+        run: cargo test --workspace
+      - name: Schema is up to date
+        run: cargo xtask schema --check
+      - name: Validate every package
+        run: cargo xtask validate --all
+      - name: Bundle every package
+        run: for p in packages/*/; do cargo xtask bundle --package "$(basename "$p")"; done
+      - name: No domain terms in the core
+        run: cargo xtask check-domain-leak
+  # Frontend lint/test, desktop build and package scenario tests are added in phases F3 and F5.

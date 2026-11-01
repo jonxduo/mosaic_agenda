@@ -1,0 +1,18 @@
+roles:
+  - id: lead
+    label: r.lead
+    scope: unit:team
+    requires: { has_qualification: senior }
+    holders: { min: 0, max: 1 }
+    priority: 200
+    permissions:
+      - { permission: document.read, on: form:log, target: own_scope }
+      - { permission: batch.forward, on: form:log }
+  - id: keeper
+    label: r.keeper
+    scope: organization
+    requires: { has_qualification: member }
+    holders: { min: 1, max: null }
+    permissions:
+      - { permission: batch.register, on: form:log, target: organization }
+      - { permission: aggregate.generate, on: aggregate:log_summary }

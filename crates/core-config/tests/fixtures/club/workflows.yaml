@@ -1,0 +1,12 @@
+workflows:
+  - id: log
+    states: [draft, sent, collected, forwarded, filed]
+    initial: draft
+    steps:
+      - { id: send, kind: transition, from: [draft], to: sent, by: subject_or_on_behalf }
+      - { id: collect, kind: collect, from: [sent], to: collected }
+      - { id: forward, kind: forward, from: [collected], to: forwarded, by: team_leads,
+          effects: [ { notify: { audience: keepers, text: n.forwarded } } ] }
+      - { id: file, kind: register, from: [forwarded], to: filed, by: keepers }
+    timers:
+      - { at: { offset_days: 3, from: period_end }, do: { remind: { audience: subject_missing, text: n.missing } } }

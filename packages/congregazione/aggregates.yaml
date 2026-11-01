@@ -1,0 +1,19 @@
+aggregates:
+  - id: monthly_summary
+    label: a.monthly_summary
+    source: { form: service_report, state: registered, period: same }
+    group_by: [variant, unit:group]
+    measures:
+      - { id: publishers_participated, op: count_true, field: participated }
+      - { id: publisher_studies, op: sum, field: bible_studies, filter: { field: { name: participated, op: set } } }
+      - { id: full_time_count, op: count, filter: { in_set: full_time } }
+      - { id: auxiliary_count, op: count, filter: { has_qualification: auxiliary_pioneer } }
+      - { id: regular_count, op: count, filter: { has_qualification: regular_pioneer } }
+      - { id: special_and_missionary_count, op: count, filter: { any: [ { has_qualification: special_pioneer }, { has_qualification: field_missionary } ] } }
+      - { id: hours_total, op: sum, field: hours }
+      - { id: extra_hours_total, op: sum, field: extra_hours }
+      - { id: full_time_studies, op: sum, field: bible_studies, filter: { in_set: full_time } }
+    include_individual_documents: true
+    list_missing: true
+    read_audience: elders
+    retention: { years: 5 }              # ⚙
