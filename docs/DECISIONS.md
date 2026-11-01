@@ -93,3 +93,55 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
 - Preavviso di fine servizio di pioniere ausiliare: 7 giorni.
 - Almeno 2 amministratori dell'app (anziani); giorni e orari delle adunanze come §13.8.
 - Indicazioni della congregazione sugli strumenti digitali: da verificare prima del pilota.
+
+## 2026-11-01 — Fase F2 (eventi e crittografia)
+
+### Librerie
+- **Firme e chiavi**: `ed25519-dalek` 3 e `x25519-dalek` 3 (stessa generazione usata da iroh 1.x,
+  così la chiave Ed25519 del dispositivo diventa direttamente la `SecretKey` iroh in F4).
+- **Sealed box**: `crypto_box` 0.9 (ultima stabile; la 0.10 è pre-release). Per restare su una
+  sola generazione `aead` 0.5 usiamo `chacha20poly1305` 0.10, `hkdf` 0.12 e `sha2` 0.10 invece
+  delle 0.11/0.13 appena uscite. Da riallineare quando `crypto_box` 0.10 sarà stabile.
+- **SQLite**: `rusqlite` 0.41 con `bundled-sqlcipher-vendored-openssl` (OpenSSL compilato dal
+  sorgente: nessuna dipendenza di sistema, funziona anche per Android/iOS; prima build ~30 s).
+- Le chiavi sono costruite da byte casuali di `getrandom` invece che da un `RngCore`, per non
+  dipendere dalle versioni di `rand_core` delle singole librerie.
+
+### Cifratura
+- AAD esattamente come §8.2: `org (32) || channel id (32) || epoch (u32 LE) || nome del kind`.
+- La chiave sigillata verso un dispositivo contiene `channel id || epoch || chiave`: una chiave
+  distribuita per un canale non può essere spacciata per quella di un altro canale o epoch.
+- Rotazioni concorrenti: si conservano tutte le chiavi della stessa epoch (ogni payload resta
+  leggibile) e per i nuovi payload si usa quella introdotta dall'evento con id minore.
+- Chiavi dei canali nel database cifrate di nuovo con una chiave locale derivata (HKDF-SHA256,
+  info `org-app/local-wrap/1`) dalla chiave del database, legata a canale, epoch ed evento.
+- Vettori di test: RFC 8032 (Ed25519), RFC 7748 (X25519), draft XChaCha20-Poly1305 A.3.1, più
+  vettori di regressione nostri per id dei canali e formato AAD (cambiarli renderebbe illeggibili
+  i canali esistenti).
+
+### Eventi
+- **Tipi in chiaro** (`EventKind::is_public`): `org.*`, `config.published`, `device.*`,
+  `channel.*`, `person.data_erasure_requested`, `retention.applied`, `admin.quarantine_resolved`.
+  Tutti gli altri devono essere cifrati per un canale: la regola è verificata in `verify()`.
+  Gli eventi organizzativi (qualifiche, incarichi, appartenenze) andranno in un canale di tutta
+  l'organizzazione (F3): verificabili da ogni dispositivo membro, illeggibili per chi è fuori.
+- **Intestazione in chiaro** del payload: tipo di oggetto, id dell'oggetto e tipo configurato
+  (es. quale modulo). Mai valori dei campi.
+- La genesi ha `org` = 32 byte a zero (il suo id non è ancora noto); `OrgId` = id della genesi.
+  Non contiene nomi di persone, solo id e chiavi dei dispositivi degli amministratori radice;
+  un `nonce` casuale rende unico ogni `OrgId`.
+- **Ordine deterministico**: `(depth, id)`. Poiché `depth = 1 + max(depth dei genitori)`,
+  quest'ordine è già topologico; non serve un ordinamento topologico separato.
+- postcard codifica le varianti per posizione: i nuovi `EventKind` si aggiungono solo in fondo
+  (un test blocca le posizioni).
+
+### Archivio
+- Stati a livello di archivio: `pending_parents` finché manca un antenato, poi `valid`
+  (strutturale) o `invalid` (profondità dichiarata errata). `pending_key`, `invalid` per
+  permessi e `quarantined` li assegna il motore (F3). Eventi con id o firma errati non vengono
+  mai salvati.
+- `ancestry_index` non implementato: il passato causale si calcola con una CTE ricorsiva,
+  sufficiente ai volumi previsti (§1.3). Da rivedere con le misure del simulatore (F4).
+- Un archivio è legato a una sola organizzazione: dalla genesi, oppure con `bind_org` quando un
+  nuovo dispositivo conosce l'`OrgId` dal ticket di invito prima di ricevere la genesi.
+- `SecretStore`: per ora solo l'implementazione in memoria; desktop (`keyring`) in F5, mobile in F7.

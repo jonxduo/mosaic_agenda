@@ -5,8 +5,21 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
+description = "Signed event envelope, causal graph, genesis and the encrypted local store."
 
 [dependencies]
+core-model.workspace = true
+core-crypto.workspace = true
+serde.workspace = true
+postcard.workspace = true
+blake3.workspace = true
+thiserror.workspace = true
+zeroize.workspace = true
+rusqlite.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+tempfile.workspace = true
 
 [lints]
 workspace = true

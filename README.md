@@ -9,7 +9,7 @@ di build. Specifica completa: `PROGETTO.md`. Decisioni tecniche: `docs/DECISIONS
 | --- | --- |
 | F0 — Fondamenta | fatta: workspace, crate, `xtask` (`schema`, `validate`, `bundle`, `check-domain-leak`), CI |
 | F1 — Modello e configurazione | fatta: `core-model`, `core-config`, pacchetto `congregazione` |
-| F2 — Eventi e crittografia | da fare |
+| F2 — Eventi e crittografia | fatta: `core-crypto`, `core-events` (busta firmata, genesi, archivio SQLCipher) |
 | F3–F10 | da fare |
 
 ## Comandi
