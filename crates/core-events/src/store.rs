@@ -441,6 +441,74 @@ impl EventStore {
         Ok(self.ancestors(of)?.contains(ancestor))
     }
 
+    // ----- synchronization helpers ------------------------------------------
+
+    /// Every stored event id with its depth (any status), ordered by depth then id.
+    pub fn ids_with_depth(&self) -> Result<Vec<(EventHash, u64)>, StoreError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, depth FROM events ORDER BY depth, id")?;
+        let rows = stmt.query_map([], |r| Ok((r.get::<_, Vec<u8>>(0)?, r.get::<_, i64>(1)?)))?;
+        rows.map(|r| {
+            let (id, d) = r?;
+            Ok((
+                hash_from(id)?,
+                u64::try_from(d).map_err(|_| StoreError::Corrupt("depth"))?,
+            ))
+        })
+        .collect()
+    }
+
+    /// Serialized event, as received.
+    pub fn raw(&self, id: &EventHash) -> Result<Option<Vec<u8>>, StoreError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT raw FROM events WHERE id = ?1",
+                params![id.0.to_vec()],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
+    /// Every stored event, any status, in the deterministic order.
+    pub fn all_events(&self) -> Result<Vec<SignedEvent>, StoreError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT raw FROM events ORDER BY depth, id")?;
+        let rows = stmt.query_map([], |r| r.get::<_, Vec<u8>>(0))?;
+        rows.map(|r| SignedEvent::from_bytes(&r?).map_err(StoreError::from))
+            .collect()
+    }
+
+    /// Records the state of an attachment blob.
+    pub fn set_blob(
+        &mut self,
+        hash: &[u8; 32],
+        size: u64,
+        state: &str,
+        pinned_reason: Option<&str>,
+    ) -> Result<(), StoreError> {
+        let size = i64::try_from(size).map_err(|_| StoreError::Corrupt("blob size"))?;
+        self.conn.execute(
+            "INSERT INTO blobs (hash, size, state, pinned_reason) VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(hash) DO UPDATE SET size = excluded.size, state = excluded.state, pinned_reason = excluded.pinned_reason",
+            params![hash.to_vec(), size, state, pinned_reason],
+        )?;
+        Ok(())
+    }
+
+    pub fn blob_state(&self, hash: &[u8; 32]) -> Result<Option<String>, StoreError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT state FROM blobs WHERE hash = ?1",
+                params![hash.to_vec()],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
     // ----- channel keys ----------------------------------------------------
 
     fn key_context(channel: &ChannelRef, source: &EventHash) -> Vec<u8> {

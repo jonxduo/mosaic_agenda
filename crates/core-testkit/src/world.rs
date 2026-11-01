@@ -108,6 +108,15 @@ impl World {
         self.now = ms_of(date) + 8 * 3_600_000;
     }
 
+    /// Sets the clock to an exact time (ms since the Unix epoch).
+    pub fn set_time(&mut self, ms: i64) {
+        self.now = ms;
+    }
+
+    pub fn now(&self) -> i64 {
+        self.now
+    }
+
     fn tick(&mut self) -> i64 {
         self.now += 1000;
         self.now

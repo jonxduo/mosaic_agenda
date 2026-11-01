@@ -13,6 +13,7 @@ core-testkit.workspace = true
 anyhow.workspace = true
 clap.workspace = true
 walkdir.workspace = true
+time.workspace = true
 
 [lints]
 workspace = true

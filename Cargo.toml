@@ -27,6 +27,7 @@ core-crypto = { path = "crates/core-crypto" }
 core-events = { path = "crates/core-events" }
 core-engine = { path = "crates/core-engine" }
 core-testkit = { path = "crates/core-testkit" }
+core-sync = { path = "crates/core-sync" }
 
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -54,6 +55,11 @@ chacha20poly1305 = "0.10"
 hkdf = "0.12"
 sha2 = "0.10"
 rusqlite = { version = "0.41", features = ["bundled-sqlcipher-vendored-openssl"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "io-util"] }
+iroh = "1.4"
+iroh-gossip = "0.101"
+n0-future = "0.3"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

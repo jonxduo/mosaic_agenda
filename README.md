@@ -11,7 +11,8 @@ di build. Specifica completa: `PROGETTO.md`. Decisioni tecniche: `docs/DECISIONS
 | F1 — Modello e configurazione | fatta: `core-model`, `core-config`, pacchetto `congregazione` |
 | F2 — Eventi e crittografia | fatta: `core-crypto`, `core-events` (busta firmata, genesi, archivio SQLCipher) |
 | F3 — Motore | fatto: `core-engine` (permessi sul passato causale, flussi, lotti, resoconti, programmi, territori, bacheca, promemoria, conflitti), `core-testkit`, 16 scenari |
-| F4–F10 | da fare |
+| F4 — Sincronizzazione | fatta: `core-sync` (riconciliazione, ricevute, stato di consegna, abbinamento, allegati, trasporto iroh con gossip), simulatore `cargo xtask simulate` |
+| F5–F10 | da fare |
 
 ## Comandi
 
@@ -22,6 +23,7 @@ cargo xtask validate --all    # valida ogni pacchetto
 cargo xtask bundle --package <nome>
 cargo xtask check-domain-leak
 cargo xtask test-package --package <nome>   # scenari in packages/<nome>/tests
+cargo run --release -p xtask -- simulate --package <nome> --devices 120 --days 60
 ```
 
 Su macOS con l'SDK 27 installato accanto a un linker più vecchio, il link fallisce con

@@ -1,0 +1,21 @@
+# Popolazione fittizia per `cargo xtask simulate` (§15.3). Dati inventati.
+# Il numero di persone è dato da --devices (un telefono per persona).
+groups: 7
+ios_share: 0.4                      # quota di telefoni iOS (push visibile, risveglio meno affidabile)
+profiles:
+  - { weight: 50, qualifications: [publisher, baptized], attributes: { sex: f } }
+  - { weight: 12, qualifications: [publisher], attributes: { sex: m } }
+  - { weight: 8,  qualifications: [publisher, baptized, regular_pioneer], attributes: { sex: f } }
+  - { weight: 15, qualifications: [publisher, baptized, ministerial_servant], attributes: { sex: m } }
+  - { weight: 15, qualifications: [publisher, baptized, elder], attributes: { sex: m } }
+# Incarichi assegnati a chi ne soddisfa i requisiti (per unità o uno per l'organizzazione).
+roles:
+  - { role: group_overseer, per_unit: true }
+  - { role: group_assistant, per_unit: true }
+  - { role: secretary }
+  - { role: lmm_overseer }
+  - { role: public_meeting_coordinator }
+  - { role: board_manager }
+  - { role: territory_manager }
+# I titolari di questi incarichi hanno anche un desktop d'archivio sempre acceso.
+archive_roles: [secretary]

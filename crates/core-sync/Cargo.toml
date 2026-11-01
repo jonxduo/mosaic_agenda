@@ -5,8 +5,29 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
+description = "Event reconciliation, receipts, delivery status, pairing, attachments and the iroh transport."
 
 [dependencies]
+core-model.workspace = true
+core-crypto.workspace = true
+core-events.workspace = true
+core-engine.workspace = true
+serde.workspace = true
+postcard.workspace = true
+blake3.workspace = true
+thiserror.workspace = true
+data-encoding.workspace = true
+tokio.workspace = true
+iroh.workspace = true
+iroh-gossip.workspace = true
+n0-future.workspace = true
+image.workspace = true
+
+[dev-dependencies]
+core-testkit.workspace = true
+core-config.workspace = true
+tempfile.workspace = true
+proptest.workspace = true
 
 [lints]
 workspace = true

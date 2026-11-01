@@ -479,6 +479,17 @@ impl<'a> Client<'a> {
         self.org_event(EventKind::DeviceRevoked, &DeviceRevoked { device })
     }
 
+    pub fn set_archive(
+        &self,
+        device: DevicePublicKey,
+        archive: bool,
+    ) -> Result<Vec<SignedEvent>, ActionError> {
+        self.org_event(
+            EventKind::DeviceArchiveSet,
+            &DeviceArchiveSet { device, archive },
+        )
+    }
+
     pub fn publish_config(
         &self,
         version: u32,

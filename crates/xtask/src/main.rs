@@ -65,6 +65,8 @@ enum Command {
         devices: u32,
         #[arg(long, default_value_t = 60)]
         days: u32,
+        #[arg(long, default_value_t = 1)]
+        seed: u64,
     },
 }
 
@@ -294,6 +296,33 @@ fn test_package(name: &str) -> Result<()> {
     Ok(())
 }
 
+/// Simulates the package's organization (§15.3); fails if the delivery target is missed.
+fn simulate(name: &str, devices: u32, days: u32, seed: u64) -> Result<()> {
+    let pkg = validate(name)?;
+    let bundle = core_config::compile(pkg).context("compiling the package")?;
+    let path = package_dir(name)?.join("simulation.yaml");
+    let population =
+        std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
+    let start = core_engine_date("2026-09-01")?;
+    let opts = core_testkit::sim::SimOptions {
+        devices: devices as usize,
+        days,
+        seed,
+        start,
+    };
+    let report =
+        core_testkit::sim::run(bundle.bytes, &population, &opts).map_err(|e| anyhow::anyhow!(e))?;
+    println!("{report}");
+    if !report.meets_target() {
+        bail!("delivery target missed");
+    }
+    Ok(())
+}
+
+fn core_engine_date(s: &str) -> Result<time::Date> {
+    core_testkit::sim::parse_date(s).ok_or_else(|| anyhow::anyhow!("bad date {s}"))
+}
+
 fn not_yet(what: &str, phase: &str) -> Result<()> {
     bail!("`{what}` is not available yet: it arrives in phase {phase} (PROGETTO.md §16)")
 }
@@ -325,7 +354,12 @@ fn run() -> Result<()> {
         Command::Build { .. } => not_yet("build", "F5"),
         Command::Dev { .. } => not_yet("dev", "F5"),
         Command::Bindings => not_yet("bindings", "F5"),
-        Command::Simulate { .. } => not_yet("simulate", "F4"),
+        Command::Simulate {
+            package,
+            devices,
+            days,
+            seed,
+        } => simulate(&package, devices, days, seed),
     }
 }
 

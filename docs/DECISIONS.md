@@ -216,3 +216,58 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   diversi e su dispositivi diversi della stessa persona danno lo stesso `state_hash`.
 - Testi del nucleo (non del pacchetto) per promemoria senza testo configurato, es.
   `core.resource_no_log`: verranno dalla UI (F5).
+
+## 2026-11-01 — Fase F4 (sincronizzazione)
+
+### Librerie
+- `iroh` 1.4, `iroh-gossip` 0.101 (stessa versione di iroh). Endpoint con la chiave Ed25519 del
+  dispositivo; relay n0 in sviluppo, relay propri dalla genesi in produzione; in test solo
+  loopback senza relay, con indirizzi insegnati tramite `MemoryLookup`.
+- **Allegati senza `iroh-blobs`** nella v1: i blob (già cifrati) viaggiano nel protocollo
+  `org-app/sync/1` (`BlobWant`/`Blob`), verificati con l'hash BLAKE3 del contenuto, salvati come
+  file con nome = hash. Motivo: API di `iroh-blobs` ampia e una seconda pila di trasferimento per
+  file di ~0,5 MB; da riconsiderare se servono trasferimenti riprendibili di file grandi.
+- Foto: crate `image` (solo JPEG e PNG): lato lungo 2048 px, JPEG qualità 80 (la ricodifica
+  elimina EXIF e GPS), miniatura 256 px qualità 60 (< 20 KB) da mettere nel payload cifrato,
+  immagine completa cifrata con la chiave del canale (AAD con kind `blob`).
+
+### Protocollo
+- Riepilogo per fasce di 64 livelli di profondità (numero di eventi e XOR degli id); per le fasce
+  diverse si scambiano gli id; si inviano gli eventi mancanti dal più vecchio, a lotti di 256 o
+  1 MB; i genitori ancora mancanti si chiedono con `Want`. Una sessione di prova senza differenze
+  scambia solo i due `Hello`.
+- `Session` è una macchina a stati senza I/O: lo stesso codice gira in memoria (test, simulatore)
+  e su QUIC. Sulla rete un solo stream bidirezionale, scrittura in un task separato (nessun
+  blocco reciproco con lotti grandi), fine sessione quando entrambi sono inattivi e ciascuno ha
+  ricevuto tutto ciò che l'altro ha inviato (frame `Idle` con i contatori).
+- Ricevute firmate (contesto `org-app/receipt/1`), non eventi; "inviato" con ricevute da almeno 2
+  dispositivi di altre persone, "consegnato" quando ogni persona del pubblico ne ha almeno una.
+- Un dispositivo accetta sessioni solo da dispositivi noti (`allowed`), salvo il primo contatto.
+
+### Abbinamento
+- Ticket `orgapp:` + base32 di postcard; segreto monouso di 32 byte confrontato in tempo costante;
+  il dispositivo che si connette deve essere quello delle chiavi presentate; codice a 6 cifre da
+  `blake3(segreto || chiavi)`. Dopo la conferma l'app pubblica `device.added` e il compito di
+  completamento distribuisce le chiavi: senza la chiave del canale `Organization` il nuovo
+  dispositivo non può verificare nulla (verificato nei test).
+
+### Simulatore
+- Due fasi: (1) attività reale (eventi firmati, cifrati e validati dal motore) di
+  un'organizzazione fittizia generata dal pacchetto con `packages/<nome>/simulation.yaml`
+  (profili di popolazione, incarichi, chi ha un desktop d'archivio); (2) propagazione minuto per
+  minuto con un modello di disponibilità: desktop d'archivio sempre accesi; telefoni 1–3 sessioni
+  al giorno di 2–10 minuti tra le 7 e le 22; risveglio push dopo ogni evento (Android 85% entro
+  2 minuti; iOS: notifica visibile aperta nel 60% dei casi dopo in media 45 minuti); due
+  dispositivi online si raggiungono via relay e ottengono l'unione degli eventi. La correttezza
+  dello scambio è provata in `core-sync`, il simulatore misura i tempi.
+- Semplificazione: le azioni non aspettano gli eventi da cui dipenderebbero (es. l'inoltro
+  avviene alla data prevista anche se un rapporto arriva dopo). Il generatore crea rapporti,
+  lotti, resoconti e programmi; non ancora territori e allegati.
+- Risultato (seed 1, dal 1° settembre 2026): 120 persone, 60 giorni, 1 desktop d'archivio →
+  100% dei documenti al nuovo pubblico entro 24 ore (mediana 1 min, p95 11 min), ~7,8 MB di
+  eventi all'anno per dispositivo, nessun evento invalido. Il volume generato (~220 eventi a
+  settimana) è sotto la stima di §1.3 (1.500–2.500): mancano territori, notifiche di lettura e
+  correzioni.
+- Generare l'attività di 120 persone richiede ~50 s, quasi tutti nella ricostruzione completa a
+  ogni azione (prova + vista). Con un anno di dati serve la proiezione incrementale: da fare
+  prima di F9 (avvio a freddo < 2 s).
