@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc e65fdd7d0264fa5e9a2c5a1e0257e21037703c5e7455368b015bb8eca354eab7 # shrinks to acts = [Fill("lead", 9)], seed = 1632419532659168
+cc f57141f15d953dcb425ae5fcbdfe90309980b2b1010bde1598c125780a913f2c # shrinks to acts = [Fill("lead", 9)], seed = 4285473698656385383

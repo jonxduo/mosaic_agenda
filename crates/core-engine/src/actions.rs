@@ -64,6 +64,8 @@ pub struct Client<'a> {
     pub keyring: &'a ChannelKeyring,
     /// Declared time of the new events (ms since the Unix epoch).
     pub now: i64,
+    /// Incremental engine on the same events, for a fast dry run.
+    pub engine: Option<&'a std::sync::Mutex<crate::engine::Engine>>,
 }
 
 /// Events being built, chained one after the other.
@@ -236,11 +238,27 @@ impl<'a> Client<'a> {
 
     /// Dry run: every new event must be valid for this device.
     fn finish(&self, chain: Chain) -> Result<Vec<SignedEvent>, ActionError> {
-        let mut all = self.events.to_vec();
-        all.extend(chain.events.iter().cloned());
-        let proj = rebuild(&all, &chain.keyring).map_err(|e| ActionError::Engine(e.to_string()))?;
-        for e in &chain.events {
-            match proj.verdict(&e.id) {
+        let verdicts: Vec<Option<Verdict>> = match self.engine.and_then(|m| m.lock().ok()) {
+            Some(mut engine) => engine
+                .preview(&chain.events, &chain.keyring)
+                .map_err(|e| ActionError::Engine(e.to_string()))?
+                .into_iter()
+                .map(Some)
+                .collect(),
+            None => {
+                let mut all = self.events.to_vec();
+                all.extend(chain.events.iter().cloned());
+                let proj = rebuild(&all, &chain.keyring)
+                    .map_err(|e| ActionError::Engine(e.to_string()))?;
+                chain
+                    .events
+                    .iter()
+                    .map(|e| proj.verdict(&e.id).cloned())
+                    .collect()
+            }
+        };
+        for (e, verdict) in chain.events.iter().zip(&verdicts) {
+            match verdict {
                 Some(Verdict::Valid) => {}
                 Some(Verdict::Invalid(m)) => return Err(ActionError::Denied(m.clone())),
                 other => {

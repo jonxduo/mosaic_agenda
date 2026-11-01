@@ -55,6 +55,7 @@ x25519-dalek = { version = "3.0", features = ["static_secrets"] }
 crypto_box = { version = "0.9", features = ["seal", "std"] }
 chacha20poly1305 = "0.10"
 hkdf = "0.12"
+argon2 = { version = "0.5", default-features = false, features = ["alloc", "zeroize"] }
 sha2 = "0.10"
 rusqlite = { version = "0.41", features = ["bundled-sqlcipher-vendored-openssl"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "io-util"] }
@@ -78,6 +79,13 @@ unsafe_code = "forbid"
 [workspace.lints.clippy]
 unwrap_used = "deny"
 expect_used = "deny"
+
+# The PIN key derivation (Argon2id, 64 MiB) is far too slow unoptimized.
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.blake2]
+opt-level = 3
 
 [profile.release]
 lto = "thin"

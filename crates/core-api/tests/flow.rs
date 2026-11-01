@@ -29,6 +29,7 @@ fn core(dir: &Path, name: &str, network: Network) -> Arc<Core> {
         secrets: Arc::new(MemorySecretStore::default()),
         network: Some(network),
         clock: None,
+        pin_params: Some(core_crypto::pin::PinParams::insecure_for_tests()),
     })
     .unwrap()
 }

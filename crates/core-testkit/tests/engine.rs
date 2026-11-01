@@ -13,7 +13,7 @@ use core_engine::channels::{audience_desc, derive_keyring};
 use core_engine::ops::{BatchKey, BatchStep, RoleGranted, Values, encode};
 use core_engine::projection::AlertKind;
 use core_engine::time::{PeriodKey, ms_of, parse_date};
-use core_engine::{Verdict, rebuild};
+use core_engine::{Engine, Update, Verdict, rebuild};
 use core_events::payloads::{DeviceInvited, KeyDistribution, SealedKeyEntry};
 use core_events::{Draft, EventKind, SignedEvent};
 use core_model::{Id, PersonId, Scalar, Slug, UnitId};
@@ -449,6 +449,7 @@ fn apply(w: &mut World, team: UnitId, a: &Act, n: i64) {
                     keys: &d.keys,
                     keyring: &ring,
                     now: ms_of(day("2026-12-01")) + n,
+                    engine: None,
                 };
                 if let Ok((_, e)) = client.fill_document(&slug("log"), p, period(m), v) {
                     new.extend(e);
@@ -470,6 +471,7 @@ fn apply(w: &mut World, team: UnitId, a: &Act, n: i64) {
                             keys: &d.keys,
                             keyring: &ring,
                             now: ms_of(day("2026-12-31")),
+                            engine: None,
                         };
                         if let Ok((_, e)) =
                             client.fill_document(&slug("log"), p, period(m), values(n))
@@ -511,7 +513,114 @@ proptest! {
         let mut reversed = w.events.clone();
         reversed.reverse();
         prop_assert_eq!(rebuild(&reversed, &ring0).unwrap().state_hash(), reference);
+
+        // Incremental engine: same state whatever the delivery order and chunks.
+        let genesis = &w.events[..1];
+        for (label, order, chunk) in [("natural", &w.events, 1usize), ("shuffled/1", &shuffled, 1), ("shuffled/3", &shuffled, 3), ("reversed/2", &reversed, 2)] {
+            let mut engine = Engine::build_for(genesis.to_vec(), d0).unwrap();
+            engine.set_checkpoint_interval(2);
+            for c in order.chunks(chunk) {
+                engine.extend(c, d0).unwrap();
+            }
+            prop_assert_eq!(engine.projection().state_hash(), reference, "{}", label);
+        }
+        // Random causal order (each event after its parents), as sync
+        // delivers them: out-of-order events resume from a saved state.
+        let causal = causal_shuffle(&w.events, seed);
+        let mut engine = Engine::build_for(causal[..1].to_vec(), d0).unwrap();
+        engine.set_checkpoint_interval(2);
+        for e in &causal[1..] {
+            engine.extend(std::slice::from_ref(e), d0).unwrap();
+        }
+        prop_assert_eq!(engine.projection().state_hash(), reference, "causal order");
     }
+}
+
+/// A random order in which every event comes after its parents.
+fn causal_shuffle(events: &[SignedEvent], seed: u64) -> Vec<SignedEvent> {
+    let mut left: Vec<&SignedEvent> = events.iter().collect();
+    let mut seen = std::collections::BTreeSet::new();
+    let mut out = Vec::new();
+    let mut x = seed | 1;
+    while !left.is_empty() {
+        let ready: Vec<usize> = (0..left.len())
+            .filter(|&i| left[i].body.parents.iter().all(|p| seen.contains(p)))
+            .collect();
+        x ^= x << 13;
+        x ^= x >> 7;
+        x ^= x << 17;
+        let pick = ready[(x % ready.len() as u64) as usize];
+        let e = left.remove(pick);
+        seen.insert(e.id);
+        out.push(e.clone());
+    }
+    out
+}
+
+/// Late events that sort before others resume from a saved state, without
+/// a full rebuild, and give the same state.
+#[test]
+fn late_events_resume_from_a_saved_state() {
+    let (mut w, team) = club();
+    let acts = [
+        Act::Fill("m1", 10),
+        Act::ConcurrentFills(11),
+        Act::Send("m1", 10),
+        Act::Fill("m2", 10),
+        Act::ConcurrentEditsSamePerson(10),
+        Act::Send("m2", 10),
+        Act::Send("lead", 10),
+    ];
+    for (i, a) in acts.iter().enumerate() {
+        apply(&mut w, team, a, i as i64);
+    }
+    let keys = &w.device("lead", Some(0)).unwrap().keys;
+    let ring = derive_keyring(&w.events, keys);
+    let reference = rebuild(&w.events, &ring).unwrap().state_hash();
+    let mut kinds = std::collections::BTreeMap::new();
+    for seed in 1..20u64 {
+        let causal = causal_shuffle(&w.events, seed);
+        let mut engine = Engine::build_for(causal[..1].to_vec(), keys).unwrap();
+        engine.set_checkpoint_interval(2);
+        for e in &causal[1..] {
+            let u = engine.extend(std::slice::from_ref(e), keys).unwrap();
+            *kinds.entry(format!("{u:?}")).or_insert(0) += 1;
+        }
+        assert_eq!(engine.projection().state_hash(), reference, "seed {seed}");
+    }
+    assert!(kinds.get("Replayed").copied().unwrap_or(0) > 0, "{kinds:?}");
+    assert!(kinds.get("Appended").copied().unwrap_or(0) > 0, "{kinds:?}");
+}
+
+/// Dry run of new events: same verdicts as a rebuild with them.
+#[test]
+fn engine_preview_matches_rebuild() {
+    let (mut w, team) = club();
+    for (i, a) in [
+        Act::Fill("m1", 10),
+        Act::Send("m1", 10),
+        Act::Fill("m2", 10),
+    ]
+    .iter()
+    .enumerate()
+    {
+        apply(&mut w, team, a, i as i64);
+    }
+    let keys = &w.device("lead", Some(0)).unwrap().keys;
+    let n = w.events.len();
+    let base = w.events[..n - 1].to_vec();
+    let last = w.events[n - 1..].to_vec();
+    let mut engine = Engine::build_for(base.clone(), keys).unwrap();
+    let ring = derive_keyring(&w.events, keys);
+    let before = engine.projection().state_hash();
+    let verdicts = engine.preview(&last, &ring).unwrap();
+    let full = rebuild(&w.events, &ring).unwrap();
+    assert_eq!(verdicts, vec![full.verdict(&last[0].id).cloned().unwrap()]);
+    // The preview left the engine untouched.
+    assert_eq!(engine.projection().state_hash(), before);
+    assert_eq!(engine.events().len(), n - 1);
+    assert_eq!(engine.extend(&last, keys).unwrap(), Update::Appended);
+    assert_eq!(engine.projection().state_hash(), full.state_hash());
 }
 
 #[test]

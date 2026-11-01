@@ -69,6 +69,18 @@ fn tampering_is_detected() {
     bad.body.author = other.public();
     let forged = SignedEvent::sign(bad.body.clone(), &other).unwrap();
     assert_ne!(forged.id, e.id, "changing the author changes the id");
+    // Reading back from the local store checks the id too.
+    let mut bad = e.clone();
+    bad.body.declared_time += 1;
+    let bytes = bad.to_bytes().unwrap();
+    assert_eq!(
+        SignedEvent::from_stored_bytes(&bytes).unwrap_err(),
+        EventError::BadId
+    );
+    assert_eq!(
+        SignedEvent::from_stored_bytes(&e.to_bytes().unwrap()).unwrap(),
+        e
+    );
 }
 
 #[test]

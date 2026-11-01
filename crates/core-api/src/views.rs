@@ -172,14 +172,27 @@ impl Core {
                 privacy_notice: privacy,
             });
         }
+        // Locked: the database is closed, nothing else can be shown.
+        if self.is_locked() {
+            return Ok(AppStatus {
+                state: AppState::Locked,
+                branding,
+                org_name: None,
+                me: None,
+                unsynced: 0,
+                unsynced_label: String::new(),
+                has_pin: true,
+                privacy_notice: None,
+            });
+        }
         let outbox = self
             .state
             .lock()
             .map_err(|_| ApiError::internal("poisoned"))?
             .store
-            .outbox()
-            .map(|o| o.len())
-            .unwrap_or(0) as u32;
+            .store()
+            .and_then(|s| s.outbox().ok())
+            .map_or(0, |o| o.len()) as u32;
         let unsynced_label = if outbox == 0 {
             String::new()
         } else {
@@ -224,9 +237,7 @@ impl Core {
                     )
                 }),
         });
-        let state = if self.is_locked() {
-            AppState::Locked
-        } else if me.is_none() {
+        let state = if me.is_none() {
             AppState::Joining
         } else {
             AppState::Ready
@@ -541,7 +552,7 @@ impl Core {
                     .is_some_and(|o| o.id == *doc_id)
         })?;
         let st = self.state.lock().ok()?;
-        let d = core_sync::delivery::delivery(&st.store, &v.proj, last).ok()?;
+        let d = core_sync::delivery::delivery(st.store.store()?, &v.proj, last).ok()?;
         let t = self.texts();
         Some(t.get(match d {
             core_sync::delivery::Delivery::Pending => "core.delivery.pending",
@@ -1879,8 +1890,11 @@ impl Core {
                 .lock()
                 .map_err(|_| ApiError::internal("poisoned"))?;
             (
-                st.store.count().unwrap_or(0) as u32,
-                st.store.outbox().map(|o| o.len()).unwrap_or(0) as u32,
+                st.store.store().and_then(|s| s.count().ok()).unwrap_or(0) as u32,
+                st.store
+                    .store()
+                    .and_then(|s| s.outbox().ok())
+                    .map_or(0, |o| o.len()) as u32,
             )
         };
         let t = self.texts();

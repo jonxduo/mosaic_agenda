@@ -210,8 +210,14 @@ pub fn check_distribution(
 
 /// Keys a device can open from the distribution events it has.
 pub fn derive_keyring(events: &[SignedEvent], keys: &DeviceKeys) -> ChannelKeyring {
-    let me = keys.public();
     let mut ring = ChannelKeyring::new();
+    absorb_keys(&mut ring, events, keys);
+    ring
+}
+
+/// Adds to `ring` the keys this device can open from `events`.
+pub fn absorb_keys(ring: &mut ChannelKeyring, events: &[SignedEvent], keys: &DeviceKeys) {
+    let me = keys.public();
     for e in events {
         if !matches!(
             e.body.kind,
@@ -228,7 +234,6 @@ pub fn derive_keyring(events: &[SignedEvent], keys: &DeviceKeys) -> ChannelKeyri
             }
         }
     }
-    ring
 }
 
 pub fn audience_desc(audience: &Slug, scope: ChannelScope) -> ChannelDescriptor {

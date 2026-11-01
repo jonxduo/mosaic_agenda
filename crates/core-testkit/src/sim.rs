@@ -25,7 +25,7 @@ use core_engine::Verdict;
 use core_engine::ops::{Assignee, AssignmentSpec, Response, SlotKey, Values};
 use core_engine::rules::{expected_subjects, step_actors};
 use core_engine::time::{PeriodKey, add_days, date_of, ms_of};
-use core_events::{EventKind, PayloadChannel};
+use core_events::{EventKind, PayloadChannel, SignedEvent};
 use core_model::config::{Periodicity, ProgramPeriod, Repeat, StepKind};
 use core_model::strings::ScopeDef;
 use core_model::{Id, Permission, Scalar, Slug, UnitId};
@@ -148,6 +148,10 @@ pub struct Report {
     pub quarantined: usize,
     pub generation_secs: f64,
     pub propagation_secs: f64,
+    /// Cold start of the admin device: events decoded from their stored
+    /// bytes (id checked), then the projection built from scratch.
+    pub cold_load_secs: f64,
+    pub cold_build_secs: f64,
 }
 
 impl Report {
@@ -219,10 +223,17 @@ impl fmt::Display for Report {
             "Invalid events: {}, superseded: {}, quarantined: {}",
             self.invalid, self.superseded, self.quarantined
         )?;
-        write!(
+        writeln!(
             f,
             "Time: generation {:.1}s, propagation {:.1}s",
             self.generation_secs, self.propagation_secs
+        )?;
+        write!(
+            f,
+            "Cold start ({} events): load {:.2}s, projection {:.2}s",
+            self.setup_events + self.activity_events,
+            self.cold_load_secs,
+            self.cold_build_secs
         )
     }
 }
@@ -937,6 +948,24 @@ pub fn run(bundle: Vec<u8>, population_yaml: &str, opts: &SimOptions) -> Result<
     }
     let generation_secs = started.elapsed().as_secs_f64();
 
+    // ----- cold start -------------------------------------------------------------------
+    let raw: Vec<Vec<u8>> =
+        g.w.events
+            .iter()
+            .filter_map(|e| e.to_bytes().ok())
+            .collect();
+    let t = std::time::Instant::now();
+    let loaded: Vec<SignedEvent> = raw
+        .iter()
+        .filter_map(|b| SignedEvent::from_stored_bytes(b).ok())
+        .collect();
+    let cold_load_secs = t.elapsed().as_secs_f64();
+    let t = std::time::Instant::now();
+    if let Ok(admin) = g.w.device(crate::world::ADMIN, None) {
+        let _ = core_engine::Engine::build_for(loaded, &admin.keys);
+    }
+    let cold_build_secs = t.elapsed().as_secs_f64();
+
     // ----- propagation ----------------------------------------------------------------
     let started = std::time::Instant::now();
     let mut devices: Vec<(core_crypto::DevicePublicKey, bool, bool)> = Vec::new(); // key, archive, ios
@@ -1146,5 +1175,7 @@ pub fn run(bundle: Vec<u8>, population_yaml: &str, opts: &SimOptions) -> Result<
         quarantined: count(&|v| *v == Verdict::Quarantined),
         generation_secs,
         propagation_secs: started.elapsed().as_secs_f64(),
+        cold_load_secs,
+        cold_build_secs,
     })
 }

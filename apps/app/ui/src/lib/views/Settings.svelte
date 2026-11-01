@@ -51,9 +51,10 @@
     </section>
     <section class="card stack">
       <label for="pin">{t('pin')}</label>
+      <p class="muted">{t('pin_hint')}</p>
       <input id="pin" type="password" inputmode="numeric" autocomplete="off" bind:value={pin} style="max-width: 200px" />
       <div class="row">
-        <button class="btn" disabled={pin.length < 4} onclick={() => setPin(pin)}>{t('set_pin')}</button>
+        <button class="btn" disabled={pin.length < 4} onclick={() => setPin(pin)}>{hasPin ? t('change_pin') : t('set_pin')}</button>
         {#if hasPin}<button class="btn" onclick={() => setPin(null)}>{t('remove_pin')}</button>
         <button class="btn" onclick={() => run(api.lock()).then(onchange)}>{t('lock_now')}</button>{/if}
       </div>

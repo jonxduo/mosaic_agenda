@@ -19,7 +19,7 @@ enum Key {
     Document(String),
 }
 
-pub(crate) fn superseded(ctx: &mut Ctx<'_>, proj: &Projection) -> BTreeSet<usize> {
+pub(crate) fn superseded(ctx: &mut Ctx, proj: &Projection) -> BTreeSet<usize> {
     let cfg = proj.cfg().cloned();
     let mut groups: BTreeMap<Key, Vec<usize>> = BTreeMap::new();
     for i in 0..ctx.graph.events.len() {
@@ -48,8 +48,8 @@ pub(crate) fn superseded(ctx: &mut Ctx<'_>, proj: &Projection) -> BTreeSet<usize
         let mut ranked: Vec<(i64, core_events::EventHash, usize)> = members
             .iter()
             .map(|&i| {
-                let e = &ctx.graph.events[i];
                 let auth = ctx.auth_past(i, &proj.configs);
+                let e = &ctx.graph.events[i];
                 let priority = match (auth.author(&e.body.author), cfg.as_ref()) {
                     (Ok(p), Some(cfg)) => auth.priority(cfg, p, date_of(e.body.declared_time)),
                     _ => i32::MIN,

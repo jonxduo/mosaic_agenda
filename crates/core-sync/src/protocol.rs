@@ -15,7 +15,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use core_crypto::DeviceKeys;
-use core_events::{EventHash, EventStore, Inserted, OrgId, SignedEvent, StoreError};
+use core_events::{EventHash, Inserted, OrgId, SignedEvent, StoreError};
 use serde::{Deserialize, Serialize};
 
 use crate::blobs::BlobStore;
@@ -108,7 +108,7 @@ pub struct SessionStats {
 
 /// What a session works on: borrowed for each message only.
 pub struct Peer<'a> {
-    pub store: &'a mut EventStore,
+    pub store: &'a mut crate::local::LocalLog,
     pub blobs: &'a mut dyn BlobStore,
     pub keys: &'a DeviceKeys,
     pub now: i64,

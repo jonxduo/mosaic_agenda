@@ -32,6 +32,23 @@ impl ChannelKeyring {
             .insert(source, key);
     }
 
+    /// Channel epochs with at least one key that `older` does not have.
+    pub fn added_since(&self, older: &ChannelKeyring) -> Vec<ChannelRef> {
+        self.keys
+            .iter()
+            .filter(|(k, by_source)| {
+                older
+                    .keys
+                    .get(k)
+                    .is_none_or(|old| by_source.keys().any(|s| !old.contains_key(s)))
+            })
+            .map(|((id, epoch), _)| ChannelRef {
+                id: *id,
+                epoch: *epoch,
+            })
+            .collect()
+    }
+
     pub fn contains(&self, channel: &ChannelRef) -> bool {
         self.keys.contains_key(&(channel.id, channel.epoch))
     }

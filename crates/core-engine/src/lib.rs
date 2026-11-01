@@ -9,6 +9,7 @@ pub mod auth;
 pub mod channels;
 pub mod config;
 mod conflicts;
+pub mod engine;
 mod handle;
 pub mod notify;
 pub mod ops;
@@ -18,4 +19,5 @@ pub mod time;
 pub mod values;
 
 pub use auth::{AuthState, Denied};
+pub use engine::{Engine, Update};
 pub use projection::{EngineError, Projection, Verdict, rebuild};

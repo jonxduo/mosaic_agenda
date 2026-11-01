@@ -9,6 +9,8 @@
 //! - [`keyring`]: keys by channel and epoch, and the deterministic rules for
 //!   concurrent rotations.
 //! - [`secret_store`]: where device secrets live.
+//! - [`pin`]: the database key wrapped with the PIN, and the inbox key for
+//!   events received while the app is locked.
 
 pub mod bytes;
 pub mod channel;
@@ -17,6 +19,7 @@ pub mod distribution;
 pub mod error;
 pub mod keyring;
 pub mod local;
+pub mod pin;
 pub mod secret_store;
 
 pub use channel::{

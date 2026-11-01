@@ -207,14 +207,16 @@ pub enum EngineError {
     Config(String),
 }
 
-/// Graph helpers over the event slice.
-pub(crate) struct Graph<'a> {
-    pub events: &'a [SignedEvent],
+/// The events in `(depth, id)` order, with their parents as indices.
+pub(crate) struct Graph {
+    pub events: Vec<SignedEvent>,
     pub parents: Vec<Vec<usize>>,
+    pub index: HashMap<EventHash, usize>,
 }
 
-impl<'a> Graph<'a> {
-    fn new(events: &'a [SignedEvent]) -> Self {
+impl Graph {
+    /// `events` must be sorted and without duplicates.
+    pub(crate) fn new(events: Vec<SignedEvent>) -> Self {
         let index: HashMap<EventHash, usize> =
             events.iter().enumerate().map(|(i, e)| (e.id, i)).collect();
         let parents = events
@@ -227,7 +229,11 @@ impl<'a> Graph<'a> {
                     .collect()
             })
             .collect();
-        Self { events, parents }
+        Self {
+            events,
+            parents,
+            index,
+        }
     }
 
     /// True when event `a` is in the causal past of event `b`.
@@ -254,9 +260,9 @@ impl<'a> Graph<'a> {
 }
 
 /// Bitset of organizational ancestors.
-type Bits = Vec<u64>;
+pub(crate) type Bits = Vec<u64>;
 
-fn bit_set(bits: &mut Bits, i: usize) {
+pub(crate) fn bit_set(bits: &mut Bits, i: usize) {
     let w = i / 64;
     if bits.len() <= w {
         bits.resize(w + 1, 0);
@@ -264,11 +270,11 @@ fn bit_set(bits: &mut Bits, i: usize) {
     bits[w] |= 1 << (i % 64);
 }
 
-fn bit_get(bits: &Bits, i: usize) -> bool {
+pub(crate) fn bit_get(bits: &Bits, i: usize) -> bool {
     bits.get(i / 64).is_some_and(|w| w & (1 << (i % 64)) != 0)
 }
 
-fn bit_or(a: &mut Bits, b: &Bits) {
+pub(crate) fn bit_or(a: &mut Bits, b: &Bits) {
     if a.len() < b.len() {
         a.resize(b.len(), 0);
     }
@@ -277,6 +283,7 @@ fn bit_or(a: &mut Bits, b: &Bits) {
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct Decoded {
     pub op: Option<Op>,
     /// Content present but undecodable.
@@ -284,8 +291,8 @@ pub(crate) struct Decoded {
 }
 
 /// Inputs shared by the phases.
-pub(crate) struct Ctx<'a> {
-    pub graph: Graph<'a>,
+pub(crate) struct Ctx {
+    pub graph: Graph,
     pub decoded: Vec<Decoded>,
     pub auth_bit: Vec<Option<usize>>,
     pub auth_events: Vec<usize>,
@@ -294,7 +301,7 @@ pub(crate) struct Ctx<'a> {
     pub verdicts: Vec<Option<Verdict>>,
 }
 
-impl Ctx<'_> {
+impl Ctx {
     /// Authorization state of the causal past of event `i`.
     pub fn auth_past(&mut self, i: usize, configs: &Configs) -> Arc<AuthState> {
         let bits = self.past[i].clone();
@@ -350,7 +357,12 @@ impl Projection {
         })
     }
 
-    fn alert(&mut self, kind: AlertKind, event: Option<EventHash>, message: impl Into<String>) {
+    pub(crate) fn alert(
+        &mut self,
+        kind: AlertKind,
+        event: Option<EventHash>,
+        message: impl Into<String>,
+    ) {
         self.alerts.push(Alert {
             kind,
             event,
@@ -359,73 +371,82 @@ impl Projection {
     }
 }
 
-/// Rebuilds the projection from scratch.
+/// Rebuilds the projection from scratch. Same result as an [`crate::engine::Engine`]
+/// fed with the same events and keyring.
 pub fn rebuild(
     events: &[SignedEvent],
     keyring: &ChannelKeyring,
 ) -> Result<Projection, EngineError> {
-    let mut events: Vec<SignedEvent> = events.to_vec();
-    core_events::order::sort_events(&mut events);
-    events.dedup_by(|a, b| a.id == b.id);
-    let genesis = events.first().ok_or(EngineError::Empty)?;
-    let info = check_genesis(genesis).map_err(EngineError::Genesis)?;
-    let compiled = core_config::decode(&info.payload.config_bundle)
-        .map_err(|e| EngineError::Config(e.to_string()))?;
-    let mut configs = Configs::default();
-    configs.versions.insert(1, Cfg::new(1, compiled));
-    let org = genesis.org_id();
+    crate::engine::Engine::build(events.to_vec(), keyring.clone())
+        .map(crate::engine::Engine::into_projection)
+}
 
-    let graph = Graph::new(&events);
-    let n = events.len();
-    let mut decoded = Vec::with_capacity(n);
-    for e in &events {
-        let d = match e.open(keyring) {
-            Ok(bytes) => match Op::decode(e.body.kind, &bytes) {
-                Some(op) => Decoded {
-                    op: Some(op),
-                    malformed: false,
-                },
-                None => Decoded {
-                    op: None,
-                    malformed: true,
-                },
-            },
-            Err(_) => Decoded {
-                op: None,
+/// Decrypts and decodes the content of an event, if this device can.
+pub(crate) fn decode(e: &SignedEvent, keyring: &ChannelKeyring) -> Decoded {
+    match e.open(keyring) {
+        Ok(bytes) => match Op::decode(e.body.kind, &bytes) {
+            Some(op) => Decoded {
+                op: Some(op),
                 malformed: false,
             },
+            None => Decoded {
+                op: None,
+                malformed: true,
+            },
+        },
+        Err(_) => Decoded {
+            op: None,
+            malformed: false,
+        },
+    }
+}
+
+impl Ctx {
+    pub(crate) fn new(graph: Graph, decoded: Vec<Decoded>) -> Self {
+        let mut ctx = Self {
+            graph,
+            decoded,
+            auth_bit: Vec::new(),
+            auth_events: Vec::new(),
+            past: Vec::new(),
+            cache: HashMap::new(),
+            verdicts: Vec::new(),
         };
-        decoded.push(d);
+        ctx.index();
+        ctx
     }
-    let mut auth_bit = vec![None; n];
-    let mut auth_events = Vec::new();
-    for (i, e) in events.iter().enumerate() {
-        if Op::is_authorization(e.body.kind) {
-            auth_bit[i] = Some(auth_events.len());
-            auth_events.push(i);
-        }
-    }
-    let mut past: Vec<Bits> = Vec::with_capacity(n);
-    for i in 0..n {
-        let mut bits = Bits::new();
-        for &p in &graph.parents[i] {
-            bit_or(&mut bits, &past[p]);
-            if let Some(b) = auth_bit[p] {
-                bit_set(&mut bits, b);
+
+    /// Recomputes the organizational ancestors of every event. Keeps the
+    /// authorization cache: it stays valid while the organizational events
+    /// and their verdicts do not change.
+    pub(crate) fn index(&mut self) {
+        let n = self.graph.events.len();
+        self.auth_bit = vec![None; n];
+        self.auth_events.clear();
+        for (i, e) in self.graph.events.iter().enumerate() {
+            if Op::is_authorization(e.body.kind) {
+                self.auth_bit[i] = Some(self.auth_events.len());
+                self.auth_events.push(i);
             }
         }
-        past.push(bits);
+        self.past = Vec::with_capacity(n);
+        for i in 0..n {
+            let mut bits = Bits::new();
+            for &p in &self.graph.parents[i] {
+                bit_or(&mut bits, &self.past[p]);
+                if let Some(b) = self.auth_bit[p] {
+                    bit_set(&mut bits, b);
+                }
+            }
+            self.past.push(bits);
+        }
+        self.verdicts = vec![None; n];
     }
-    let mut ctx = Ctx {
-        graph,
-        decoded,
-        auth_bit,
-        auth_events,
-        past,
-        cache: HashMap::new(),
-        verdicts: vec![None; n],
-    };
+}
 
+/// Phases 1 and 2 (organizational events, roles beyond their maximum,
+/// active configuration): the state every other event is applied on.
+pub(crate) fn organizational_phase(ctx: &mut Ctx, configs: Configs, org: OrgId) -> Projection {
     let mut proj = Projection {
         org,
         auth: AuthState::default(),
@@ -449,11 +470,9 @@ pub fn rebuild(
         triggers: Vec::new(),
         heads: Vec::new(),
     };
-
-    // Phase 1: organizational events.
     let auth_list = ctx.auth_events.clone();
     for &i in &auth_list {
-        let verdict = organizational_verdict(&mut ctx, &mut proj, i);
+        let verdict = organizational_verdict(ctx, &mut proj, i);
         ctx.verdicts[i] = Some(verdict);
     }
     let all: Bits = {
@@ -490,95 +509,116 @@ pub fn rebuild(
             );
         }
     }
-    proj.active_config = active_config(&ctx, &mut proj);
+    proj.active_config = active_config(ctx, &mut proj);
     proj.auth = global;
+    for &i in &auth_list {
+        proj.verdicts.insert(
+            ctx.graph.events[i].id,
+            ctx.verdicts[i].clone().unwrap_or(Verdict::PendingKey),
+        );
+    }
+    proj
+}
 
-    // Revocations, for quarantine.
-    let revocations: Vec<(usize, core_crypto::DevicePublicKey)> = auth_list
+/// Valid revocations: (event index, revoked device).
+pub(crate) fn revocations(ctx: &Ctx) -> Vec<(EventHash, core_crypto::DevicePublicKey)> {
+    ctx.auth_events
         .iter()
         .filter(|&&i| ctx.verdicts[i] == Some(Verdict::Valid))
         .filter_map(|&i| match &ctx.decoded[i].op {
-            Some(Op::DeviceRevoked(r)) => Some((i, r.device)),
+            Some(Op::DeviceRevoked(r)) => Some((ctx.graph.events[i].id, r.device)),
             _ => None,
         })
-        .collect();
-    let accepted = accepted_quarantines(&ctx, &proj);
+        .collect()
+}
 
-    // Phase 2: conflicts.
-    let superseded = crate::conflicts::superseded(&mut ctx, &proj);
-
-    // Phase 3: everything else.
-    for i in 0..n {
-        if ctx.verdicts[i].is_some() {
-            continue;
+/// Phase 3 for one event: quarantine, keys, conflicts, then the handler.
+pub(crate) fn apply_event(
+    ctx: &mut Ctx,
+    proj: &mut Projection,
+    i: usize,
+    revocations: &[(EventHash, core_crypto::DevicePublicKey)],
+    accepted: &BTreeSet<EventHash>,
+    superseded: &BTreeSet<EventHash>,
+) -> Verdict {
+    let e = &ctx.graph.events[i];
+    let id = e.id;
+    // Quarantine depends only on author, time and causal past: decided
+    // before decryption, so every device agrees.
+    let quarantined = !accepted.contains(&id)
+        && revocations.iter().any(|(r, dev)| {
+            let Some(&ri) = ctx.graph.index.get(r) else {
+                return false;
+            };
+            *dev == e.body.author
+                && !ctx.auth_bit[ri].is_some_and(|b| bit_get(&ctx.past[i], b))
+                && e.body.declared_time > ctx.graph.events[ri].body.declared_time
+        });
+    let verdict = if quarantined {
+        Verdict::Quarantined
+    } else if ctx.decoded[i].malformed {
+        Verdict::Invalid("content cannot be decoded".into())
+    } else if ctx.decoded[i].op.is_none() {
+        Verdict::PendingKey
+    } else if superseded.contains(&id) {
+        Verdict::Superseded
+    } else {
+        let auth = ctx.auth_past(i, &proj.configs);
+        let op = ctx.decoded[i].op.clone();
+        match op {
+            Some(op) => match crate::handle::handle(proj, &auth, ctx, i, &op) {
+                Ok(()) => Verdict::Valid,
+                Err(d) => Verdict::Invalid(d.0),
+            },
+            None => Verdict::PendingKey,
         }
-        let e = &ctx.graph.events[i];
-        let id = e.id;
-        // Quarantine depends only on author, time and causal past: decided
-        // before decryption, so every device agrees.
-        let quarantined = !accepted.contains(&id)
-            && revocations.iter().any(|(r, dev)| {
-                *dev == e.body.author
-                    && !ctx.auth_bit[*r].is_some_and(|b| bit_get(&ctx.past[i], b))
-                    && e.body.declared_time > ctx.graph.events[*r].body.declared_time
-            });
-        let verdict = if quarantined {
-            Verdict::Quarantined
-        } else if ctx.decoded[i].malformed {
-            Verdict::Invalid("content cannot be decoded".into())
-        } else if ctx.decoded[i].op.is_none() {
-            Verdict::PendingKey
-        } else if superseded.contains(&i) {
-            Verdict::Superseded
-        } else {
-            let auth = ctx.auth_past(i, &proj.configs);
-            let op = ctx.decoded[i].op.clone();
-            match op {
-                Some(op) => match crate::handle::handle(&mut proj, &auth, &ctx, i, &op) {
-                    Ok(()) => Verdict::Valid,
-                    Err(d) => Verdict::Invalid(d.0),
-                },
-                None => Verdict::PendingKey,
-            }
-        };
-        match &verdict {
-            Verdict::Invalid(m) => proj.alert(AlertKind::InvalidEvent, Some(id), m.clone()),
-            Verdict::Quarantined => proj.alert(
-                AlertKind::Quarantined,
-                Some(id),
-                "event from a device revoked concurrently",
-            ),
-            Verdict::Superseded => proj.alert(
-                AlertKind::Superseded,
-                Some(id),
-                "lost a conflict against a concurrent event",
-            ),
-            _ => {}
-        }
-        ctx.verdicts[i] = Some(verdict);
+    };
+    match &verdict {
+        Verdict::Invalid(m) => proj.alert(AlertKind::InvalidEvent, Some(id), m.clone()),
+        Verdict::Quarantined => proj.alert(
+            AlertKind::Quarantined,
+            Some(id),
+            "event from a device revoked concurrently",
+        ),
+        Verdict::Superseded => proj.alert(
+            AlertKind::Superseded,
+            Some(id),
+            "lost a conflict against a concurrent event",
+        ),
+        _ => {}
     }
+    proj.verdicts.insert(id, verdict.clone());
+    ctx.verdicts[i] = Some(verdict.clone());
+    verdict
+}
 
-    for (i, v) in ctx.verdicts.iter().enumerate() {
-        proj.verdicts.insert(
-            ctx.graph.events[i].id,
-            v.clone().unwrap_or(Verdict::PendingKey),
-        );
-    }
-    // Heads of the whole graph, for new local events.
+/// Heads of the whole graph, for new local events.
+pub(crate) fn heads(ctx: &Ctx) -> Vec<(EventHash, u64)> {
+    let n = ctx.graph.events.len();
     let mut has_child = vec![false; n];
     for ps in &ctx.graph.parents {
         for &p in ps {
             has_child[p] = true;
         }
     }
-    proj.heads = (0..n)
+    (0..n)
         .filter(|i| !has_child[*i])
         .map(|i| (ctx.graph.events[i].id, ctx.graph.events[i].body.depth))
-        .collect();
-    Ok(proj)
+        .collect()
 }
 
-fn organizational_verdict(ctx: &mut Ctx<'_>, proj: &mut Projection, i: usize) -> Verdict {
+/// Configuration and organization from the genesis (first event).
+pub(crate) fn genesis_setup(events: &[SignedEvent]) -> Result<(Configs, OrgId), EngineError> {
+    let genesis = events.first().ok_or(EngineError::Empty)?;
+    let info = check_genesis(genesis).map_err(EngineError::Genesis)?;
+    let compiled = core_config::decode(&info.payload.config_bundle)
+        .map_err(|e| EngineError::Config(e.to_string()))?;
+    let mut configs = Configs::default();
+    configs.versions.insert(1, Cfg::new(1, compiled));
+    Ok((configs, genesis.org_id()))
+}
+
+fn organizational_verdict(ctx: &mut Ctx, proj: &mut Projection, i: usize) -> Verdict {
     let e = &ctx.graph.events[i];
     if e.is_genesis() {
         return if i == 0 {
@@ -634,7 +674,7 @@ fn organizational_verdict(ctx: &mut Ctx<'_>, proj: &mut Projection, i: usize) ->
 /// Active configuration: the latest `config.published` that has every other
 /// one in its causal past. With concurrent heads, the latest common one
 /// stays active and an alert is raised (§7.6).
-fn active_config(ctx: &Ctx<'_>, proj: &mut Projection) -> u32 {
+fn active_config(ctx: &Ctx, proj: &mut Projection) -> u32 {
     let configs: Vec<(usize, u32)> = ctx
         .auth_events
         .iter()
@@ -672,7 +712,7 @@ fn active_config(ctx: &Ctx<'_>, proj: &mut Projection) -> u32 {
     }
 }
 
-fn accepted_quarantines(ctx: &Ctx<'_>, proj: &Projection) -> BTreeSet<EventHash> {
+pub(crate) fn accepted_quarantines(ctx: &Ctx, proj: &Projection) -> BTreeSet<EventHash> {
     let mut out = BTreeSet::new();
     for (i, e) in ctx.graph.events.iter().enumerate() {
         if let Some(Op::QuarantineResolved(q)) = &ctx.decoded[i].op {

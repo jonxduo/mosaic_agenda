@@ -89,6 +89,8 @@ impl Core {
             .lock()
             .map_err(|_| ApiError::internal("poisoned"))?
             .store
+            .store_mut()
+            .ok_or_else(crate::locked_error)?
             .insert(&genesis, self.now())
             .map_err(ApiError::internal)?;
         self.invalidate();

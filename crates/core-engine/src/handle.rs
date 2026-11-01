@@ -133,7 +133,7 @@ impl H<'_> {
 pub(crate) fn handle(
     proj: &mut Projection,
     auth: &AuthState,
-    ctx: &Ctx<'_>,
+    ctx: &Ctx,
     i: usize,
     op: &Op,
 ) -> Result<(), Denied> {

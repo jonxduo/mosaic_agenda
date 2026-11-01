@@ -174,9 +174,28 @@ fn network() -> Network {
 /// Keeps syncing while the app runs and shows new notifications (§9.2, §11.1).
 async fn background(app: tauri::AppHandle, core: Arc<Core>) {
     let _ = core.start_network().await;
+    let mut announced_locked = 0;
     loop {
         let _ = core.sync_round().await;
-        if !core.is_locked() {
+        if core.is_locked() {
+            // Content stays sealed until the unlock: a generic notice only.
+            let pending = core.pending_while_locked();
+            if pending > announced_locked {
+                let title = core
+                    .status()
+                    .map(|s| s.branding.app_name)
+                    .unwrap_or_default();
+                let body = core.texts().get("push.generic");
+                let _ = app
+                    .notification()
+                    .builder()
+                    .title(&title)
+                    .body(&body)
+                    .show();
+            }
+            announced_locked = pending;
+        } else {
+            announced_locked = 0;
             if let Ok(list) = core.take_notifications() {
                 let title = core
                     .status()
@@ -254,6 +273,7 @@ pub fn run() -> Result<(), String> {
                 secrets,
                 network: Some(network()),
                 clock: None,
+                pin_params: None,
             })
             .map_err(|e| {
                 Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error>

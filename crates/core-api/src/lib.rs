@@ -18,13 +18,16 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use core_config::CompiledConfig;
-use core_crypto::{ChannelKeyring, DeviceIdentity, DeviceKeys, SecretStore};
+use core_crypto::pin::{InboxKey, InboxPublicKey, PinParams, PinWrap};
+use core_crypto::{
+    ChannelKeyring, CryptoError, DeviceIdentity, DeviceKeys, DevicePublicKey, SecretStore,
+};
 use core_engine::actions::{ActionError, Client};
-use core_engine::channels::derive_keyring;
-use core_engine::{Projection, rebuild};
+use core_engine::{Engine, Projection};
 use core_events::{DbKey, EventStore, SignedEvent};
 use core_model::{Id, PersonId};
 use core_sync::blobs::DirBlobStore;
+use core_sync::local::{Inbox, LocalLog};
 use core_sync::net::{ConfirmFuture, Network, Node, NodeState, PairConfirm, Shared};
 use core_sync::pairing::Invitations;
 use serde::{Deserialize, Serialize};
@@ -89,6 +92,8 @@ pub struct CoreOptions {
     pub network: Option<Network>,
     /// Fixed clock (tests): milliseconds since the Unix epoch.
     pub clock: Option<i64>,
+    /// Cost of the PIN key derivation (`None` = the secure default).
+    pub pin_params: Option<PinParams>,
 }
 
 /// A decoded view of the local events, rebuilt when they change.
@@ -96,6 +101,8 @@ pub struct View {
     pub events: Vec<SignedEvent>,
     pub proj: Projection,
     pub ring: ChannelKeyring,
+    /// Engine the view comes from (dry run of actions).
+    pub engine: Arc<Mutex<Engine>>,
 }
 
 struct PendingPairing {
@@ -159,6 +166,15 @@ pub struct Core {
     node: tokio::sync::Mutex<Option<Arc<Node>>>,
     network: Option<Network>,
     cache: Mutex<Option<Arc<View>>>,
+    /// Incremental engine and the last store row it has seen.
+    engine: Mutex<Option<(Arc<Mutex<Engine>>, i64)>>,
+    /// Database key while unlocked (`None` while locked with the PIN).
+    db_key: Mutex<Option<DbKey>>,
+    /// Where events received while locked are sealed to.
+    inbox_public: Mutex<Option<InboxPublicKey>>,
+    pin_params: PinParams,
+    /// Peers of the last unlocked round, to keep receiving while locked.
+    peers_cache: Mutex<Vec<DevicePublicKey>>,
     pairings: Arc<Mutex<Pairings>>,
     local: Mutex<LocalSettings>,
     locked: AtomicBool,
@@ -170,7 +186,14 @@ fn lock<T>(m: &Mutex<T>) -> ApiResult<std::sync::MutexGuard<'_, T>> {
     m.lock().map_err(|_| ApiError::internal("state poisoned"))
 }
 
-const PIN_SECRET: &str = "app.pin";
+/// Database key wrapped with the PIN (replaces the plain key when a PIN is set).
+const DB_KEY_PIN: &str = "store.db_key.pin";
+/// Random pepper of the PIN key derivation, kept in the system keychain.
+const PIN_PEPPER: &str = "app.pin.pepper";
+
+pub(crate) fn locked_error() -> ApiError {
+    ApiError::new("locked", "the app is locked")
+}
 
 impl Core {
     pub fn open(opts: CoreOptions) -> ApiResult<Arc<Self>> {
@@ -180,20 +203,37 @@ impl Core {
         let keys = Arc::new(
             DeviceKeys::load_or_create(opts.secrets.as_ref()).map_err(ApiError::internal)?,
         );
-        let db_key = DbKey::load_or_create(opts.secrets.as_ref()).map_err(ApiError::internal)?;
-        let store = EventStore::open(&opts.data_dir.join("events.db"), &db_key)
-            .map_err(ApiError::internal)?;
+        let with_pin = opts
+            .secrets
+            .get(DB_KEY_PIN)
+            .map_err(ApiError::internal)?
+            .is_some();
+        let (log, db_key, inbox_public) = if with_pin {
+            // Locked until the PIN is entered: only the sealed inbox is open.
+            let inbox = Inbox::open(&opts.data_dir.join("inbox"))
+                .map_err(ApiError::internal)?
+                .ok_or_else(|| ApiError::internal("PIN set but the inbox index is missing"))?;
+            let public = inbox.seal_to();
+            (LocalLog::Locked(inbox), None, Some(public))
+        } else {
+            let key = DbKey::load_or_create(opts.secrets.as_ref()).map_err(ApiError::internal)?;
+            let store = EventStore::open(&opts.data_dir.join("events.db"), &key)
+                .map_err(ApiError::internal)?;
+            let public = InboxKey::derive(key.as_bytes()).public();
+            (LocalLog::Open(store), Some(key), Some(public))
+        };
         let blobs = DirBlobStore::new(opts.data_dir.join("blobs")).map_err(ApiError::internal)?;
         let local: LocalSettings = std::fs::read(opts.data_dir.join("settings.json"))
             .ok()
             .and_then(|b| serde_json::from_slice(&b).ok())
             .unwrap_or_default();
-        let has_pin = opts.secrets.get(PIN_SECRET).ok().flatten().is_some();
         let state = Arc::new(Mutex::new(NodeState {
-            store,
+            store: log,
             blobs: Box::new(blobs),
             wanted_blobs: Default::default(),
-            allowed: None,
+            // After a restart while locked nobody is known yet: no sync
+            // until the first unlock.
+            allowed: with_pin.then(Default::default),
             invitations: Invitations::default(),
             paired: Vec::new(),
         }));
@@ -207,9 +247,14 @@ impl Core {
             node: tokio::sync::Mutex::new(None),
             network: opts.network,
             cache: Mutex::new(None),
+            engine: Mutex::new(None),
+            db_key: Mutex::new(db_key),
+            inbox_public: Mutex::new(inbox_public),
+            pin_params: opts.pin_params.unwrap_or_default(),
+            peers_cache: Mutex::new(Vec::new()),
             pairings: Arc::new(Mutex::new(Pairings::default())),
             local: Mutex::new(local),
-            locked: AtomicBool::new(has_pin),
+            locked: AtomicBool::new(with_pin),
             sync_scheduled: AtomicBool::new(false),
             clock: opts.clock,
         }))
@@ -258,45 +303,157 @@ impl Core {
         self.locked.load(Ordering::SeqCst)
     }
 
-    fn pin_hash(&self, pin: &str) -> [u8; 32] {
-        let mut h = blake3::Hasher::new_derive_key("org-app pin v1");
-        h.update(&self.keys.public().0);
-        h.update(pin.as_bytes());
-        *h.finalize().as_bytes()
+    pub fn has_pin(&self) -> bool {
+        self.secrets.get(DB_KEY_PIN).ok().flatten().is_some()
     }
 
+    fn inbox_dir(&self) -> PathBuf {
+        self.data_dir.join("inbox")
+    }
+
+    /// Sets, changes or removes the PIN. With a PIN the database key is
+    /// stored only wrapped with it (§8.6); the app must be unlocked.
     pub fn set_pin(&self, pin: Option<String>) -> ApiResult<()> {
+        self.ensure_unlocked()?;
+        let key = zeroize::Zeroizing::new(
+            *lock(&self.db_key)?
+                .as_ref()
+                .ok_or_else(locked_error)?
+                .as_bytes(),
+        );
         match pin {
-            Some(p) if p.chars().count() >= 4 => self
-                .secrets
-                .put(PIN_SECRET, &self.pin_hash(&p))
-                .map_err(ApiError::internal),
+            Some(p) if p.chars().count() >= 4 => {
+                if !self.has_org() {
+                    return Err(ApiError::invalid("create or join the organization first"));
+                }
+                let pepper = match self.secrets.get(PIN_PEPPER).map_err(ApiError::internal)? {
+                    Some(b) if b.len() == 32 => {
+                        let mut a = [0u8; 32];
+                        a.copy_from_slice(&b);
+                        a
+                    }
+                    _ => {
+                        let a = core_crypto::random_array::<32>().map_err(ApiError::internal)?;
+                        self.secrets
+                            .put(PIN_PEPPER, &a)
+                            .map_err(ApiError::internal)?;
+                        a
+                    }
+                };
+                let wrap = PinWrap::seal(&p, &pepper, &key, self.pin_params)
+                    .map_err(ApiError::internal)?;
+                // Index for a restart while locked.
+                let public = InboxKey::derive(&key).public();
+                {
+                    let st = lock(&self.state)?;
+                    let store = st.store.store().ok_or_else(locked_error)?;
+                    Inbox::create(&self.inbox_dir(), store, public).map_err(ApiError::internal)?;
+                }
+                // Wrapped key first, then the plain one goes.
+                self.secrets
+                    .put(DB_KEY_PIN, &wrap.to_bytes().map_err(ApiError::internal)?)
+                    .map_err(ApiError::internal)?;
+                self.secrets
+                    .delete(DbKey::SECRET)
+                    .map_err(ApiError::internal)
+            }
             Some(_) => Err(ApiError::invalid("the PIN needs at least 4 digits")),
-            None => self.secrets.delete(PIN_SECRET).map_err(ApiError::internal),
+            None => {
+                self.secrets
+                    .put(DbKey::SECRET, key.as_slice())
+                    .map_err(ApiError::internal)?;
+                self.secrets
+                    .delete(DB_KEY_PIN)
+                    .map_err(ApiError::internal)?;
+                self.secrets
+                    .delete(PIN_PEPPER)
+                    .map_err(ApiError::internal)?;
+                core_sync::local::discard(&self.inbox_dir()).map_err(ApiError::internal)
+            }
         }
     }
 
+    /// Opens the database with the PIN and moves in what arrived while locked.
+    /// `Ok(false)` for a wrong PIN.
     pub fn unlock(&self, pin: &str) -> ApiResult<bool> {
-        let stored = self.secrets.get(PIN_SECRET).map_err(ApiError::internal)?;
-        let ok = match stored {
-            None => true,
-            Some(h) => h.as_slice() == self.pin_hash(pin),
-        };
-        if ok {
+        if !self.is_locked() {
+            return Ok(true);
+        }
+        let Some(wrapped) = self.secrets.get(DB_KEY_PIN).map_err(ApiError::internal)? else {
             self.locked.store(false, Ordering::SeqCst);
+            return Ok(true);
+        };
+        let pepper: [u8; 32] = self
+            .secrets
+            .get(PIN_PEPPER)
+            .map_err(ApiError::internal)?
+            .and_then(|b| b.as_slice().try_into().ok())
+            .ok_or_else(|| ApiError::internal("PIN pepper missing"))?;
+        let wrap = PinWrap::from_bytes(&wrapped).map_err(ApiError::internal)?;
+        let secret = match wrap.open(pin, &pepper) {
+            Ok(s) => s,
+            Err(CryptoError::Decrypt) => return Ok(false),
+            Err(e) => return Err(ApiError::internal(e)),
+        };
+        let key = DbKey::from_bytes(*secret);
+        let store =
+            EventStore::open(&self.data_dir.join("events.db"), &key).map_err(ApiError::internal)?;
+        let inbox_key = InboxKey::derive(key.as_bytes());
+        {
+            let mut st = lock(&self.state)?;
+            let previous = std::mem::replace(&mut st.store, LocalLog::Open(store));
+            if let (LocalLog::Locked(inbox), Some(store)) = (previous, st.store.store_mut()) {
+                inbox
+                    .drain_into(store, &inbox_key, self.now())
+                    .map_err(ApiError::internal)?;
+                // Fresh index, for a restart while locked.
+                Inbox::create(&self.inbox_dir(), store, inbox_key.public())
+                    .map_err(ApiError::internal)?;
+            }
         }
-        Ok(ok)
+        *lock(&self.db_key)? = Some(key);
+        *lock(&self.inbox_public)? = Some(inbox_key.public());
+        self.invalidate();
+        self.locked.store(false, Ordering::SeqCst);
+        Ok(true)
     }
 
+    /// Locks now if a PIN is set: closes the database and forgets the key
+    /// and everything decrypted; sync keeps receiving into the inbox.
     pub fn lock_now(&self) {
-        let has_pin = self.secrets.get(PIN_SECRET).ok().flatten().is_some();
-        if has_pin {
-            self.locked.store(true, Ordering::SeqCst);
+        if self.has_pin() {
+            let _ = self.close_store();
         }
     }
 
-    pub(crate) fn has_pin(&self) -> bool {
-        self.secrets.get(PIN_SECRET).ok().flatten().is_some()
+    fn close_store(&self) -> ApiResult<()> {
+        let public =
+            (*lock(&self.inbox_public)?).ok_or_else(|| ApiError::internal("no inbox key"))?;
+        {
+            let mut st = lock(&self.state)?;
+            if let LocalLog::Open(store) = &st.store {
+                let inbox =
+                    Inbox::create(&self.inbox_dir(), store, public).map_err(ApiError::internal)?;
+                st.store = LocalLog::Locked(inbox);
+            }
+        }
+        self.locked.store(true, Ordering::SeqCst);
+        *lock(&self.db_key)? = None;
+        *lock(&self.cache)? = None;
+        *lock(&self.engine)? = None;
+        Ok(())
+    }
+
+    /// Events received while locked (for a generic notification).
+    pub fn pending_while_locked(&self) -> usize {
+        self.state
+            .lock()
+            .ok()
+            .and_then(|st| match &st.store {
+                LocalLog::Locked(i) => Some(i.pending()),
+                LocalLog::Open(_) => None,
+            })
+            .unwrap_or(0)
     }
 
     pub(crate) fn ensure_unlocked(&self) -> ApiResult<()> {
@@ -315,22 +472,50 @@ impl Core {
         }
     }
 
-    /// Current view of the local events (cached).
+    /// Current view of the local events (cached). After a change only the
+    /// new events are read from the store and applied (incremental engine).
     pub fn view(&self) -> ApiResult<Arc<View>> {
         if let Some(v) = lock(&self.cache)?.as_ref() {
             return Ok(v.clone());
         }
-        let events = lock(&self.state)?
+        let mut slot = lock(&self.engine)?;
+        let after = slot.as_ref().map_or(0, |(_, row)| *row);
+        let (new, last) = lock(&self.state)?
             .store
-            .all_events()
+            .store()
+            .ok_or_else(locked_error)?
+            .events_since(after)
             .map_err(ApiError::internal)?;
-        if events.is_empty() {
-            return Err(ApiError::new("not_found", "no organization on this device"));
-        }
-        let ring = derive_keyring(&events, &self.keys);
-        let proj = rebuild(&events, &ring).map_err(ApiError::internal)?;
+        let engine = match slot.take() {
+            Some((engine, _)) => {
+                lock(&engine)?
+                    .extend(&new, &self.keys)
+                    .map_err(ApiError::internal)?;
+                engine
+            }
+            None => {
+                if new.is_empty() {
+                    return Err(ApiError::new("not_found", "no organization on this device"));
+                }
+                Arc::new(Mutex::new(
+                    Engine::build_for(new, &self.keys).map_err(ApiError::internal)?,
+                ))
+            }
+        };
+        *slot = Some((engine.clone(), last));
+        drop(slot);
+        let v = {
+            let e = lock(&engine)?;
+            Arc::new(View {
+                events: e.events().to_vec(),
+                proj: e.projection().clone(),
+                ring: e.keyring().clone(),
+                engine: engine.clone(),
+            })
+        };
         // Only the organization's devices may sync with this one.
-        let allowed = proj
+        let allowed = v
+            .proj
             .auth
             .devices
             .iter()
@@ -338,7 +523,6 @@ impl Core {
             .map(|(k, _)| *k)
             .collect();
         lock(&self.state)?.allowed = Some(allowed);
-        let v = Arc::new(View { events, proj, ring });
         *lock(&self.cache)? = Some(v.clone());
         Ok(v)
     }
@@ -355,9 +539,10 @@ impl Core {
     pub fn commit(self: &Arc<Self>, events: Vec<SignedEvent>) -> ApiResult<()> {
         {
             let mut st = lock(&self.state)?;
+            let store = st.store.store_mut().ok_or_else(locked_error)?;
             for e in &events {
-                st.store.insert(e, self.now()).map_err(ApiError::internal)?;
-                st.store
+                store.insert(e, self.now()).map_err(ApiError::internal)?;
+                store
                     .outbox_add(&e.id, self.now())
                     .map_err(ApiError::internal)?;
             }
@@ -397,6 +582,7 @@ impl Core {
             keys: &self.keys,
             keyring: &v.ring,
             now: self.now(),
+            engine: Some(v.engine.as_ref()),
         };
         let (value, events) = f(&client)?;
         self.commit(events)?;
@@ -457,17 +643,35 @@ impl Core {
         let Some(node) = self.node().await else {
             return Ok(0);
         };
+        if self.is_locked() {
+            // Receive only, from the peers of the last unlocked round.
+            let peers = lock(&self.peers_cache)?.clone();
+            let mut new = 0;
+            for p in peers {
+                new += node
+                    .sync_with(&p)
+                    .await
+                    .map(|s| s.events_new as u32)
+                    .unwrap_or(0);
+            }
+            return Ok(new);
+        }
         let Ok(v) = self.view() else {
             return Ok(0);
         };
         let pending: Vec<SignedEvent> = {
             let st = lock(&self.state)?;
             st.store
-                .outbox()
+                .store()
+                .map(|store| {
+                    store
+                        .outbox()
+                        .unwrap_or_default()
+                        .iter()
+                        .filter_map(|id| store.get(id).ok().flatten())
+                        .collect()
+                })
                 .unwrap_or_default()
-                .iter()
-                .filter_map(|id| st.store.get(id).ok().flatten())
-                .collect()
         };
         let targets = core_sync::schedule::outbox_targets(&v.proj, &pending);
         let peers = core_sync::schedule::peers(
@@ -477,6 +681,7 @@ impl Core {
             false,
             (self.now() / 60_000) as u64,
         );
+        *lock(&self.peers_cache)? = peers.clone();
         let mut tasks = tokio::task::JoinSet::new();
         for p in peers {
             let node = node.clone();
@@ -494,7 +699,9 @@ impl Core {
         self.invalidate();
         if let Ok(v) = self.view() {
             let mut st = lock(&self.state)?;
-            let _ = core_sync::delivery::update_outbox(&mut st.store, &v.proj);
+            if let Some(store) = st.store.store_mut() {
+                let _ = core_sync::delivery::update_outbox(store, &v.proj);
+            }
         }
         let now = self.now();
         self.update_local(|l| l.last_sync = Some(now))?;

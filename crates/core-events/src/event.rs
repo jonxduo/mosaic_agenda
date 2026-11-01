@@ -146,6 +146,17 @@ impl SignedEvent {
         Ok(event)
     }
 
+    /// Decodes an event read back from the local encrypted store, where it
+    /// was fully verified on insert: only the id is checked again (the
+    /// signature check dominates the cold start otherwise).
+    pub fn from_stored_bytes(bytes: &[u8]) -> Result<Self, EventError> {
+        let event: Self = postcard::from_bytes(bytes).map_err(|_| EventError::Encoding)?;
+        if body_hash(&event.body)? != event.id {
+            return Err(EventError::BadId);
+        }
+        Ok(event)
+    }
+
     /// Self-contained checks: id, signature, structure, payload shape, size.
     /// Checks needing other events (depth, permissions) belong to the store
     /// and the engine.

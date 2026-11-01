@@ -17,6 +17,7 @@ use core_events::{DbKey, EventStore, SignedEvent};
 use core_model::{Scalar, Slug};
 use core_sync::blobs::MemBlobStore;
 use core_sync::delivery::{Delivery, delivery};
+use core_sync::local::LocalLog;
 use core_sync::net::{AlwaysConfirm, Network, Node, NodeState};
 use core_sync::pairing::{Invitations, PairResponse};
 use core_sync::protocol::{Msg, Peer, Session, sync_in_memory};
@@ -67,7 +68,7 @@ fn world() -> World {
     w
 }
 
-fn store_with(events: &[SignedEvent]) -> EventStore {
+fn store_with(events: &[SignedEvent]) -> LocalLog {
     let mut s = EventStore::open_in_memory(&DbKey::generate().unwrap()).unwrap();
     for e in events {
         if e.is_genesis() {
@@ -77,10 +78,10 @@ fn store_with(events: &[SignedEvent]) -> EventStore {
     for e in events {
         s.insert(e, 0).unwrap();
     }
-    s
+    LocalLog::Open(s)
 }
 
-fn ids(s: &EventStore) -> BTreeSet<core_events::EventHash> {
+fn ids(s: &LocalLog) -> BTreeSet<core_events::EventHash> {
     s.ids_with_depth()
         .unwrap()
         .into_iter()
@@ -89,7 +90,7 @@ fn ids(s: &EventStore) -> BTreeSet<core_events::EventHash> {
 }
 
 struct Dev {
-    store: EventStore,
+    store: LocalLog,
     blobs: MemBlobStore,
     keys: DeviceKeys,
 }
@@ -161,6 +162,8 @@ fn two_stores_converge_with_receipts() {
     assert!(b.store.missing().unwrap().is_empty());
     assert_eq!(
         a.store
+            .store()
+            .unwrap()
             .ordered_ids(&[core_events::EventStatus::PendingParents])
             .unwrap()
             .len(),
@@ -170,6 +173,8 @@ fn two_stores_converge_with_receipts() {
     let sent = &w.events[1];
     assert!(
         a.store
+            .store()
+            .unwrap()
             .receipts(&sent.id)
             .unwrap()
             .contains(&b.keys.public())
@@ -323,7 +328,7 @@ proptest! {
         let ring = derive_keyring(&w.events, keys);
         let reference = rebuild(&w.events, &ring).unwrap().state_hash();
         for d in &devs {
-            let events = d.store.all_events().unwrap();
+            let events = d.store.store().unwrap().all_events().unwrap();
             prop_assert_eq!(rebuild(&events, &ring).unwrap().state_hash(), reference);
         }
     }
@@ -335,7 +340,9 @@ fn delivery_status_follows_receipts() {
     let keys_a = &w.device("a", None).unwrap().keys;
     let ring = derive_keyring(&w.events, keys_a);
     let proj = rebuild(&w.events, &ring).unwrap();
-    let mut store = store_with(&w.events);
+    let LocalLog::Open(mut store) = store_with(&w.events) else {
+        unreachable!()
+    };
     // a's document event (submitted log): audience = readers of the log.
     let a_dev = keys_a.public();
     let ev = w
@@ -357,7 +364,7 @@ fn delivery_status_follows_receipts() {
 
 // ----- over iroh -----------------------------------------------------------------
 
-fn node_state(store: EventStore) -> NodeState {
+fn node_state(store: LocalLog) -> NodeState {
     NodeState {
         store,
         blobs: Box::new(MemBlobStore::default()),
@@ -368,7 +375,7 @@ fn node_state(store: EventStore) -> NodeState {
     }
 }
 
-async fn local_node(store: EventStore) -> Arc<Node> {
+async fn local_node(store: LocalLog) -> Arc<Node> {
     Arc::new(
         Node::spawn(
             Arc::new(DeviceKeys::generate().unwrap()),
@@ -417,7 +424,10 @@ async fn pairing_a_new_device_then_syncing() {
     };
     let ticket = core_sync::pairing::Ticket::decode(&ticket.encode()).unwrap();
     // The new device starts from an empty store.
-    let joiner = local_node(EventStore::open_in_memory(&DbKey::generate().unwrap()).unwrap()).await;
+    let joiner = local_node(LocalLog::Open(
+        EventStore::open_in_memory(&DbKey::generate().unwrap()).unwrap(),
+    ))
+    .await;
     // Ticket times are relative to the inviter's clock: make it valid now.
     {
         let mut st = inviter.state.lock().unwrap();
@@ -466,7 +476,15 @@ async fn pairing_a_new_device_then_syncing() {
         .await
         .unwrap()
         .unwrap();
-    let events = joiner.state.lock().unwrap().store.all_events().unwrap();
+    let events = joiner
+        .state
+        .lock()
+        .unwrap()
+        .store
+        .store()
+        .unwrap()
+        .all_events()
+        .unwrap();
     assert_eq!(events.len(), w.events.len());
     let proj = rebuild(&events, &derive_keyring(&events, joiner.keys())).unwrap();
     assert_eq!(
@@ -514,4 +532,73 @@ async fn gossip_announcement_triggers_sync() {
         }
     }
     assert!(ok, "b synced after the announcement");
+}
+
+/// A locked device receives into its sealed inbox, serves nothing, and gets
+/// everything into its store when unlocked.
+#[test]
+fn locked_device_receives_into_the_inbox() {
+    use core_crypto::pin::InboxKey;
+    use core_sync::local::Inbox;
+
+    let w = world();
+    let half = w.events.len() / 2;
+    let db_key = DbKey::generate().unwrap();
+    let inbox_key = InboxKey::derive(db_key.as_bytes());
+    let dir = tempfile::tempdir().unwrap();
+
+    // b knows the first half, then locks.
+    let LocalLog::Open(b_store) = store_with(&w.events[..half]) else {
+        unreachable!()
+    };
+    let inbox = Inbox::create(dir.path(), &b_store, inbox_key.public()).unwrap();
+    drop(b_store);
+    let mut b = Dev {
+        store: LocalLog::Locked(inbox),
+        blobs: MemBlobStore::default(),
+        keys: DeviceKeys::generate().unwrap(),
+    };
+    let mut a = Dev {
+        store: store_with(&w.events),
+        blobs: MemBlobStore::default(),
+        keys: DeviceKeys::generate().unwrap(),
+    };
+    sync_pair(&mut a, &mut b);
+    let LocalLog::Locked(inbox) = &b.store else {
+        unreachable!()
+    };
+    assert_eq!(inbox.pending(), w.events.len() - half);
+    // Nothing readable on disk: sealed files only.
+    for f in std::fs::read_dir(dir.path()).unwrap() {
+        let bytes = std::fs::read(f.unwrap().path()).unwrap();
+        for e in &w.events[half..] {
+            let raw = e.to_bytes().unwrap();
+            assert!(
+                !bytes
+                    .windows(32)
+                    .any(|win| raw.windows(32).next() == Some(win))
+            );
+        }
+    }
+    // A third device syncing with the locked one gets nothing from it.
+    let mut c = Dev {
+        store: store_with(&w.events[..1]),
+        blobs: MemBlobStore::default(),
+        keys: DeviceKeys::generate().unwrap(),
+    };
+    sync_pair(&mut c, &mut b);
+    assert_eq!(ids(&c.store).len(), 1);
+
+    // Restart while locked: the inbox reopens with what it received.
+    let reopened = Inbox::open(dir.path()).unwrap().unwrap();
+    assert_eq!(reopened.pending(), w.events.len() - half);
+
+    // Unlock: the store gets everything.
+    let LocalLog::Open(mut store) = store_with(&w.events[..half]) else {
+        unreachable!()
+    };
+    let added = reopened.drain_into(&mut store, &inbox_key, 2).unwrap();
+    assert_eq!(added, w.events.len() - half);
+    assert_eq!(ids(&LocalLog::Open(store)).len(), w.events.len());
+    assert_eq!(Inbox::open(dir.path()).unwrap().unwrap().pending(), 0);
 }

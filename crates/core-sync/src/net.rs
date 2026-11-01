@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use core_crypto::{DeviceIdentity, DeviceKeys, DevicePublicKey};
-use core_events::{EventHash, EventStore, OrgId};
+use core_events::{EventHash, OrgId};
 use core_model::PersonId;
 use iroh::address_lookup::memory::MemoryLookup;
 use iroh::endpoint::{Connection, RecvStream, SendStream, presets};
@@ -74,7 +74,8 @@ impl PairConfirm for AlwaysConfirm {
 
 /// Everything a node needs, shared with its protocol handlers.
 pub struct NodeState {
-    pub store: EventStore,
+    /// The store, or the inbox while the app is locked.
+    pub store: crate::local::LocalLog,
     pub blobs: Box<dyn BlobStore>,
     /// Blobs this device wants; refreshed by the app from its projection.
     pub wanted_blobs: BTreeSet<[u8; 32]>,

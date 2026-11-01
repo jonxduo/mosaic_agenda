@@ -45,6 +45,8 @@ pub enum StoreError {
     Secret(#[from] SecretStoreError),
     #[error("status {0:?} cannot be set by hand")]
     BadStatus(EventStatus),
+    #[error("file error: {0}")]
+    Io(#[from] std::io::Error),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -89,8 +91,15 @@ pub enum Inserted {
 pub struct DbKey(Zeroizing<[u8; 32]>);
 
 impl DbKey {
+    /// Name of the plain key in the secret store (no PIN).
+    pub const SECRET: &'static str = SECRET_NAME;
+
     pub fn generate() -> Result<Self, StoreError> {
         Ok(Self(Zeroizing::new(random_array::<32>()?)))
+    }
+
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
     }
 
     pub fn from_bytes(bytes: [u8; 32]) -> Self {
@@ -324,7 +333,7 @@ impl EventStore {
                 |r| r.get(0),
             )
             .optional()?;
-        raw.map(|r| SignedEvent::from_bytes(&r).map_err(StoreError::from))
+        raw.map(|r| SignedEvent::from_stored_bytes(&r).map_err(StoreError::from))
             .transpose()
     }
 
@@ -419,7 +428,7 @@ impl EventStore {
             .conn
             .prepare("SELECT raw FROM events WHERE status = 'valid' ORDER BY depth, id")?;
         let rows = stmt.query_map([], |r| r.get::<_, Vec<u8>>(0))?;
-        rows.map(|r| SignedEvent::from_bytes(&r?).map_err(StoreError::from))
+        rows.map(|r| SignedEvent::from_stored_bytes(&r?).map_err(StoreError::from))
             .collect()
     }
 
@@ -477,8 +486,28 @@ impl EventStore {
             .conn
             .prepare("SELECT raw FROM events ORDER BY depth, id")?;
         let rows = stmt.query_map([], |r| r.get::<_, Vec<u8>>(0))?;
-        rows.map(|r| SignedEvent::from_bytes(&r?).map_err(StoreError::from))
+        rows.map(|r| SignedEvent::from_stored_bytes(&r?).map_err(StoreError::from))
             .collect()
+    }
+
+    /// Events stored after the row `after` (0 = all), with the last row
+    /// read: lets a reader keep up with the store without rereading it.
+    /// Events are never deleted, so rows only grow.
+    pub fn events_since(&self, after: i64) -> Result<(Vec<SignedEvent>, i64), StoreError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT rowid, raw FROM events WHERE rowid > ?1 ORDER BY rowid")?;
+        let rows = stmt.query_map(params![after], |r| {
+            Ok((r.get::<_, i64>(0)?, r.get::<_, Vec<u8>>(1)?))
+        })?;
+        let mut last = after;
+        let mut out = Vec::new();
+        for r in rows {
+            let (row, raw) = r?;
+            last = last.max(row);
+            out.push(SignedEvent::from_stored_bytes(&raw)?);
+        }
+        Ok((out, last))
     }
 
     /// Records the state of an attachment blob.

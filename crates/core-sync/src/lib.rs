@@ -9,6 +9,7 @@
 
 pub mod blobs;
 pub mod delivery;
+pub mod local;
 pub mod net;
 pub mod pairing;
 pub mod protocol;

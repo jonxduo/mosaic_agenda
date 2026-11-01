@@ -332,3 +332,51 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   di configurazione dell'organizzazione passano dall'API per tenere il test breve.
 - Il criterio "tre istanze desktop via relay pubblico" è coperto dal test Rust sui relay n0;
   le tre istanze Tauri reali non sono automatizzate (WebDriver di Tauri non c'è su macOS).
+
+## 2026-11-01 — Proiezione incrementale e PIN che cifra i dati
+
+### Proiezione incrementale (`core-engine::Engine`)
+- `Engine` dà sempre lo stesso risultato di `rebuild` sugli stessi eventi (stesso `state_hash`);
+  `rebuild` ora è `Engine::build(...).into_projection()`, quindi il codice è uno solo.
+- In memoria restano gli eventi già decifrati e decodificati, il passato causale, la cache dei
+  permessi e copie dello stato ogni 256 eventi applicati (le 8 più recenti).
+- Un evento nuovo che si ordina dopo tutti gli altri si applica sullo stato attuale. Uno che si
+  ordina prima (dispositivo rimasto offline) riparte dalla copia più vicina precedente, o dallo
+  stato dopo la fase organizzativa. Si ricostruisce tutto solo quando cambia qualcosa che può
+  toccare il verdetto di qualunque evento: un evento organizzativo, una risoluzione di
+  quarantena, una chiave che apre eventi prima illeggibili, oppure un antenato mancante che
+  arriva dopo e cambia il passato causale degli eventi organizzativi.
+- Un nuovo evento può far perdere (o vincere) un conflitto a un evento più vecchio: si
+  ricalcola l'insieme dei perdenti e si riparte dal primo evento cambiato.
+- La prova a secco delle azioni (`Client::finish`) usa `Engine::preview`: aggiunge in modo
+  provvisorio, applica su una copia dello stato e poi toglie, senza ricostruire.
+- Test: proprietà con ordini di consegna mescolati, a blocchi, rovesciati e in ordine causale
+  casuale (ogni evento dopo i genitori) → stesso stato di `rebuild`; un test verifica che il
+  percorso di ripresa venga davvero usato.
+- Misure (simulatore, 120 persone): 60 giorni generati in 10,8 s (prima ~50 s); un anno =
+  9.440 eventi, avvio a freddo 0,09 s (lettura 0,01 s + proiezione 0,08 s).
+- Gli eventi riletti dal database locale non si riverificano (firma già controllata
+  all'inserimento, database autenticato da SQLCipher): si ricontrolla solo l'id. Era il costo
+  principale dell'avvio. Con questi numeri uno snapshot della proiezione su disco non serve
+  ora; da rivalutare in F9 con misure su telefono.
+
+### PIN che cifra i dati (§8.6)
+- Con il PIN la chiave del database esiste solo cifrata: XChaCha20-Poly1305 con una chiave
+  Argon2id (64 MiB, 3 passate) del PIN più un *pepper* casuale di 32 byte nel portachiavi del
+  sistema. Copiare la cartella dei dati non basta per provare i PIN. Chi ha anche accesso al
+  portachiavi della sessione utente può provarli offline: con un PIN di 4–6 cifre ci vuole
+  poco, quindi conviene un PIN più lungo (da dire nell'interfaccia in F9).
+- Bloccata = database chiuso, chiave e dati decifrati tolti dalla memoria (vista, motore). Si
+  blocca all'avvio, con "Blocca ora" e dopo l'inattività.
+- Ad app bloccata la sincronizzazione continua in sola ricezione (`core-sync::local::LocalLog`
+  = database aperto o `Inbox`). Gli eventi ricevuti si sigillano (sealed box X25519) con una
+  chiave pubblica derivata dalla chiave del database e si scrivono un file ciascuno; allo
+  sblocco entrano nel database. Il dispositivo bloccato non invia eventi né ricevute.
+- In chiaro restano solo l'indice degli id (hash) e delle profondità già noti, scritto a ogni
+  blocco, e lo stesso per gli eventi in attesa: nessun contenuto, autore o tipo.
+- Dopo un riavvio da bloccata non si sincronizza finché non si sblocca (non si conoscono i
+  dispositivi ammessi senza leggere il database). Ad app bloccata la notifica è solo il testo
+  generico del pacchetto (`push.generic`).
+- PIN dimenticato: si perde la copia locale; si riabbina il dispositivo e i dati tornano dagli
+  altri. La cancellazione dopo N tentativi sbagliati (§8.6) e la biometria arrivano con il
+  mobile (F7/F8).

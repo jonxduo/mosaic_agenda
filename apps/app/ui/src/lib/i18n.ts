@@ -23,7 +23,8 @@ const it = {
   people: 'Persone', add_person: 'Aggiungi persona', name: 'Nome', qualification: 'Qualifica', role: 'Incarico', unit: 'Unità',
   from: 'Dal', set_unit: 'Imposta unità', grant: 'Conferisci', devices: 'Dispositivi', new_unit: 'Nuova unità', type: 'Tipo',
   members: 'Membri', alerts: 'Avvisi', no_alerts: 'Nessun avviso', settings: 'Impostazioni', auto_lock: 'Blocco automatico (minuti)',
-  set_pin: 'Imposta PIN', remove_pin: 'Rimuovi PIN', mobile_photos: 'Scarica foto anche su rete mobile', muted: 'Notifiche silenziate',
+  set_pin: 'Imposta PIN', change_pin: 'Cambia PIN', remove_pin: 'Rimuovi PIN',
+  pin_hint: "Con il PIN i dati su questo dispositivo sono cifrati e si aprono solo con il PIN. Mentre l'app è bloccata continua a ricevere gli aggiornamenti, che vedrai dopo lo sblocco. Se dimentichi il PIN, abbina di nuovo il dispositivo: i dati tornano dagli altri dispositivi.", mobile_photos: 'Scarica foto anche su rete mobile', muted: 'Notifiche silenziate',
   error: 'Errore', err_denied: 'Operazione non consentita in questo momento', err_not_found: 'Elemento non trovato',
   err_invalid: 'Dati non validi', err_locked: "L'app è bloccata", err_network: 'Problema di rete, riprova più tardi',
   err_internal: 'Si è verificato un errore', menu: 'Menu', more: 'Altro', lock_now: 'Blocca ora', copy: 'Copia', copied: 'Copiato'
