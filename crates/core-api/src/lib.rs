@@ -14,7 +14,7 @@ pub mod views;
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use core_config::CompiledConfig;
@@ -166,6 +166,8 @@ pub struct Core {
     node: tokio::sync::Mutex<Option<Arc<Node>>>,
     network: Option<Network>,
     cache: Mutex<Option<Arc<View>>>,
+    /// Bumped by every change: a view computed meanwhile is not cached.
+    generation: AtomicU64,
     /// Incremental engine and the last store row it has seen.
     engine: Mutex<Option<(Arc<Mutex<Engine>>, i64)>>,
     /// Database key while unlocked (`None` while locked with the PIN).
@@ -247,6 +249,7 @@ impl Core {
             node: tokio::sync::Mutex::new(None),
             network: opts.network,
             cache: Mutex::new(None),
+            generation: AtomicU64::new(0),
             engine: Mutex::new(None),
             db_key: Mutex::new(db_key),
             inbox_public: Mutex::new(inbox_public),
@@ -439,7 +442,7 @@ impl Core {
         }
         self.locked.store(true, Ordering::SeqCst);
         *lock(&self.db_key)? = None;
-        *lock(&self.cache)? = None;
+        self.invalidate();
         *lock(&self.engine)? = None;
         Ok(())
     }
@@ -467,6 +470,7 @@ impl Core {
     // ----- events -----------------------------------------------------------------
 
     pub fn invalidate(&self) {
+        self.generation.fetch_add(1, Ordering::SeqCst);
         if let Ok(mut c) = self.cache.lock() {
             *c = None;
         }
@@ -478,6 +482,9 @@ impl Core {
         if let Some(v) = lock(&self.cache)?.as_ref() {
             return Ok(v.clone());
         }
+        // Read before the store: a change committed while this view is
+        // computed bumps it, and the (stale) view is then not cached.
+        let generation = self.generation.load(Ordering::SeqCst);
         let mut slot = lock(&self.engine)?;
         let after = slot.as_ref().map_or(0, |(_, row)| *row);
         let (new, last) = lock(&self.state)?
@@ -523,7 +530,10 @@ impl Core {
             .map(|(k, _)| *k)
             .collect();
         lock(&self.state)?.allowed = Some(allowed);
-        *lock(&self.cache)? = Some(v.clone());
+        let mut cache = lock(&self.cache)?;
+        if self.generation.load(Ordering::SeqCst) == generation {
+            *cache = Some(v.clone());
+        }
         Ok(v)
     }
 
