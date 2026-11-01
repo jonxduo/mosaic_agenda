@@ -5,8 +5,41 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
+description = "Facade for the apps: commands, DTOs with resolved texts, local notifications."
+
+[features]
+default = []
+# Development HTTP bridge used by the browser UI and the Playwright tests.
+dev-server = ["dep:axum"]
 
 [dependencies]
+core-model.workspace = true
+core-config.workspace = true
+core-crypto.workspace = true
+core-events.workspace = true
+core-engine.workspace = true
+core-sync.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+postcard.workspace = true
+blake3.workspace = true
+thiserror.workspace = true
+time.workspace = true
+tokio.workspace = true
+specta.workspace = true
+specta-typescript.workspace = true
+qrcode.workspace = true
+data-encoding.workspace = true
+zeroize.workspace = true
+axum = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempfile.workspace = true
+core-testkit.workspace = true
+
+[[bin]]
+name = "api-dev-server"
+required-features = ["dev-server"]
 
 [lints]
 workspace = true

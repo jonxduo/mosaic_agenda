@@ -34,6 +34,8 @@ pub const SYNC_ALPN: &[u8] = b"org-app/sync/1";
 pub const PAIR_ALPN: &[u8] = b"org-app/pair/1";
 const MAX_FRAME: usize = 4 * 1024 * 1024;
 const IO_TIMEOUT: Duration = Duration::from_secs(30);
+/// How long to try reaching a peer before giving up for this round.
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(8);
 
 #[derive(Debug, Serialize, Deserialize)]
 enum Frame {
@@ -52,17 +54,21 @@ fn t(e: impl std::fmt::Display) -> SyncError {
     SyncError::Transport(e.to_string())
 }
 
-/// Decision on a pairing request: shown with the verification code.
+/// Boxed future of a pairing decision.
+pub type ConfirmFuture = std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send>>;
+
+/// Decision on a pairing request, shown to the user with the verification
+/// code (the future resolves when they confirm or refuse).
 pub trait PairConfirm: Send + Sync {
-    fn confirm(&self, person: PersonId, identity: &DeviceIdentity, code: &str) -> bool;
+    fn confirm(&self, person: PersonId, identity: DeviceIdentity, code: String) -> ConfirmFuture;
 }
 
 /// Accepts every request (tests).
 pub struct AlwaysConfirm;
 
 impl PairConfirm for AlwaysConfirm {
-    fn confirm(&self, _: PersonId, _: &DeviceIdentity, _: &str) -> bool {
-        true
+    fn confirm(&self, _: PersonId, _: DeviceIdentity, _: String) -> ConfirmFuture {
+        Box::pin(async { true })
     }
 }
 
@@ -257,7 +263,11 @@ impl ProtocolHandler for PairHandler {
                     .map(|mut s| s.invitations.accept(&req, &remote, &me, now_ms()));
                 match checked {
                     Ok(Ok((person, code))) => {
-                        if self.confirm.confirm(person, &req.identity, &code) {
+                        if self
+                            .confirm
+                            .confirm(person, req.identity, code.clone())
+                            .await
+                        {
                             let org = lock(&self.state).ok().and_then(|mut s| {
                                 s.paired.push((person, req.identity));
                                 if let Some(a) = s.allowed.as_mut() {
@@ -346,8 +356,8 @@ pub struct Node {
 
 impl Node {
     pub async fn spawn(
-        keys: DeviceKeys,
-        state: NodeState,
+        keys: Arc<DeviceKeys>,
+        state: Shared,
         network: Network,
         confirm: Arc<dyn PairConfirm>,
     ) -> Result<Self, SyncError> {
@@ -373,8 +383,6 @@ impl Node {
             .await
             .map_err(t)?;
         let gossip = Gossip::builder().spawn(endpoint.clone());
-        let keys = Arc::new(keys);
-        let state = Arc::new(Mutex::new(state));
         let router = Router::builder(endpoint.clone())
             .accept(
                 SYNC_ALPN,
@@ -437,11 +445,13 @@ impl Node {
 
     /// Reconciles with a peer.
     pub async fn sync_with(&self, device: &DevicePublicKey) -> Result<SessionStats, SyncError> {
-        let conn = self
-            .endpoint
-            .connect(Self::endpoint_id(device)?, SYNC_ALPN)
-            .await
-            .map_err(t)?;
+        let conn = tokio::time::timeout(
+            CONNECT_TIMEOUT,
+            self.endpoint.connect(Self::endpoint_id(device)?, SYNC_ALPN),
+        )
+        .await
+        .map_err(t)?
+        .map_err(t)?;
         let (send, recv) = conn.open_bi().await.map_err(t)?;
         let stats = run_session(self.state.clone(), self.keys.clone(), send, recv).await;
         conn.close(0u32.into(), b"done");
@@ -458,7 +468,10 @@ impl Node {
             }
         }
         self.learn(addr.clone());
-        let conn = self.endpoint.connect(addr, PAIR_ALPN).await.map_err(t)?;
+        let conn = tokio::time::timeout(CONNECT_TIMEOUT, self.endpoint.connect(addr, PAIR_ALPN))
+            .await
+            .map_err(t)?
+            .map_err(t)?;
         let (mut send, mut recv) = conn.open_bi().await.map_err(t)?;
         let req = PairRequest {
             invite: ticket.invite,

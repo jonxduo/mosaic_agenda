@@ -30,6 +30,7 @@ enum Command {
         all: bool,
     },
     /// Validate and compile a package into target/package/<name>/bundle.bin.
+    /// `--package` takes a name under packages/ or a path to a package folder.
     Bundle {
         #[arg(long)]
         package: String,
@@ -41,22 +42,26 @@ enum Command {
         #[arg(long)]
         package: String,
     },
-    /// Full app build for a target (phase F5 onwards).
+    /// Full app build for a target (`desktop` today; mobile arrives in F7/F8).
     Build {
         #[arg(long)]
         package: String,
-        #[arg(long)]
+        #[arg(long, default_value = "desktop")]
         target: String,
         #[arg(long)]
         release: bool,
     },
-    /// Desktop development run (phase F5).
+    /// Desktop development run (Tauri dev with hot reload of the UI).
     Dev {
         #[arg(long)]
         package: String,
     },
-    /// Regenerate the TypeScript bindings (phase F5).
-    Bindings,
+    /// Regenerate the TypeScript bindings of the app commands.
+    Bindings {
+        /// Fail instead of writing when the committed bindings are out of date.
+        #[arg(long)]
+        check: bool,
+    },
     /// Multi-device simulation (phase F4).
     Simulate {
         #[arg(long)]
@@ -78,12 +83,24 @@ fn root() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
+/// A package by name (under packages/) or by path to its folder.
 fn package_dir(name: &str) -> Result<PathBuf> {
+    let as_path = Path::new(name);
+    if as_path.components().count() > 1 && as_path.join("package.yaml").is_file() {
+        return Ok(as_path.to_path_buf());
+    }
     let dir = root().join("packages").join(name);
     if !dir.join("package.yaml").is_file() {
         bail!("package `{name}` not found in {}", dir.display());
     }
     Ok(dir)
+}
+
+/// Folder name used for the build output of a package.
+fn package_key(name: &str) -> String {
+    Path::new(name)
+        .file_name()
+        .map_or_else(|| name.to_owned(), |n| n.to_string_lossy().into_owned())
 }
 
 fn all_packages() -> Result<Vec<String>> {
@@ -143,10 +160,10 @@ fn schema(check: bool) -> Result<()> {
     Ok(())
 }
 
-fn bundle(name: &str) -> Result<()> {
+fn bundle(name: &str) -> Result<PathBuf> {
     let pkg = validate(name)?;
     let bundle = core_config::compile(pkg).context("compiling the package")?;
-    let out = root().join("target/package").join(name);
+    let out = root().join("target/package").join(package_key(name));
     std::fs::create_dir_all(&out)?;
     std::fs::write(out.join("bundle.bin"), &bundle.bytes)?;
     std::fs::write(out.join("bundle.hash"), bundle.hash_hex())?;
@@ -158,7 +175,7 @@ fn bundle(name: &str) -> Result<()> {
         bundle.bytes.len(),
         bundle.hash_hex()
     );
-    Ok(())
+    Ok(out.join("bundle.bin"))
 }
 
 /// Directories scanned for domain terms, and parts skipped inside them.
@@ -323,6 +340,110 @@ fn core_engine_date(s: &str) -> Result<time::Date> {
     core_testkit::sim::parse_date(s).ok_or_else(|| anyhow::anyhow!("bad date {s}"))
 }
 
+const APP_DIR: &str = "apps/app";
+const UI_DIR: &str = "apps/app/ui";
+const PNPM: &[&str] = &["-y", "pnpm@10.34.9"];
+
+fn sh(cmd: &mut std::process::Command) -> Result<()> {
+    let shown = format!("{cmd:?}");
+    let status = cmd.status().with_context(|| format!("starting {shown}"))?;
+    if !status.success() {
+        bail!("{shown} failed with {status}");
+    }
+    Ok(())
+}
+
+fn pnpm(args: &[&str]) -> std::process::Command {
+    let mut c = std::process::Command::new("npx");
+    c.args(PNPM)
+        .arg("--dir")
+        .arg(root().join(UI_DIR))
+        .args(args);
+    c
+}
+
+fn bindings(check: bool) -> Result<()> {
+    let committed = root().join(UI_DIR).join("src/lib/bindings.ts");
+    let target = if check {
+        root().join("target/bindings.ts")
+    } else {
+        committed.clone()
+    };
+    sh(std::process::Command::new(env!("CARGO"))
+        .current_dir(root())
+        .args(["run", "-q", "-p", "app", "--bin", "export-bindings", "--"])
+        .arg(&target))?;
+    if check {
+        let fresh = std::fs::read_to_string(&target)?;
+        let current = std::fs::read_to_string(&committed).unwrap_or_default();
+        if fresh != current {
+            bail!(
+                "{} is out of date: run `cargo xtask bindings`",
+                committed.display()
+            );
+        }
+        println!("bindings are up to date");
+    }
+    Ok(())
+}
+
+/// Tauri configuration overlay with the package branding (§4.1).
+fn branding_overlay(name: &str) -> Result<PathBuf> {
+    let pkg = validate(name)?;
+    let dir = package_dir(name)?;
+    let b = &pkg.manifest.branding;
+    let app_name = pkg
+        .texts
+        .get(&pkg.manifest.default_locale)
+        .and_then(|t| t.get(b.app_name.as_str()))
+        .cloned()
+        .unwrap_or_else(|| b.app_name.as_str().to_owned());
+    let out = root().join("target/package").join(package_key(name));
+    let icons = out.join("icons");
+    std::fs::create_dir_all(&icons)?;
+    sh(pnpm(&["exec", "tauri", "icon"])
+        .arg(dir.join(&b.icon))
+        .arg("-o")
+        .arg(&icons))?;
+    let icon = |f: &str| icons.join(f).to_string_lossy().into_owned();
+    let overlay = serde_json::json!({
+        "productName": app_name,
+        "identifier": b.identifier,
+        "app": { "windows": [{ "title": app_name, "width": 1200, "height": 820, "minWidth": 360, "minHeight": 600 }] },
+        "bundle": { "icon": [icon("32x32.png"), icon("128x128.png"), icon("128x128@2x.png"), icon("icon.icns"), icon("icon.ico"), icon("icon.png")] },
+    });
+    let path = out.join("tauri.overlay.json");
+    std::fs::write(&path, serde_json::to_string_pretty(&overlay)?)?;
+    Ok(path)
+}
+
+fn tauri(name: &str, args: &[&str]) -> Result<()> {
+    let bundle = bundle(name)?;
+    let overlay = branding_overlay(name)?;
+    sh(&mut pnpm(&["install", "--frozen-lockfile"]))?;
+    let tauri_bin = root().join(UI_DIR).join("node_modules/.bin/tauri");
+    sh(std::process::Command::new(tauri_bin)
+        .current_dir(root().join(APP_DIR))
+        .args(args)
+        .arg("--config")
+        .arg(&overlay)
+        .env("APP_PACKAGE_BUNDLE", &bundle))
+}
+
+fn dev(name: &str) -> Result<()> {
+    tauri(name, &["dev"])
+}
+
+fn build(name: &str, target: &str, release: bool) -> Result<()> {
+    match target {
+        "desktop" if release => tauri(name, &["build"]),
+        "desktop" => tauri(name, &["build", "--debug"]),
+        "android" => not_yet("build --target android", "F7"),
+        "ios" => not_yet("build --target ios", "F8"),
+        other => bail!("unknown target `{other}` (desktop, android, ios)"),
+    }
+}
+
 fn not_yet(what: &str, phase: &str) -> Result<()> {
     bail!("`{what}` is not available yet: it arrives in phase {phase} (PROGETTO.md §16)")
 }
@@ -348,12 +469,16 @@ fn run() -> Result<()> {
             }
             Ok(())
         }
-        Command::Bundle { package } => bundle(&package),
+        Command::Bundle { package } => bundle(&package).map(|_| ()),
         Command::CheckDomainLeak => check_domain_leak(),
         Command::TestPackage { package } => test_package(&package),
-        Command::Build { .. } => not_yet("build", "F5"),
-        Command::Dev { .. } => not_yet("dev", "F5"),
-        Command::Bindings => not_yet("bindings", "F5"),
+        Command::Build {
+            package,
+            target,
+            release,
+        } => build(&package, &target, release),
+        Command::Dev { package } => dev(&package),
+        Command::Bindings { check } => bindings(check),
         Command::Simulate {
             package,
             devices,

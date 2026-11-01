@@ -7,10 +7,11 @@ members = [
     "crates/core-events",
     "crates/core-engine",
     "crates/core-sync",
-    "crates/core-push",
     "crates/core-api",
+    "crates/core-push",
     "crates/core-testkit",
     "crates/xtask",
+    "apps/app/src-tauri",
 ]
 
 [workspace.package]
@@ -28,6 +29,7 @@ core-events = { path = "crates/core-events" }
 core-engine = { path = "crates/core-engine" }
 core-testkit = { path = "crates/core-testkit" }
 core-sync = { path = "crates/core-sync" }
+core-api = { path = "crates/core-api" }
 
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -60,6 +62,15 @@ iroh = "1.4"
 iroh-gossip = "0.101"
 n0-future = "0.3"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+specta = { version = "=2.0.0-rc.26", features = ["derive", "serde_json"] }
+specta-typescript = "=0.0.13"
+tauri-specta = { version = "=2.0.0-rc.26", features = ["derive", "typescript"] }
+tauri = { version = "2.12", features = ["tray-icon"] }
+tauri-build = { version = "2.7", features = [] }
+tauri-plugin-notification = "2.8"
+keyring = "4.2"
+axum = "0.8"
+qrcode = { version = "0.14", default-features = false, features = ["svg"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

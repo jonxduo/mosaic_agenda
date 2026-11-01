@@ -13,6 +13,7 @@ core-testkit.workspace = true
 anyhow.workspace = true
 clap.workspace = true
 walkdir.workspace = true
+serde_json.workspace = true
 time.workspace = true
 
 [lints]

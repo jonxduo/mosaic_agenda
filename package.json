@@ -1,0 +1,16 @@
+{
+  "name": "orgapp-workspace",
+  "private": true,
+  "packageManager": "pnpm@10.34.9",
+  "scripts": {
+    "ui:dev": "pnpm --dir apps/app/ui dev",
+    "ui:build": "pnpm --dir apps/app/ui build",
+    "ui:check": "pnpm --dir apps/app/ui check",
+    "ui:test": "pnpm --dir apps/app/ui test:e2e"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

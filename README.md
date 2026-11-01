@@ -12,7 +12,8 @@ di build. Specifica completa: `PROGETTO.md`. Decisioni tecniche: `docs/DECISIONS
 | F2 — Eventi e crittografia | fatta: `core-crypto`, `core-events` (busta firmata, genesi, archivio SQLCipher) |
 | F3 — Motore | fatto: `core-engine` (permessi sul passato causale, flussi, lotti, resoconti, programmi, territori, bacheca, promemoria, conflitti), `core-testkit`, 16 scenari |
 | F4 — Sincronizzazione | fatta: `core-sync` (riconciliazione, ricevute, stato di consegna, abbinamento, allegati, trasporto iroh con gossip), simulatore `cargo xtask simulate` |
-| F5–F10 | da fare |
+| F5 — Desktop | fatta: `core-api` (facciata e DTO), app Tauri 2 (comandi tipizzati, tray, notifiche locali, portachiavi), UI SvelteKit con le viste generiche, `api-dev-server`, test Playwright a tre dispositivi |
+| F6–F10 | da fare |
 
 ## Comandi
 
@@ -24,6 +25,18 @@ cargo xtask bundle --package <nome>
 cargo xtask check-domain-leak
 cargo xtask test-package --package <nome>   # scenari in packages/<nome>/tests
 cargo run --release -p xtask -- simulate --package <nome> --devices 120 --days 60
+cargo xtask bindings [--check]              # binding TypeScript dei comandi
+cargo xtask dev --package <nome>            # app desktop in sviluppo
+cargo xtask build --package <nome> --target desktop [--release]
+```
+
+Interfaccia nel browser contro un core vero (senza Tauri):
+
+```bash
+cargo xtask bundle --package congregazione
+cargo run -p core-api --features dev-server --bin api-dev-server -- --data target/dev-data --bundle target/package/congregazione/bundle.bin
+npx -y pnpm@10.34.9 install && npx -y pnpm@10.34.9 --dir apps/app/ui dev   # http://localhost:5173
+npx -y pnpm@10.34.9 --dir apps/app/ui run test:e2e                         # Playwright, tre dispositivi
 ```
 
 Su macOS con l'SDK 27 installato accanto a un linker più vecchio, il link fallisce con

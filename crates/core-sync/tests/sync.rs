@@ -371,8 +371,8 @@ fn node_state(store: EventStore) -> NodeState {
 async fn local_node(store: EventStore) -> Arc<Node> {
     Arc::new(
         Node::spawn(
-            DeviceKeys::generate().unwrap(),
-            node_state(store),
+            Arc::new(DeviceKeys::generate().unwrap()),
+            Arc::new(std::sync::Mutex::new(node_state(store))),
             Network::Local,
             Arc::new(AlwaysConfirm),
         )

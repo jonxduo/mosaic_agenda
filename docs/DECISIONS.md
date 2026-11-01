@@ -271,3 +271,64 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
 - Generare l'attività di 120 persone richiede ~50 s, quasi tutti nella ricostruzione completa a
   ogni azione (prova + vista). Con un anno di dati serve la proiezione incrementale: da fare
   prima di F9 (avvio a freddo < 2 s).
+
+## 2026-11-01 — Fase F5 (desktop)
+
+### Struttura
+- `core-api`: facciata `Core` usata da ogni shell. Comandi con DTO (`specta::Type`) già pronti
+  per lo schermo: etichette risolte dai testi del pacchetto, date formattate, stati come testo
+  (`state.<id>`, `variant.<id>`, `category.<id>`, facoltativi: senza testo l'interfaccia non
+  mostra nulla). La UI non conosce il dominio: riceve solo testi e identificatori.
+- Le viste si ricalcolano con `rebuild` a ogni lettura dopo un cambiamento (cache della vista
+  invalidata a ogni commit). Va bene per F5; la proiezione incrementale resta da fare prima di F9.
+- `dispatch(nome, JSON)` espone gli stessi comandi per nome con argomenti camelCase come l'IPC di
+  Tauri: lo usa `api-dev-server` (feature `dev-server`, axum, solo 127.0.0.1). In un browser
+  `bridge.ts` installa un finto `__TAURI_INTERNALS__.invoke` che fa `POST /api/<comando>`, così
+  i binding generati funzionano identici contro un core vero (sviluppo e Playwright).
+  `?api_port=8787..8799` sceglie un altro server locale: un solo browser fa più dispositivi.
+- Tauri 2 (non 3 alpha): plugin di notifica stabile, tray, keyring di sistema.
+  `tauri-specta`/`specta` fissati a `=2.0.0-rc.26` e `specta-typescript` a `=0.0.13`
+  (versioni rc incompatibili tra loro). `serde_json::Value` esportato come `unknown`
+  (`JsonMap`), i numeri restano `number`.
+- `cargo xtask bindings [--check]` rigenera `apps/app/ui/src/lib/bindings.ts`; la CI controlla
+  che sia aggiornato.
+
+### Build
+- Il pacchetto compilato entra nel binario a build time (`APP_PACKAGE_BUNDLE` → `include_bytes!`).
+  Senza pacchetto l'app si rifiuta di partire con un messaggio chiaro.
+- `cargo xtask dev|build --package <nome>`: valida e compila il pacchetto, genera le icone dal
+  `branding.icon` (`tauri icon`) e una sovrapposizione di `tauri.conf.json` con nome
+  dell'app (testo `branding.app_name` nella lingua predefinita), identificatore e icone.
+  `--target android|ios` rispondono "fase F7/F8". `--package` accetta anche un percorso
+  (serve per la fixture neutra `club` nei test).
+
+### Sicurezza locale
+- Segreti nel portachiavi del sistema (`keyring` 4, servizio = identificatore dell'app).
+  `FileSecretStore` (JSON in chiaro) esiste solo per `api-dev-server`.
+- PIN facoltativo: si salva solo `blake3::derive_key("org-app/pin/1", pin)` nel portachiavi;
+  blocco automatico dopo N minuti di inattività (impostazione locale). Il PIN protegge
+  l'interfaccia, non cifra il database (la chiave SQLCipher resta nel portachiavi).
+- Gli errori arrivano alla UI come `{kind, message}`; la UI mostra un testo generico per tipo
+  (`denied`, `not_found`, `invalid`, `locked`, `network`, `internal`) e scrive il dettaglio solo
+  in console.
+
+### Comportamenti
+- Scadenza di un documento = ultimo giorno del periodo + `due.offset_days` (ottobre, 5 giorni →
+  5 novembre).
+- L'inoltro di un lotto incompleto è mostrato ma disattivato finché non passa
+  `allow_incomplete_after`, con l'indicazione della data.
+- La sincronizzazione dopo un commit è raggruppata (300 ms) e annuncia le teste via gossip; in
+  background un giro ogni 60 s (desktop) con le notifiche locali nuove (deduplicate su disco).
+- Connessione a un peer con timeout di 8 s e sincronizzazioni in parallelo: un peer spento non
+  blocca gli altri.
+
+### Test
+- `crates/core-api/tests/flow.rs`: tre `Core` con database e endpoint propri: creazione,
+  abbinamento con codice, documento → lotto → inoltro → registrazione → resoconto distribuito
+  letto da un terzo dispositivo; stesso test sui relay pubblici n0 (`--ignored`, superato).
+- Playwright (`apps/app/ui/tests/e2e`): lo stesso flusso dall'interfaccia con tre
+  `api-dev-server` locali e la fixture `club` (onboarding, abbinamento con conferma del codice,
+  compilazione dalla home, coda di lavoro, generazione e lettura del resoconto). Le operazioni
+  di configurazione dell'organizzazione passano dall'API per tenere il test breve.
+- Il criterio "tre istanze desktop via relay pubblico" è coperto dal test Rust sui relay n0;
+  le tre istanze Tauri reali non sono automatizzate (WebDriver di Tauri non c'è su macOS).

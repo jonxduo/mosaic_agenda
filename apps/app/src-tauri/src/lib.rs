@@ -1,0 +1,268 @@
+//! Tauri shell: typed commands over `core-api`, system tray, background
+//! sync and local notifications. Nothing here knows the domain.
+
+mod secrets;
+
+use std::collections::BTreeMap;
+use std::sync::Arc;
+
+use core_api::{ApiError, Core, CoreOptions, dto::*};
+use core_sync::net::Network;
+use tauri::menu::{Menu, MenuItem as TrayItem};
+use tauri::tray::TrayIconBuilder;
+use tauri::{Manager, State};
+use tauri_plugin_notification::NotificationExt;
+use tauri_specta::{Builder, collect_commands};
+
+/// Package embedded at build time (see build.rs).
+const BUNDLE: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/bundle.bin"));
+
+type R<T> = Result<T, ApiError>;
+type Map = JsonMap;
+
+macro_rules! cmd {
+    ($name:ident ( $($arg:ident : $ty:ty),* ) -> $ret:ty => |$core:ident| $body:expr) => {
+        // Arguments mirror the IPC payload one to one.
+        #[allow(clippy::too_many_arguments)]
+        #[tauri::command]
+        #[specta::specta]
+        async fn $name(state: State<'_, Arc<Core>>, $($arg: $ty),*) -> R<$ret> {
+            let $core = state.inner().clone();
+            $body
+        }
+    };
+}
+
+cmd!(status() -> AppStatus => |c| c.status());
+cmd!(texts() -> BTreeMap<String, String> => |c| Ok(c.texts_map()));
+cmd!(accept_privacy() -> () => |c| c.accept_privacy());
+cmd!(create_org(name: String, my_name: String) -> AppStatus => |c| c.create_org(name, my_name).await);
+cmd!(join_org(ticket: String) -> String => |c| c.join_org(ticket).await);
+cmd!(invite_device(person: String) -> Invitation => |c| c.invite_device(person).await);
+cmd!(pairings() -> Vec<Pairing> => |c| c.pairings());
+cmd!(confirm_pairing(code: String, accept: bool) -> () => |c| c.confirm_pairing(code, accept).await);
+cmd!(set_pin(pin: Option<String>) -> () => |c| c.set_pin_cmd(pin));
+cmd!(unlock(pin: String) -> bool => |c| c.unlock(&pin));
+cmd!(lock() -> () => |c| { c.lock_now(); Ok(()) });
+cmd!(menu() -> Vec<MenuItem> => |c| c.menu());
+cmd!(home() -> Home => |c| c.home());
+cmd!(form(form: String, subject: Option<String>, period: String) -> FormView => |c| c.form(form, subject, period));
+cmd!(save_document(form: String, subject: Option<String>, period: String, values: Map) -> FormView => |c| c.save_document(form, subject, period, values.0));
+cmd!(step_document(document: String, step: String, note: Option<String>) -> FormView => |c| c.step_document(document, step, note));
+cmd!(my_documents(form: Option<String>) -> Vec<DocumentRow> => |c| c.my_documents(form));
+cmd!(work_queue(workflow: String, unit_type: Option<String>) -> WorkQueue => |c| c.work_queue(workflow, unit_type));
+cmd!(batch_step(form: String, unit: String, period: String, step: String) -> () => |c| c.batch_step(form, unit, period, step));
+cmd!(aggregate(aggregate: String, period: Option<String>) -> AggregateView => |c| c.aggregate(aggregate, period));
+cmd!(generate_aggregate(aggregate: String, period: String, note: Option<String>) -> AggregateView => |c| c.generate_aggregate(aggregate, period, note));
+cmd!(distribute_aggregate(aggregate: String, period: String) -> AggregateView => |c| c.distribute_aggregate(aggregate, period));
+cmd!(programs(types: Option<String>) -> ProgramList => |c| c.programs(types));
+cmd!(program(program: String) -> ProgramEditor => |c| c.program(program));
+cmd!(draft_program(program_type: String, dates: Vec<String>) -> String => |c| c.draft_program(program_type, dates));
+cmd!(assign_slot(program: String, occurrence: u32, slot: String, index: u32, person: String) -> ProgramEditor => |c| c.assign_slot(program, occurrence, slot, index, person));
+cmd!(send_program(program: String) -> ProgramEditor => |c| c.send_program(program));
+cmd!(publish_program(program: String) -> ProgramEditor => |c| c.publish_program(program));
+cmd!(respond(program: String, program_type: String, occurrence: u32, slot: String, index: u32, accept: bool, note: Option<String>, assignee: Option<String>) -> () => |c| c.respond(program, program_type, occurrence, slot, index, accept, note, assignee));
+cmd!(add_external(name: String) -> String => |c| c.add_external(name));
+cmd!(my_assignments() -> Vec<AssignmentItem> => |c| c.my_assignments());
+cmd!(board() -> Vec<BoardItem> => |c| c.board());
+cmd!(resources(resource_type: String) -> ResourceList => |c| c.resources(resource_type));
+cmd!(resource(resource: String) -> ResourceDetail => |c| c.resource(resource));
+cmd!(my_resources(resource_type: Option<String>) -> Vec<HeldResource> => |c| c.my_resources(resource_type));
+cmd!(create_resource(resource_type: String, attributes: Map) -> String => |c| c.create_resource(resource_type, attributes.0));
+cmd!(assign_resource(resource: String, holder: String) -> () => |c| c.assign_resource(resource, holder));
+cmd!(open_request(resource: String, request: String) -> () => |c| c.open_request(resource, request));
+cmd!(answer_request(request: String, answer: String) -> () => |c| c.answer_request(request, answer));
+cmd!(log_resource(resource: String, values: Map) -> () => |c| c.log_resource(resource, values.0));
+cmd!(return_resource(resource: String) -> () => |c| c.return_resource(resource));
+cmd!(people() -> People => |c| c.people());
+cmd!(add_person(name: String, attributes: Map) -> String => |c| c.add_person(name, attributes.0));
+cmd!(update_person(person: String, name: Option<String>, attributes: Map) -> () => |c| c.update_person(person, name, attributes.0));
+cmd!(grant_qualification(person: String, qualification: String, from: Option<String>, until: Option<String>) -> () => |c| c.grant_qualification(person, qualification, from, until));
+cmd!(end_grant(kind: String, grant: String, end: Option<String>) -> () => |c| c.end_grant(kind, grant, end));
+cmd!(create_unit(unit_type: String, name: String) -> String => |c| c.create_unit(unit_type, name));
+cmd!(set_membership(person: String, unit: String, from: Option<String>) -> () => |c| c.set_membership(person, unit, from));
+cmd!(grant_role(person: String, role: String, unit: Option<String>) -> () => |c| c.grant_role(person, role, unit));
+cmd!(revoke_device(device: String) -> () => |c| c.revoke_device(device));
+cmd!(units() -> Vec<UnitView> => |c| c.units());
+cmd!(alerts() -> Vec<Alert> => |c| c.alerts());
+cmd!(sync_status() -> SyncStatus => |c| c.sync_status().await);
+cmd!(sync_now() -> SyncStatus => |c| c.sync_now().await);
+cmd!(notifications() -> Vec<Notification> => |c| c.take_notifications());
+cmd!(settings() -> Settings => |c| c.settings());
+cmd!(update_settings(auto_lock_minutes: u32, mobile_data_photos: bool, muted_categories: Vec<String>) -> Settings => |c| c.update_settings(auto_lock_minutes, mobile_data_photos, muted_categories));
+
+/// The typed command set; also used to export the TypeScript bindings.
+pub fn specta_builder() -> Builder<tauri::Wry> {
+    Builder::<tauri::Wry>::new().commands(collect_commands![
+        status,
+        texts,
+        accept_privacy,
+        create_org,
+        join_org,
+        invite_device,
+        pairings,
+        confirm_pairing,
+        set_pin,
+        unlock,
+        lock,
+        menu,
+        home,
+        form,
+        save_document,
+        step_document,
+        my_documents,
+        work_queue,
+        batch_step,
+        aggregate,
+        generate_aggregate,
+        distribute_aggregate,
+        programs,
+        program,
+        draft_program,
+        assign_slot,
+        send_program,
+        publish_program,
+        respond,
+        add_external,
+        my_assignments,
+        board,
+        resources,
+        resource,
+        my_resources,
+        create_resource,
+        assign_resource,
+        open_request,
+        answer_request,
+        log_resource,
+        return_resource,
+        people,
+        add_person,
+        update_person,
+        grant_qualification,
+        end_grant,
+        create_unit,
+        set_membership,
+        grant_role,
+        revoke_device,
+        units,
+        alerts,
+        sync_status,
+        sync_now,
+        notifications,
+        settings,
+        update_settings,
+    ])
+}
+
+/// Writes `bindings.ts` for the UI.
+pub fn export_bindings(path: &str) -> Result<(), String> {
+    let ts = specta_typescript::Typescript::default()
+        .header("// Generated by `cargo xtask bindings`. Do not edit.\n");
+    specta_builder().export(ts, path).map_err(|e| e.to_string())
+}
+
+fn network() -> Network {
+    match std::env::var("APP_NETWORK").as_deref() {
+        Ok("local") => Network::Local,
+        Ok(urls) if urls.starts_with("https://") => {
+            Network::Relays(urls.split(',').map(str::to_owned).collect())
+        }
+        _ => Network::PublicRelays,
+    }
+}
+
+/// Keeps syncing while the app runs and shows new notifications (§9.2, §11.1).
+async fn background(app: tauri::AppHandle, core: Arc<Core>) {
+    let _ = core.start_network().await;
+    loop {
+        let _ = core.sync_round().await;
+        if !core.is_locked() {
+            if let Ok(list) = core.take_notifications() {
+                let title = core
+                    .status()
+                    .map(|s| s.branding.app_name)
+                    .unwrap_or_default();
+                for n in list {
+                    let _ = app
+                        .notification()
+                        .builder()
+                        .title(&title)
+                        .body(&n.text)
+                        .show();
+                }
+            }
+        }
+        tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+    }
+}
+
+fn tray(app: &tauri::App, core: &Arc<Core>) -> tauri::Result<()> {
+    let title = core
+        .status()
+        .map(|s| s.branding.app_name)
+        .unwrap_or_default();
+    let open = TrayItem::with_id(app, "open", "Apri", true, None::<&str>)?;
+    let sync = TrayItem::with_id(app, "sync", "Sincronizza", true, None::<&str>)?;
+    let quit = TrayItem::with_id(app, "quit", "Esci", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&open, &sync, &quit])?;
+    let core = core.clone();
+    let mut builder = TrayIconBuilder::new()
+        .menu(&menu)
+        .tooltip(&title)
+        .on_menu_event(move |app, event| match event.id.as_ref() {
+            "open" => {
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.show();
+                    let _ = w.set_focus();
+                }
+            }
+            "sync" => {
+                let core = core.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = core.sync_round().await;
+                });
+            }
+            "quit" => app.exit(0),
+            _ => {}
+        });
+    if let Some(icon) = app.default_window_icon() {
+        builder = builder.icon(icon.clone());
+    }
+    builder.build(app)?;
+    Ok(())
+}
+
+pub fn run() -> Result<(), String> {
+    if BUNDLE.is_empty() {
+        return Err(
+            "this build has no package: build it with `cargo xtask dev|build --package <name>`"
+                .into(),
+        );
+    }
+    let builder = specta_builder();
+    tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
+        .invoke_handler(builder.invoke_handler())
+        .setup(move |app| {
+            builder.mount_events(app);
+            let data_dir = app.path().app_data_dir()?;
+            let identifier = app.config().identifier.clone();
+            let secrets = Arc::new(secrets::KeyringSecretStore::new(&identifier));
+            let core = Core::open(CoreOptions {
+                data_dir,
+                bundle: BUNDLE.to_vec(),
+                secrets,
+                network: Some(network()),
+                clock: None,
+            })
+            .map_err(|e| {
+                Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error>
+            })?;
+            app.manage(core.clone());
+            tray(app, &core)?;
+            tauri::async_runtime::spawn(background(app.handle().clone(), core));
+            Ok(())
+        })
+        .run(tauri::generate_context!())
+        .map_err(|e| e.to_string())
+}

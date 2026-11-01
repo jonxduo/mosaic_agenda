@@ -479,6 +479,38 @@ impl<'a> Client<'a> {
         self.org_event(EventKind::DeviceRevoked, &DeviceRevoked { device })
     }
 
+    pub fn rename_person(
+        &self,
+        person: PersonId,
+        display_name: &str,
+    ) -> Result<Vec<SignedEvent>, ActionError> {
+        self.org_event(
+            EventKind::PersonUpdated,
+            &PersonUpdated {
+                person,
+                display_name: Some(display_name.to_owned()),
+                attributes: Values::new(),
+                cleared: Vec::new(),
+            },
+        )
+    }
+
+    pub fn invite_device(
+        &self,
+        person: PersonId,
+        invite: Id,
+        expires_at: i64,
+    ) -> Result<Vec<SignedEvent>, ActionError> {
+        self.org_event(
+            EventKind::DeviceInvited,
+            &core_events::payloads::DeviceInvited {
+                invite,
+                person,
+                expires_at,
+            },
+        )
+    }
+
     pub fn set_archive(
         &self,
         device: DevicePublicKey,

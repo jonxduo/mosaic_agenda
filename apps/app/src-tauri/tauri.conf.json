@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "OrgApp",
+  "identifier": "org.example.orgapp",
+  "version": "0.1.0",
+  "build": {
+    "beforeDevCommand": "npx -y pnpm@10.34.9 dev",
+    "beforeBuildCommand": "npx -y pnpm@10.34.9 build",
+    "frontendDist": "../ui/build",
+    "devUrl": "http://localhost:5173"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "OrgApp",
+        "width": 1200,
+        "height": 820,
+        "minWidth": 360,
+        "minHeight": 600
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png"
+    ]
+  }
+}
