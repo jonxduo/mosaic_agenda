@@ -1,0 +1,31 @@
+name: territorio assegnato, richiesta, percorrenza, restituzione, storico e limite per detentore
+given:
+  date: 2026-11-01
+  people:
+    - { id: tm, qualifications: [publisher, baptized, ministerial_servant], attributes: { sex: m }, roles: [territory_manager] }
+    - { id: anna, qualifications: [publisher], attributes: { sex: f } }
+    - { id: paolo, qualifications: [publisher], attributes: { sex: m } }
+when:
+  - { as: tm, do: resource.create, name: t1, type: territory, attributes: { number: "1", name: "Centro", kind: residential } }
+  - { as: tm, do: resource.create, name: t2, type: territory, attributes: { number: "2", kind: business } }
+  - { as: tm, do: resource.create, name: t3, type: territory, attributes: { number: "3", kind: rural } }
+  - { as: tm, do: resource.create, name: t4, type: territory, attributes: { number: "4", kind: other } }
+  - { as: paolo, do: resource.create, name: t5, type: territory, attributes: { number: "5" }, expect: denied }
+  - { check: { cannot_read: { who: anna, resource: t1 } } }
+  - { as: tm, do: resource.assign, resource: t1, holder: anna }
+  - { as: tm, do: resource.assign, resource: t2, holder: anna }
+  - { as: tm, do: resource.assign, resource: t3, holder: anna }
+  - { as: tm, do: resource.assign, resource: t4, holder: anna, expect: denied, reason: "maximum" }
+  - { as: tm, do: resource.assign, resource: t1, holder: paolo, expect: denied, reason: "already assigned" }
+  - { check: { holder: { who: anna, resource: t1, is: anna } } }
+  - { check: { cannot_read: { who: paolo, resource: t1 } } }
+  - { as: tm, do: resource.request, resource: t1, request: log_or_return }
+  - { check: { notified: { who: anna, text: n.territory_request } } }
+  - { as: anna, do: resource.answer, resource: t1, answer: logged }
+  - { as: anna, do: resource.log, resource: t1, values: { completed_on: "2026-11-20", notes: "Tutto fatto" } }
+  - { as: paolo, do: resource.log, resource: t1, values: { completed_on: "2026-11-20" }, expect: denied }
+  - { as: anna, do: resource.return, resource: t1, at: 2026-11-25 }
+  - { as: tm, do: resource.assign, resource: t4, holder: anna }
+then:
+  - { holder: { who: tm, resource: t1, is: none, history: 1, logs: 1 } }
+  - { holder: { who: tm, resource: t4, is: anna } }

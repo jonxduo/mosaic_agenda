@@ -1,0 +1,25 @@
+name: rapporto inviato e registrato (esempio §15.4)
+given:
+  date: 2026-12-01
+  people:
+    - { id: anna, qualifications: [publisher, baptized], group: g1, attributes: { sex: f } }
+    - { id: marco, qualifications: [publisher, baptized, elder], group: g1, attributes: { sex: m },
+        roles: [group_overseer@g1, secretary] }
+    - { id: luca, qualifications: [publisher, baptized, elder], group: g2, attributes: { sex: m } }
+when:
+  - { as: anna, do: document.fill, form: service_report, period: 2026-11, values: { participated: true, bible_studies: 1 } }
+  - { check: { cannot_read: { who: marco, document: anna/service_report/2026-11 } } }   # bozza: solo il soggetto
+  - { as: anna, do: document.step, period: 2026-11, step: submit }
+  - { check: { state: { document: anna/service_report/2026-11, is: collected } } }
+  - { check: { can_read: { who: marco, document: anna/service_report/2026-11 } } }
+  - { check: { cannot_read: { who: luca, document: anna/service_report/2026-11 } } }   # prima della registrazione
+  - { as: anna, do: batch.forward, group: g1, period: 2026-11, expect: denied }
+  - { as: marco, do: batch.forward, group: g1, period: 2026-12, expect: denied }      # nessun rapporto in quel periodo
+  - { as: marco, do: batch.forward, group: g1, period: 2026-11, expect: denied, reason: "missing" }  # manca il suo, prima del giorno 8
+  - { as: marco, do: batch.forward, group: g1, period: 2026-11, at: 2026-12-09 }
+  - { as: marco, do: batch.register, group: g1, period: 2026-11 }
+then:
+  - { can_read: { who: luca, document: anna/service_report/2026-11 } }        # anziano dopo la registrazione
+  - { state: { document: anna/service_report/2026-11, is: registered, who: luca } }
+  - { state: { document: anna/service_report/2026-11, is: registered, who: marco } }
+  - { variant: { document: anna/service_report/2026-11, is: publisher } }

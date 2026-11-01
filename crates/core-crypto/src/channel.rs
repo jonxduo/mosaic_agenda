@@ -31,8 +31,11 @@ pub enum ChannelDescriptor {
     },
     /// Program drafts: owner and assistants.
     Program { program_type: Slug, stage: Slug },
-    /// An individual assignment: owners plus the assignee.
-    Assignment { person: PersonId },
+    /// An individual assignment: owners of the program type plus the assignee.
+    Assignment {
+        program_type: Slug,
+        person: PersonId,
+    },
     /// Resources and their attachments, optionally for the current holder.
     Resource {
         resource_type: Slug,
@@ -40,6 +43,12 @@ pub enum ChannelDescriptor {
     },
     /// Administrators.
     Admin,
+    /// Every member of the organization (organizational events: persons,
+    /// qualifications, units, roles). Appended last: positions are part of ids.
+    Organization,
+    /// Persons holding `permission` (dotted name) on `object` (`kind:id`),
+    /// e.g. the drafts of an aggregation before it is distributed.
+    PermissionHolders { permission: String, object: String },
 }
 
 /// `blake3("channel" || org || canonical descriptor)`.
@@ -275,6 +284,7 @@ mod tests {
         let b = ChannelId::derive(
             &org,
             &ChannelDescriptor::Assignment {
+                program_type: Slug::new("plan").unwrap(),
                 person: PersonId(Id::from_bytes([0; 16])),
             },
         )

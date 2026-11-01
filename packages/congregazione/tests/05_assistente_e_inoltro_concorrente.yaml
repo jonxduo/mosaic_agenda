@@ -1,0 +1,24 @@
+name: l'assistente inoltra al posto del sorvegliante; inoltri concorrenti offline, uno solo efficace
+given:
+  date: 2026-12-02
+  people:
+    - { id: anna, qualifications: [publisher], group: g1, attributes: { sex: f } }
+    - { id: marco, qualifications: [publisher, baptized, elder], group: g1, attributes: { sex: m }, roles: [group_overseer@g1] }
+    - { id: giorgio, qualifications: [publisher, baptized, ministerial_servant], group: g1, attributes: { sex: m },
+        roles: [group_assistant@g1] }
+    - { id: sec, qualifications: [publisher, baptized, elder], group: g2, attributes: { sex: m }, roles: [secretary] }
+when:
+  - { as: anna, do: document.fill, period: 2026-11, values: { participated: true } }
+  - { as: anna, do: document.step, period: 2026-11, step: submit }
+  - concurrent:
+      - { as: marco, do: batch.forward, group: g1, period: 2026-11, at: 2026-12-09 }
+      - { as: giorgio, do: batch.forward, group: g1, period: 2026-11 }
+  - { check: { batch_steps: { who: sec, group: g1, period: 2026-11, step: forward, count: 1 } } }
+  - { check: { superseded: { who: sec, count: 1 } } }
+  - { check: { state: { document: anna/service_report/2026-11, is: forwarded, who: sec } } }
+  # Il mese dopo l'assistente inoltra da solo.
+  - { as: anna, do: document.fill, period: 2026-12, at: 2027-01-02, values: { participated: true } }
+  - { as: anna, do: document.step, period: 2026-12, step: submit }
+  - { as: giorgio, do: batch.forward, group: g1, period: 2026-12, at: 2027-01-09 }
+then:
+  - { state: { document: anna/service_report/2026-12, is: forwarded, who: sec } }

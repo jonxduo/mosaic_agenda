@@ -34,4 +34,6 @@ jobs:
         run: for p in packages/*/; do cargo xtask bundle --package "$(basename "$p")"; done
       - name: No domain terms in the core
         run: cargo xtask check-domain-leak
-  # Frontend lint/test, desktop build and package scenario tests are added in phases F3 and F5.
+      - name: Package scenarios
+        run: for p in packages/*/; do cargo xtask test-package --package "$(basename "$p")"; done
+  # Frontend lint/test and the desktop build are added in phase F5.

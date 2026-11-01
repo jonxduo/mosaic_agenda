@@ -1,0 +1,20 @@
+name: oratore esterno all'adunanza pubblica con conferma registrata dall'organizzatore
+given:
+  date: 2026-11-01
+  externals: [oratore]
+  people:
+    - { id: pmc, qualifications: [publisher, baptized, elder], attributes: { sex: m }, roles: [public_meeting_coordinator] }
+    - { id: bm, qualifications: [publisher, baptized, ministerial_servant], attributes: { sex: m }, roles: [board_manager] }
+    - { id: paolo, qualifications: [publisher, baptized], attributes: { sex: m } }
+when:
+  - { as: pmc, do: program.draft, name: w46, type: weekend, dates: [2026-11-08] }
+  - { as: pmc, do: program.assign, program: w46, slot: opening_prayer, person: oratore, expect: denied, reason: "external" }
+  - { as: pmc, do: program.assign, program: w46, slot: talk, person: oratore, extra: { theme: "Una speranza sicura", home_congregation: "Centro" } }
+  - { as: pmc, do: program.assign, program: w46, slot: opening_prayer, person: paolo }
+  - { as: pmc, do: program.send, program: w46 }
+  - { as: paolo, do: assignment.respond, program: w46, type: weekend, slot: talk, assignee: oratore, response: accepted, expect: denied }
+  - { as: pmc, do: assignment.respond, program: w46, type: weekend, slot: talk, assignee: oratore, response: accepted }
+  - { as: bm, do: program.publish, program: w46 }
+then:
+  - { response: { who: pmc, program: w46, slot: talk, is: accepted } }
+  - { on_board: { who: paolo, program: w46 } }

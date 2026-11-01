@@ -411,6 +411,18 @@ dependencies = [
 [[package]]
 name = "core-engine"
 version = "0.1.0"
+dependencies = [
+ "blake3",
+ "core-config",
+ "core-crypto",
+ "core-events",
+ "core-model",
+ "postcard",
+ "proptest",
+ "serde",
+ "thiserror",
+ "time",
+]
 
 [[package]]
 name = "core-events"
@@ -453,6 +465,18 @@ version = "0.1.0"
 [[package]]
 name = "core-testkit"
 version = "0.1.0"
+dependencies = [
+ "core-config",
+ "core-crypto",
+ "core-engine",
+ "core-events",
+ "core-model",
+ "proptest",
+ "serde",
+ "serde_norway",
+ "thiserror",
+ "time",
+]
 
 [[package]]
 name = "core_detect"
@@ -1986,6 +2010,7 @@ dependencies = [
  "clap",
  "core-config",
  "core-model",
+ "core-testkit",
  "tempfile",
  "walkdir",
 ]

@@ -84,6 +84,75 @@ impl Permission {
     }
 }
 
+impl Permission {
+    pub const ALL: [Permission; 27] = [
+        Self::DocumentFill,
+        Self::DocumentFillOnBehalf,
+        Self::DocumentRead,
+        Self::DocumentTransition,
+        Self::BatchCollect,
+        Self::BatchForward,
+        Self::BatchRegister,
+        Self::AggregateGenerate,
+        Self::DocumentDistribute,
+        Self::ProgramDraft,
+        Self::ProgramAssign,
+        Self::ProgramPublish,
+        Self::AssignmentRespondOnBehalf,
+        Self::CalendarManage,
+        Self::ResourceManage,
+        Self::ResourceAssign,
+        Self::ResourceLog,
+        Self::ResourceRequest,
+        Self::BoardPublish,
+        Self::BoardWithdraw,
+        Self::PeopleManage,
+        Self::QualificationsManage,
+        Self::UnitsManage,
+        Self::RolesGrant,
+        Self::DevicesManage,
+        Self::ConfigPublish,
+        Self::ArchiveServe,
+    ];
+
+    /// Dotted name, e.g. `document.read`.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::DocumentFill => "document.fill",
+            Self::DocumentFillOnBehalf => "document.fill_on_behalf",
+            Self::DocumentRead => "document.read",
+            Self::DocumentTransition => "document.transition",
+            Self::BatchCollect => "batch.collect",
+            Self::BatchForward => "batch.forward",
+            Self::BatchRegister => "batch.register",
+            Self::AggregateGenerate => "aggregate.generate",
+            Self::DocumentDistribute => "document.distribute",
+            Self::ProgramDraft => "program.draft",
+            Self::ProgramAssign => "program.assign",
+            Self::ProgramPublish => "program.publish",
+            Self::AssignmentRespondOnBehalf => "assignment.respond_on_behalf",
+            Self::CalendarManage => "calendar.manage",
+            Self::ResourceManage => "resource.manage",
+            Self::ResourceAssign => "resource.assign",
+            Self::ResourceLog => "resource.log",
+            Self::ResourceRequest => "resource.request",
+            Self::BoardPublish => "board.publish",
+            Self::BoardWithdraw => "board.withdraw",
+            Self::PeopleManage => "people.manage",
+            Self::QualificationsManage => "qualifications.manage",
+            Self::UnitsManage => "units.manage",
+            Self::RolesGrant => "roles.grant",
+            Self::DevicesManage => "devices.manage",
+            Self::ConfigPublish => "config.publish",
+            Self::ArchiveServe => "archive.serve",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|p| p.as_str() == s)
+    }
+}
+
 /// Where a granted permission is exercised.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,

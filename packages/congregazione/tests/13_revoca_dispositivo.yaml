@@ -1,0 +1,18 @@
+name: revoca di un dispositivo e rotazione, il dispositivo revocato non legge i rapporti successivi
+given:
+  date: 2026-11-02
+  people:
+    - { id: anna, qualifications: [publisher], group: g1, attributes: { sex: f } }
+    - { id: marco, qualifications: [publisher, baptized, elder], group: g1, attributes: { sex: m },
+        roles: [group_overseer@g1], devices: 2 }
+when:
+  - { as: anna, do: document.fill, period: 2026-10, values: { participated: true } }
+  - { as: anna, do: document.step, period: 2026-10, step: submit }
+  - { check: { can_read: { who: marco, device: 1, document: anna/service_report/2026-10 } } }
+  - { do: device.revoke, person: marco, device: 1, at: 2026-11-10 }
+  - { as: anna, do: document.fill, period: 2026-11, at: 2026-12-01, values: { participated: true } }
+  - { as: anna, do: document.step, period: 2026-11, step: submit }
+then:
+  - { can_read: { who: marco, device: 0, document: anna/service_report/2026-11 } }
+  - { cannot_read: { who: marco, device: 1, document: anna/service_report/2026-11 } }
+  - { can_read: { who: marco, device: 1, document: anna/service_report/2026-10 } }   # resta ciò che aveva già

@@ -1,0 +1,18 @@
+name: rapporto del proclamatore e del pioniere ausiliare (variante per il mese)
+given:
+  date: 2026-11-02
+  people:
+    - { id: anna, qualifications: [publisher, baptized, "auxiliary_pioneer:2026-10"], group: g1, attributes: { sex: f } }
+    - { id: paolo, qualifications: [publisher], group: g1, attributes: { sex: m } }
+when:
+  - { as: anna, do: document.fill, period: 2026-10, values: { hours: 3000, bible_studies: 2 } }
+  - { as: paolo, do: document.fill, period: 2026-10, values: { participated: true } }
+  # Campi della variante sbagliata o fuori intervallo.
+  - { as: anna, do: document.fill, period: 2026-10, values: { participated: true }, expect: denied, reason: "unknown field" }
+  - { as: paolo, do: document.fill, period: 2026-10, values: { bible_studies: 120 }, expect: denied, reason: "out of range" }
+  - { as: paolo, do: document.fill, period: 2026-10, values: { bible_studies: 1 } }
+then:
+  - { variant: { document: anna/service_report/2026-10, is: full_time } }
+  - { value: { document: anna/service_report/2026-10, field: hours, is: 3000 } }
+  - { variant: { document: paolo/service_report/2026-10, is: publisher } }
+  - { value: { document: paolo/service_report/2026-10, field: bible_studies, is: 1 } }

@@ -1,0 +1,24 @@
+name: promemoria per i rapporti mancanti e avviso di incarico scoperto
+given:
+  date: 2026-12-02
+  people:
+    - { id: anna, qualifications: [publisher], group: g1, attributes: { sex: f } }
+    - { id: bruno, qualifications: [publisher], group: g1, attributes: { sex: m } }
+    - { id: marco, qualifications: [publisher, baptized, elder], group: g1, attributes: { sex: m }, roles: [group_overseer@g1] }
+    - { id: sergio, qualifications: [publisher, baptized, ministerial_servant], group: g2, attributes: { sex: m },
+        roles: [group_servant@g2] }
+    - { id: sec, qualifications: [publisher, baptized, elder], group: g2, attributes: { sex: m }, roles: [secretary] }
+when:
+  - { as: anna, do: document.fill, period: 2026-11, values: { participated: true } }
+  - { as: anna, do: document.step, period: 2026-11, step: submit }
+then:
+  # Il 5 del mese a chi non ha inviato, l'8 alla sorveglianza del gruppo incompleto.
+  - { reminded: { who: bruno, on: 2026-12-05, text: n.report_missing } }
+  - { reminded: { who: anna, on: 2026-12-05, text: n.report_missing, is: false } }
+  - { reminded: { who: bruno, on: 2026-12-06, text: n.report_missing, is: false } }
+  - { reminded: { who: marco, on: 2026-12-08, text: n.batch_incomplete } }
+  - { reminded: { who: sec, on: 2026-12-15, text: n.batches_missing } }
+  # Il gruppo 2 ha un servitore di gruppo ma nessun supervisore.
+  - { uncovered: { who: sec, on: 2026-12-02, role: group_supervisor, group: g2 } }
+  - { uncovered: { who: sec, on: 2026-12-02, role: group_overseer, group: g2, is: false } }   # coperto dal sostituto
+  - { uncovered: { who: sec, on: 2026-12-02, role: group_supervisor, group: g1, is: false } }

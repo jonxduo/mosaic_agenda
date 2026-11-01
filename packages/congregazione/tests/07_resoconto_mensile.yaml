@@ -1,0 +1,69 @@
+name: resoconto mensile con somme, mancanti, distribuzione agli anziani e integrazione tardiva
+given:
+  date: 2026-12-02
+  people:
+    - { id: anna, qualifications: [publisher, baptized], group: g1, attributes: { sex: f } }
+    - { id: bea, qualifications: [publisher, baptized, "auxiliary_pioneer:2026-11"], group: g1, attributes: { sex: f } }
+    - { id: marco, qualifications: [publisher, baptized, elder], group: g1, attributes: { sex: m },
+        roles: [group_overseer@g1, secretary] }
+    - { id: carlo, qualifications: [publisher, baptized, regular_pioneer], group: g2, attributes: { sex: m } }
+    - { id: dino, qualifications: [publisher], group: g2, attributes: { sex: m } }
+    - { id: ugo, qualifications: [publisher, baptized, elder], group: g2, attributes: { sex: m }, roles: [group_overseer@g2] }
+    - { id: luca, qualifications: [publisher, baptized, elder], group: g2, attributes: { sex: m } }
+when:
+  - { as: anna, do: document.fill, period: 2026-11, values: { participated: true, bible_studies: 1 } }
+  - { as: anna, do: document.step, period: 2026-11, step: submit }
+  - { as: bea, do: document.fill, period: 2026-11, values: { hours: 3000, bible_studies: 2 } }
+  - { as: bea, do: document.step, period: 2026-11, step: submit }
+  - { as: marco, do: document.fill, period: 2026-11, values: { participated: true, bible_studies: 0 } }
+  - { as: marco, do: document.step, period: 2026-11, step: submit }
+  - { as: carlo, do: document.fill, period: 2026-11, values: { hours: 4200, extra_hours: 300, bible_studies: 3 } }
+  - { as: carlo, do: document.step, period: 2026-11, step: submit }
+  - { as: ugo, do: document.fill, period: 2026-11, values: { participated: false } }
+  - { as: ugo, do: document.step, period: 2026-11, step: submit }
+  - { as: luca, do: document.fill, period: 2026-11, values: { participated: true } }
+  - { as: luca, do: document.step, period: 2026-11, step: submit }
+  - { as: marco, do: batch.forward, group: g1, period: 2026-11 }
+  - { as: ugo, do: batch.forward, group: g2, period: 2026-11, at: 2026-12-09 }   # manca dino
+  - { as: marco, do: batch.register, group: g1, period: 2026-11 }
+  - { as: marco, do: batch.register, group: g2, period: 2026-11 }
+  - { as: luca, do: aggregate.generate, aggregate: monthly_summary, period: 2026-11, expect: denied }
+  - { as: marco, do: aggregate.generate, aggregate: monthly_summary, period: 2026-11 }
+  - { check: { cannot_read: { who: luca, aggregate: monthly_summary/2026-11 } } }
+  - { as: marco, do: aggregate.distribute, aggregate: monthly_summary, period: 2026-11 }
+  - check:
+      aggregate:
+        who: luca
+        id: monthly_summary
+        period: 2026-11
+        version: 1
+        distributed: true
+        missing: [dino]
+        measures:
+          publishers_participated: 3
+          publisher_studies: 1
+          full_time_count: 2
+          auxiliary_count: 1
+          regular_count: 1
+          special_and_missionary_count: 0
+          hours_total: 7200
+          extra_hours_total: 300
+          full_time_studies: 5
+  - { check: { notified: { who: luca, text: n.summary_available } } }
+  - { check: { cannot_read: { who: anna, aggregate: monthly_summary/2026-11 } } }
+  # Integrazione tardiva: nuova versione.
+  - { as: dino, do: document.fill, period: 2026-11, at: 2026-12-20, values: { participated: true, bible_studies: 1 } }
+  - { as: dino, do: document.step, period: 2026-11, step: submit }
+  - { as: ugo, do: batch.forward, group: g2, period: 2026-11 }
+  - { as: marco, do: batch.register, group: g2, period: 2026-11 }
+  - { as: marco, do: aggregate.generate, aggregate: monthly_summary, period: 2026-11 }
+  - { as: marco, do: aggregate.distribute, aggregate: monthly_summary, period: 2026-11 }
+then:
+  - aggregate:
+      who: luca
+      id: monthly_summary
+      period: 2026-11
+      version: 2
+      not_missing: [dino]
+      measures: { publishers_participated: 4, publisher_studies: 2 }
+  - { can_read: { who: luca, document: dino/service_report/2026-11 } }

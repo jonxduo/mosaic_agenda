@@ -257,6 +257,43 @@ fn check_domain_leak() -> Result<()> {
     }
 }
 
+/// Runs every scenario in `packages/<name>/tests/*.yaml` (§15.4).
+fn test_package(name: &str) -> Result<()> {
+    let pkg = validate(name)?;
+    let bundle = core_config::compile(pkg).context("compiling the package")?;
+    let dir = package_dir(name)?.join("tests");
+    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir)
+        .with_context(|| format!("reading {}", dir.display()))?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.extension().is_some_and(|x| x == "yaml"))
+        .collect();
+    files.sort();
+    let mut failed = 0;
+    for f in &files {
+        let text = std::fs::read_to_string(f)?;
+        let file = f
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let started = std::time::Instant::now();
+        match core_testkit::run_scenario(bundle.bytes.clone(), &text) {
+            Ok(title) => println!(
+                "  ok    {file}: {title} ({:.1}s)",
+                started.elapsed().as_secs_f64()
+            ),
+            Err(e) => {
+                failed += 1;
+                println!("  FAIL  {file}: {e}");
+            }
+        }
+    }
+    if failed > 0 {
+        bail!("{failed} of {} scenarios failed", files.len());
+    }
+    println!("{} scenarios passed", files.len());
+    Ok(())
+}
+
 fn not_yet(what: &str, phase: &str) -> Result<()> {
     bail!("`{what}` is not available yet: it arrives in phase {phase} (PROGETTO.md §16)")
 }
@@ -284,7 +321,7 @@ fn run() -> Result<()> {
         }
         Command::Bundle { package } => bundle(&package),
         Command::CheckDomainLeak => check_domain_leak(),
-        Command::TestPackage { .. } => not_yet("test-package", "F3"),
+        Command::TestPackage { package } => test_package(&package),
         Command::Build { .. } => not_yet("build", "F5"),
         Command::Dev { .. } => not_yet("dev", "F5"),
         Command::Bindings => not_yet("bindings", "F5"),

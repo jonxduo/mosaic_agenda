@@ -1,0 +1,23 @@
+name: gruppo con servitore di gruppo e supervisore, entrambi vedono e inoltrano
+given:
+  date: 2026-12-10
+  people:
+    - { id: anna, qualifications: [publisher], group: g1, attributes: { sex: f } }
+    - { id: sergio, qualifications: [publisher, baptized, ministerial_servant], group: g1, attributes: { sex: m },
+        roles: [group_servant@g1] }
+    - { id: enzo, qualifications: [publisher, baptized, elder], group: g2, attributes: { sex: m },
+        roles: [group_supervisor@g1] }
+    - { id: sec, qualifications: [publisher, baptized, elder], group: g2, attributes: { sex: m }, roles: [secretary] }
+when:
+  - { as: anna, do: document.fill, period: 2026-10, values: { participated: true } }
+  - { as: anna, do: document.step, period: 2026-10, step: submit }
+  - { as: anna, do: document.fill, period: 2026-11, values: { participated: true } }
+  - { as: anna, do: document.step, period: 2026-11, step: submit }
+  - { check: { can_read: { who: sergio, document: anna/service_report/2026-11 } } }
+  - { check: { can_read: { who: enzo, document: anna/service_report/2026-11 } } }
+  - { as: sergio, do: batch.forward, group: g1, period: 2026-10 }
+  - { as: enzo, do: batch.forward, group: g1, period: 2026-11 }
+then:
+  - { state: { document: anna/service_report/2026-10, is: forwarded, who: sec } }
+  - { state: { document: anna/service_report/2026-11, is: forwarded, who: sergio } }
+  - { batch_steps: { who: sec, group: g1, period: 2026-11, step: forward, count: 1 } }

@@ -1,3 +1,7 @@
-//! Multi-device simulator and test scenarios (phases F3/F4).
-//!
-//! Placeholder crate: the implementation lands in its phase (see PROGETTO.md §16).
+//! Multi-device simulator and package scenario runner (PROGETTO.md §15.3, §15.4).
+
+pub mod scenario;
+pub mod world;
+
+pub use scenario::{ScenarioError, run_scenario};
+pub use world::{ADMIN, World, WorldError};

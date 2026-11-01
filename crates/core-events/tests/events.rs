@@ -178,6 +178,7 @@ fn distribute(
     to: &[&DeviceKeys],
 ) -> SignedEvent {
     let payload = KeyDistribution {
+        descriptor: ChannelDescriptor::Admin,
         channel,
         entries: to
             .iter()

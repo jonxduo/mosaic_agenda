@@ -73,6 +73,12 @@ impl Slug {
     pub fn new(s: &str) -> Result<Self, ParseError> {
         s.parse()
     }
+
+    /// A slug from a constant of the core known to be valid (checked in debug builds).
+    pub fn lit(s: &'static str) -> Self {
+        debug_assert!(is_slug(s), "invalid slug constant {s}");
+        Self(s.to_owned())
+    }
 }
 
 impl FromStr for Slug {

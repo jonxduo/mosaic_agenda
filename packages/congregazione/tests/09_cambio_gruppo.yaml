@@ -1,0 +1,15 @@
+name: cambio di gruppo a metà mese, il rapporto segue il gruppo alla fine del periodo
+given:
+  date: 2026-11-01
+  people:
+    - { id: anna, qualifications: [publisher], group: g1, attributes: { sex: f } }
+    - { id: marco, qualifications: [publisher, baptized, elder], group: g1, attributes: { sex: m }, roles: [group_overseer@g1] }
+    - { id: ugo, qualifications: [publisher, baptized, elder], group: g2, attributes: { sex: m }, roles: [group_overseer@g2] }
+when:
+  - { do: membership.move, person: anna, group: g2, at: 2026-11-15 }
+  - { as: anna, do: document.fill, period: 2026-11, at: 2026-12-01, values: { participated: true } }
+  - { as: anna, do: document.step, period: 2026-11, step: submit }
+then:
+  - { can_read: { who: ugo, document: anna/service_report/2026-11 } }
+  - { cannot_read: { who: marco, document: anna/service_report/2026-11 } }
+  - { state: { document: anna/service_report/2026-11, is: collected, who: ugo } }

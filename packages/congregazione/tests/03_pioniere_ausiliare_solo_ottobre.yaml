@@ -1,0 +1,12 @@
+name: pioniere ausiliare solo a ottobre, a novembre torna proclamatore
+given:
+  date: 2026-11-02
+  people:
+    - { id: anna, qualifications: [publisher, baptized, "auxiliary_pioneer:2026-10"], group: g1, attributes: { sex: f } }
+when:
+  - { as: anna, do: document.fill, period: 2026-10, values: { hours: 3600 } }
+  - { as: anna, do: document.fill, period: 2026-11, at: 2026-12-01, values: { participated: true } }
+  - { as: anna, do: document.fill, period: 2026-11, values: { hours: 600 }, expect: denied, reason: "unknown field" }
+then:
+  - { variant: { document: anna/service_report/2026-10, is: full_time } }
+  - { variant: { document: anna/service_report/2026-11, is: publisher } }

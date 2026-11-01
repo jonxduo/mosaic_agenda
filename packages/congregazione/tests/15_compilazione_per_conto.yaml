@@ -1,0 +1,14 @@
+name: compilazione per conto di un proclamatore senza app
+given:
+  date: 2026-12-02
+  people:
+    - { id: nonna, qualifications: [publisher], group: g1, attributes: { sex: f, uses_app: false }, devices: 0 }
+    - { id: marco, qualifications: [publisher, baptized, elder], group: g1, attributes: { sex: m }, roles: [group_overseer@g1] }
+    - { id: paolo, qualifications: [publisher], group: g1, attributes: { sex: m } }
+when:
+  - { as: paolo, do: document.fill, subject: nonna, period: 2026-11, values: { participated: true }, expect: denied }
+  - { as: marco, do: document.fill, subject: nonna, period: 2026-11, values: { participated: true, bible_studies: 1 } }
+  - { as: marco, do: document.step, document: nonna/service_report/2026-11, step: submit }
+then:
+  - { state: { document: nonna/service_report/2026-11, is: collected, who: marco } }
+  - { cannot_read: { who: paolo, document: nonna/service_report/2026-11 } }

@@ -1,0 +1,25 @@
+name: fine dell'incarico di segretario, il nuovo legge i lotti successivi e il precedente no
+given:
+  date: 2026-11-02
+  people:
+    - { id: anna, qualifications: [publisher], group: g1, attributes: { sex: f } }
+    - { id: marco, qualifications: [publisher, baptized, elder], group: g1, attributes: { sex: m }, roles: [group_overseer@g1] }
+    - { id: s1, qualifications: [publisher, baptized, elder], group: g2, attributes: { sex: m }, roles: [secretary] }
+    - { id: s2, qualifications: [publisher, baptized, elder], group: g2, attributes: { sex: m } }
+when:
+  - { as: anna, do: document.fill, period: 2026-10, values: { participated: true } }
+  - { as: anna, do: document.step, period: 2026-10, step: submit }
+  - { as: marco, do: batch.forward, group: g1, period: 2026-10, at: 2026-11-09 }
+  - { check: { can_read: { who: s1, document: anna/service_report/2026-10 } } }
+  - { check: { cannot_read: { who: s2, document: anna/service_report/2026-10 } } }
+  - { do: role.grant, person: s2, role: secretary, at: 2026-11-20, expect: denied, reason: "maximum" }
+  - { do: role.end, person: s1, role: secretary, at: 2026-11-20 }
+  - { do: role.grant, person: s2, role: secretary, from: 2026-11-20 }
+  - { as: anna, do: document.fill, period: 2026-11, at: 2026-12-02, values: { participated: true } }
+  - { as: anna, do: document.step, period: 2026-11, step: submit }
+  - { as: marco, do: batch.forward, group: g1, period: 2026-11, at: 2026-12-09 }
+then:
+  - { can_read: { who: s2, document: anna/service_report/2026-11 } }
+  - { cannot_read: { who: s1, document: anna/service_report/2026-11 } }
+  - { batch_steps: { who: s2, group: g1, period: 2026-11, step: forward, count: 1 } }
+  - { batch_steps: { who: s1, group: g1, period: 2026-11, step: forward, count: 0 } }

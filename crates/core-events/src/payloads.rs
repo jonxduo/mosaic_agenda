@@ -1,7 +1,7 @@
 //! Payloads of the public events defined in phase F2. Payloads of the other
 //! kinds are defined with the engine (F3).
 
-use core_crypto::{ChannelRef, DeviceIdentity, DevicePublicKey};
+use core_crypto::{ChannelDescriptor, ChannelRef, DeviceIdentity, DevicePublicKey};
 use core_model::{Id, PersonId};
 use serde::{Deserialize, Serialize};
 
@@ -88,6 +88,9 @@ pub struct SealedKeyEntry {
 /// `channel.rotated` (first distribution of a new epoch).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct KeyDistribution {
+    /// What the channel is for: lets every device recompute its expected
+    /// members and check that `channel.id` derives from it.
+    pub descriptor: ChannelDescriptor,
     pub channel: ChannelRef,
     pub entries: Vec<SealedKeyEntry>,
 }

@@ -10,7 +10,8 @@ di build. Specifica completa: `PROGETTO.md`. Decisioni tecniche: `docs/DECISIONS
 | F0 — Fondamenta | fatta: workspace, crate, `xtask` (`schema`, `validate`, `bundle`, `check-domain-leak`), CI |
 | F1 — Modello e configurazione | fatta: `core-model`, `core-config`, pacchetto `congregazione` |
 | F2 — Eventi e crittografia | fatta: `core-crypto`, `core-events` (busta firmata, genesi, archivio SQLCipher) |
-| F3–F10 | da fare |
+| F3 — Motore | fatto: `core-engine` (permessi sul passato causale, flussi, lotti, resoconti, programmi, territori, bacheca, promemoria, conflitti), `core-testkit`, 16 scenari |
+| F4–F10 | da fare |
 
 ## Comandi
 
@@ -20,6 +21,7 @@ cargo xtask schema            # rigenera schemas/package.schema.json
 cargo xtask validate --all    # valida ogni pacchetto
 cargo xtask bundle --package <nome>
 cargo xtask check-domain-leak
+cargo xtask test-package --package <nome>   # scenari in packages/<nome>/tests
 ```
 
 Su macOS con l'SDK 27 installato accanto a un linker più vecchio, il link fallisce con

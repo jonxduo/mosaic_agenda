@@ -145,3 +145,74 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
 - Un archivio è legato a una sola organizzazione: dalla genesi, oppure con `bind_org` quando un
   nuovo dispositivo conosce l'`OrgId` dal ticket di invito prima di ricevere la genesi.
 - `SecretStore`: per ora solo l'implementazione in memoria; desktop (`keyring`) in F5, mobile in F7.
+
+## 2026-11-01 — Fase F3 (motore)
+
+### Ricostruzione
+- **`rebuild(eventi, portachiavi)` è una funzione pura**: stesso input → proiezione identica byte
+  per byte (`state_hash`). Nessuna data viene dall'orologio locale: si usano la data dichiarata
+  degli eventi e le date dei contenuti. Ricalcolo completo a ogni modifica (§7.5 lo ammette per
+  i volumi della v1); il ricalcolo incrementale si valuterà con le misure del simulatore (F4).
+- Tre fasi: (1) eventi organizzativi, ciascuno verificato sullo stato dei soli eventi
+  organizzativi del suo passato causale (bitset di antenati, cache per insieme); (2) pre-passo
+  dei conflitti; (3) tutti gli altri eventi in ordine `(depth, id)`, verificati sullo stato di
+  autorizzazione del loro passato causale e sullo stato attuale degli oggetti.
+- **Quarantena** decisa prima della decifratura (dipende solo da autore, tempo e passato causale),
+  così tutti i dispositivi concordano. Limite noto: non si applica agli eventi organizzativi,
+  che restano validati sul loro passato causale.
+- **Configurazione attiva**: l'ultima `config.published` che ha tutte le altre nel passato
+  causale; con versioni concorrenti resta attiva l'ultima comune e si genera un avviso.
+
+### Conflitti (§7.6)
+- Passaggi concorrenti sullo stesso documento, passi concorrenti dello stesso lotto, documenti
+  periodici duplicati: vince la priorità di incarico più alta dell'autore, poi l'id minore; chi è
+  concorrente con un vincitore diventa `superseded`. La regola vale per "eventi concorrenti sullo
+  stesso oggetto", che nella pratica partono dallo stesso stato.
+- Conferimenti concorrenti oltre `holders.max`: si tengono gli id evento minori.
+
+### Permessi
+- I passaggi di flusso sono autorizzati dal pubblico `by` del flusso (fonte di verità); i permessi
+  degli incarichi (`batch.forward`, ecc.) servono alle azioni fuori dai flussi.
+- Gli amministratori radice hanno tutti i permessi e possono eseguire ogni passaggio.
+
+### Canali e cifratura
+- Ogni evento non pubblico deve essere cifrato per il canale previsto dalle regole (`rules.rs`,
+  condiviso da motore e client): altrimenti è invalido. Gli eventi organizzativi vanno nel canale
+  `Organization` (tutti i membri).
+- Canali personali (`Subject`): pubblico di lettura **più il soggetto** (§8.2).
+- **Bozza compilata per conto**: leggibile dal soggetto e da `fillers_on_behalf` (altrimenti chi
+  compila non potrebbe cifrarla). Le bozze compilate dal soggetto restano `subject_only`. Limite:
+  chi ha `document.fill_on_behalf` ma non è nel pubblico `fillers_on_behalf` non può creare la
+  bozza.
+- Lotti: canale del pubblico di lettura dello stato di arrivo, nell'ambito dell'unità e senza
+  soggetto (quindi sorveglianza e segretario; dopo la registrazione anche gli anziani).
+- Documenti ridistribuiti **uno per evento** quando un passaggio cambia il pubblico (la specifica
+  suggerisce un evento per lotto): così ogni lettore ricostruisce il documento dal proprio canale.
+- Bozze dei resoconti: nuovo descrittore `PermissionHolders` (chi ha `aggregate.generate`), poi
+  distribuzione al pubblico di lettura.
+- Programmi: bozze per responsabile e assistenti; all'invio delle assegnazioni l'istantanea va a
+  loro e a chi può pubblicare in bacheca; un avviso cifrato per ogni assegnato
+  (`Assignment { program_type, person }`: aggiunto il tipo di programma al descrittore).
+- Distribuzione e rotazione: il client completa i destinatari mancanti e ruota l'epoch quando un
+  membro è uscito o quando non ha la chiave corrente. Il compito automatico di completamento
+  (`complete_channels`) gira dopo l'aggiunta di dispositivi; la sincronizzazione (F4) lo
+  renderà periodico.
+- Gli attributi delle persone viaggiano per ora nel canale `Organization` (servono a tutti per
+  verificare i requisiti, come le qualifiche); l'interfaccia mostrerà solo ai pubblici
+  `read_audience`. Da rivedere.
+
+### Client
+- Ogni azione costruisce i suoi eventi e li verifica con una ricostruzione di prova: il client non
+  può produrre eventi che gli altri dispositivi rifiuterebbero.
+
+### Test
+- Scenari del pacchetto in YAML (`packages/*/tests`), eseguiti da `cargo xtask test-package`: le
+  verifiche di lettura sono **crittografiche** (la vista di un dispositivo con le sole sue chiavi).
+  Formato: `given` (persone, gruppi, qualifiche con periodo, incarichi, dispositivi), `when`
+  (azioni, `check` intermedi, `concurrent`), `then`. Rispetto all'esempio di §15.4 le verifiche
+  "prima di un passo" si scrivono come `check` intermedi.
+- Test del motore contro eventi contraffatti (che aggirano il client), quarantena,
+  configurazioni e conferimenti concorrenti, e convergenza con proptest: stessi eventi in ordini
+  diversi e su dispositivi diversi della stessa persona danno lo stesso `state_hash`.
+- Testi del nucleo (non del pacchetto) per promemoria senza testo configurato, es.
+  `core.resource_no_log`: verranno dalla UI (F5).

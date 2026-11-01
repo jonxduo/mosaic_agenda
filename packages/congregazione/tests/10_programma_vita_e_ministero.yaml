@@ -1,0 +1,33 @@
+name: programma Vita e ministero, requisiti, rifiuto, pubblicazione in bacheca e visibilità
+given:
+  date: 2026-11-01
+  people:
+    - { id: lmm, qualifications: [publisher, baptized, elder], attributes: { sex: m }, roles: [lmm_overseer] }
+    - { id: bm, qualifications: [publisher, baptized, ministerial_servant], attributes: { sex: m }, roles: [board_manager] }
+    - { id: giulio, qualifications: [publisher, baptized], attributes: { sex: m } }
+    - { id: anna, qualifications: [publisher, baptized], attributes: { sex: f } }
+    - { id: paolo, qualifications: [publisher], attributes: { sex: m } }
+when:
+  - { as: lmm, do: program.draft, name: w45, type: midweek, dates: [2026-11-05] }
+  - { as: paolo, do: program.draft, name: other, type: midweek, dates: [2026-11-05], expect: denied }
+  - { as: lmm, do: program.assign, program: w45, slot: bible_reading, person: anna, expect: denied, reason: "requirements" }
+  - { as: lmm, do: program.assign, program: w45, slot: bible_reading, person: giulio }
+  - { as: lmm, do: program.assign, program: w45, slot: student_part, index: 0, person: anna, extra: { title: "Prima conversazione", minutes: 3 } }
+  - { as: lmm, do: program.assign, program: w45, slot: student_part, index: 4, person: anna, expect: denied, reason: "out of range" }
+  - { as: lmm, do: program.assign, program: w45, slot: chairman, person: giulio, expect: denied, reason: "requirements" }
+  - { check: { cannot_read: { who: paolo, program: w45 } } }
+  - { as: lmm, do: program.send, program: w45 }
+  - { check: { notified: { who: giulio, text: n.assignment_new } } }
+  - { as: anna, do: assignment.respond, program: w45, type: midweek, slot: student_part, index: 0, response: declined, note: "Sono fuori città" }
+  - { check: { notified: { who: lmm, text: n.assignment_declined } } }
+  - { as: giulio, do: assignment.respond, program: w45, type: midweek, slot: bible_reading, response: accepted }
+  - { as: paolo, do: assignment.respond, program: w45, type: midweek, slot: bible_reading, assignee: giulio, response: declined, expect: denied }
+  - { check: { cannot_read: { who: paolo, program: w45 } } }
+  - { as: paolo, do: program.publish, program: w45, expect: denied }
+  - { as: bm, do: program.publish, program: w45 }
+then:
+  - { can_read: { who: paolo, program: w45 } }
+  - { on_board: { who: paolo, program: w45 } }
+  - { notified: { who: paolo, text: n.program_published } }
+  - { response: { who: lmm, program: w45, slot: student_part, index: 0, is: declined } }
+  - { response: { who: lmm, program: w45, slot: bible_reading, is: accepted } }

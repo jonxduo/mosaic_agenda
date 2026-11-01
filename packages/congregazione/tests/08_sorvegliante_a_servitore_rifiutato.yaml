@@ -1,0 +1,13 @@
+name: conferimento di sorvegliante di gruppo a un servitore di ministero rifiutato
+given:
+  date: 2026-11-02
+  people:
+    - { id: sergio, qualifications: [publisher, baptized, ministerial_servant], group: g1, attributes: { sex: m } }
+    - { id: marco, qualifications: [publisher, baptized, elder], group: g1, attributes: { sex: m }, roles: [group_overseer@g1] }
+    - { id: anna, qualifications: [publisher, baptized], group: g1, attributes: { sex: f } }
+when:
+  - { do: role.grant, person: sergio, role: group_overseer@g1, expect: denied, reason: "requirements" }
+  - { do: role.grant, person: sergio, role: group_servant@g1, expect: denied, reason: "cannot coexist" }  # c'è già il sorvegliante
+  - { do: role.grant, person: anna, role: group_assistant@g1, expect: denied, reason: "requirements" }
+  - { do: qualification.grant, person: anna, qualification: elder, expect: denied, reason: "requirements" }
+  - { do: role.grant, person: sergio, role: group_assistant@g1 }

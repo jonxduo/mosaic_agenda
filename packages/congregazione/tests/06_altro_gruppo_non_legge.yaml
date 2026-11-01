@@ -1,0 +1,16 @@
+name: il proclamatore di un altro gruppo non legge il rapporto
+given:
+  date: 2026-12-02
+  people:
+    - { id: anna, qualifications: [publisher], group: g1, attributes: { sex: f } }
+    - { id: paolo, qualifications: [publisher], group: g2, attributes: { sex: m } }
+    - { id: bruno, qualifications: [publisher], group: g1, attributes: { sex: m } }
+    - { id: marco, qualifications: [publisher, baptized, elder], group: g1, attributes: { sex: m }, roles: [group_overseer@g1] }
+when:
+  - { as: anna, do: document.fill, period: 2026-11, values: { participated: true, bible_studies: 2 } }
+  - { as: anna, do: document.step, period: 2026-11, step: submit }
+  - { as: bruno, do: document.step, document: anna/service_report/2026-11, step: send_back, note: x, expect: denied }
+then:
+  - { cannot_read: { who: paolo, document: anna/service_report/2026-11 } }
+  - { cannot_read: { who: bruno, document: anna/service_report/2026-11 } }
+  - { can_read: { who: marco, document: anna/service_report/2026-11 } }
