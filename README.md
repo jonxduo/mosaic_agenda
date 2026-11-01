@@ -1,7 +1,7 @@
 # App P2P per attività di organizzazioni
 
 Nucleo astratto (Rust, `crates/`) + pacchetti di configurazione (`packages/`), uniti in fase
-di build. Specifica completa: `PROGETTO.md`. Decisioni tecniche: `docs/DECISIONS.md`.
+di build. Specifica completa: [`docs/PROGETTO.md`](docs/PROGETTO.md). Decisioni tecniche: `docs/DECISIONS.md`.
 
 ## Stato
 

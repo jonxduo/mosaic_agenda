@@ -5,7 +5,7 @@ default_locale: it
 locales: [it]
 branding:
   app_name: app.name
-  identifier: it.example.congregazione   # da personalizzare prima della pubblicazione sugli store
+  identifier: it.briccolab.congregazione   # definitivo: non cambiarlo dopo la pubblicazione sugli store
   icon: branding/icon.png
   primary_color: "#2952CC"               # dal mockup di riferimento (canvas "Mockup app Congregazione")
 files:
