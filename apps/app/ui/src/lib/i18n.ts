@@ -3,7 +3,7 @@
 const it = {
   save: 'Salva bozza', saved: 'Salvato', cancel: 'Annulla', confirm: 'Conferma', back: 'Indietro', close: 'Chiudi',
   yes: 'Sì', no: 'No', fill: 'Compila', fill_on_behalf: 'Compila per conto', respond: 'Rispondi', accept: 'Accetto',
-  decline: 'Non posso', open: 'Apri', todo: 'Da fare', board_news: 'Novità in bacheca', nothing: 'Niente da fare per ora',
+  decline: 'Non posso', open: 'Apri', todo: 'Da fare', work_for_others: 'Da seguire', nav_work: 'Attività', nav_admin: 'Amministrazione', nav_system: 'Dispositivo', nothing_mine: 'Niente da fare per te in prima persona', board_news: 'Novità in bacheca', nothing: 'Niente da fare per ora',
   missing: 'Mancano', received: 'Ricevuti', done: 'Già avanzati', note: 'Nota', note_required: 'Scrivi una nota',
   create_org: 'Crea una nuova organizzazione', org_name: "Nome dell'organizzazione", your_name: 'Il tuo nome',
   join_org: 'Unisciti con un invito', ticket: "Incolla il codice d'invito", join: 'Unisciti', create: 'Crea',
@@ -20,6 +20,8 @@ const it = {
   response_pending: 'In attesa', response_accepted: 'Accettato', response_declined: 'Declinato', add_external: 'Aggiungi persona esterna',
   available: 'Disponibile', assigned: 'Assegnata', holder: 'Detentore', history: 'Storico', add: 'Aggiungi', assign: 'Assegna',
   request: 'Richiedi', log: 'Registra', return: 'Restituisci', new_resource: 'Nuova risorsa',
+  people_search: 'Cerca per nome', people_all_units: 'Tutti i gruppi', people_show_erased: 'Mostra dati cancellati', people_none: 'Nessuna persona trovata',
+  person_erased: 'Dati cancellati', you: 'tu',
   people: 'Persone', add_person: 'Aggiungi persona', name: 'Nome', qualification: 'Qualifica', role: 'Incarico', unit: 'Unità',
   from: 'Dal', set_unit: 'Imposta unità', grant: 'Conferisci', devices: 'Dispositivi', new_unit: 'Nuova unità', type: 'Tipo',
   members: 'Membri', alerts: 'Avvisi', no_alerts: 'Nessun avviso', settings: 'Impostazioni', auto_lock: 'Blocco automatico (minuti)',

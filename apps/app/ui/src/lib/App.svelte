@@ -7,6 +7,8 @@
   import { toasts, toast, fail } from './toast.svelte';
   import { isMobile, biometricCheck, applyInsets } from './mobile';
   import Splash from './components/Splash.svelte';
+  import Icon from './components/Icon.svelte';
+  import { grouped, primary } from './nav';
   import { markdown } from './markdown';
   import PrintExport from './components/PrintExport.svelte';
   import { printing } from './privacy.svelte';
@@ -73,6 +75,8 @@
         return;
       }
       fail(e);
+      // Never stay on an empty screen: try again shortly.
+      if (!status) setTimeout(refresh, 2000);
       return;
     }
     try {
@@ -147,6 +151,9 @@
     Object.keys(m.params).length === Object.keys(route.params).length &&
     Object.entries(m.params).every(([k, v]) => route.params[k] === v);
   const params = $derived(route.params);
+  const groups = $derived(grouped(menu));
+  const bottom = $derived(primary(menu, 4));
+  const rest = $derived(menu.filter((m) => !bottom.includes(m)));
 </script>
 
 {#if splash === 'on' || splash === 'intro' || splash === 'leaving'}<Splash leaving={splash === 'leaving'} intro={splash === 'intro'} onend={endSplash} />{/if}
@@ -182,10 +189,17 @@
   <div class="shell">
     <nav class="side" aria-label={t('menu')}>
       <div class="brand"><img src="/package/logo.png" alt="" onerror={(e) => e.currentTarget.remove()} /><span>{status.branding.app_name}</span></div>
-      {#each menu as m (m.label)}
-        <a href={`#/${m.view}`} class="item" aria-current={isActive(m) ? 'page' : undefined} onclick={(e) => { e.preventDefault(); navigate(m); }}>{m.label}</a>
+      {#each groups as g (g.section)}
+        {#if g.section === 'system'}<div class="grow"></div>{/if}
+        <div class="group" role="group" aria-label={g.section === 'me' ? undefined : t(`nav_${g.section}` as never)}>
+          {#if g.section === 'work' || g.section === 'admin'}<p class="group-title">{t(`nav_${g.section}` as never)}</p>{/if}
+          {#each g.items as m (m.label)}
+            <a href={`#/${m.view}`} class="item" aria-current={isActive(m) ? 'page' : undefined} onclick={(e) => { e.preventDefault(); navigate(m); }}>
+              <Icon name={m.view} /><span>{m.label}</span>
+            </a>
+          {/each}
+        </div>
       {/each}
-      <div class="grow"></div>
       <a class="sync" href="#/sync_status" onclick={(e) => { e.preventDefault(); go('sync_status'); }}>
         <span class="dot" style={`background: ${status.unsynced ? 'var(--warn)' : 'var(--ok)'}`}></span>
         {status.unsynced ? status.unsynced_label : t('synced')}
@@ -215,17 +229,16 @@
       {/key}
     </main>
     <nav class="bottom" aria-label={t('menu')}>
-      {#each menu.slice(0, 3) as m (m.label)}
-        <a href={`#/${m.view}`} aria-current={isActive(m) ? 'page' : undefined} onclick={(e) => { e.preventDefault(); navigate(m); }}>{m.label}</a>
+      {#each bottom as m (m.label)}
+        <a href={`#/${m.view}`} aria-current={isActive(m) ? 'page' : undefined} onclick={(e) => { e.preventDefault(); navigate(m); }}><Icon name={m.view} size={22} /><span>{m.label}</span></a>
       {/each}
-      <button type="button" onclick={() => (showMore = !showMore)}>{t('more')}</button>
+      <button type="button" aria-expanded={showMore} onclick={() => (showMore = !showMore)}><Icon name="more" size={22} /><span>{t('more')}</span></button>
     </nav>
     {#if showMore}
       <div class="sheet" role="dialog" aria-label={t('menu')}>
-        {#each menu.slice(3) as m (m.label)}
-          <button type="button" class="item" onclick={() => navigate(m)}>{m.label}</button>
+        {#each rest as m (m.label)}
+          <button type="button" class="item" aria-current={isActive(m) ? 'page' : undefined} onclick={() => navigate(m)}><Icon name={m.view} /><span>{m.label}</span></button>
         {/each}
-        <button type="button" class="item" onclick={() => { showMore = false; go('sync_status'); }}>{t('peers')}</button>
       </div>
     {/if}
   </div>
@@ -246,8 +259,13 @@
   .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; padding: 0 12px 20px; }
   .brand img { width: 30px; height: 30px; }
   .brand span { background: var(--brand-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .item { display: block; padding: 12px; border-radius: 10px; color: var(--text); text-decoration: none; font-size: 15px; background: none; border: none; text-align: left; font: inherit; cursor: pointer; width: 100%; }
+  .group { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+  .group-title { margin: 6px 12px 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  .item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; color: var(--text); text-decoration: none; font-size: 15px; background: none; border: none; text-align: left; font: inherit; cursor: pointer; width: 100%; }
+  .item :global(svg) { flex: none; color: var(--muted); }
   .item[aria-current='page'] { background: var(--primary-soft); color: var(--primary-strong); font-weight: 600; }
+  .item[aria-current='page'] :global(svg) { color: var(--primary-strong); }
+  .item:hover:not([aria-current='page']) { background: var(--primary-soft); }
   .sync { padding: 12px; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; text-decoration: none; }
   .content { flex: 1 1 auto; min-width: 0; padding: 48px 48px 96px; }
   .content :global(> *) { max-width: 780px; }
@@ -260,7 +278,9 @@
     .side { display: none; }
     .content { padding: 32px 20px 110px; }
     .bottom { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg); border-top: 1px solid var(--border); padding: 6px 4px calc(10px + var(--inset-bottom, env(safe-area-inset-bottom, 0px))); }
-    .bottom a, .bottom button { min-height: 52px; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--muted); text-decoration: none; font: inherit; font-size: 12px; background: none; border: none; }
+    .bottom { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .bottom a, .bottom button { min-height: 56px; display: flex; flex-direction: column; gap: 3px; align-items: center; justify-content: center; text-align: center; color: var(--muted); text-decoration: none; font: inherit; font-size: 11px; line-height: 1.2; background: none; border: none; padding: 4px 2px; }
+    .bottom span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .bottom a[aria-current='page'] { color: var(--primary); font-weight: 600; }
     .sheet { display: flex; flex-direction: column; position: fixed; left: 0; right: 0; bottom: 70px; background: var(--bg); border-top: 1px solid var(--border); padding: 8px 12px; max-height: 60vh; overflow-y: auto; box-shadow: 0 -8px 24px rgb(0 0 0 / 0.1); }
     .toasts { bottom: 90px; left: 16px; }

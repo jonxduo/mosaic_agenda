@@ -144,6 +144,21 @@ pub enum HomeSection {
         title: String,
         items: Vec<BoardItem>,
     },
+    /// Work waiting for this user in the views they can reach (core).
+    Work { title: String, items: Vec<WorkItem> },
+}
+
+/// Something to do for others: a batch to forward, missing documents of a
+/// unit, an aggregate to prepare, alerts, devices waiting to join.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct WorkItem {
+    pub title: String,
+    pub subtitle: String,
+    /// View to open, with its parameters (as in the menu).
+    pub view: String,
+    pub params: BTreeMap<String, String>,
+    pub action: String,
+    pub urgent: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -375,6 +390,8 @@ pub struct PersonView {
     pub unit: Option<String>,
     pub roles: Vec<Grant>,
     pub devices: Vec<Choice>,
+    /// Data erased on request (§14): kept only for the history.
+    pub erased: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

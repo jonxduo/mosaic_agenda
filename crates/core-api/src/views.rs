@@ -349,6 +349,11 @@ impl Core {
                 _ => {}
             }
         }
+        let work = self.work_items(&t)?;
+        sections.push(HomeSection::Work {
+            title: String::new(),
+            items: work,
+        });
         Ok(Home {
             date: capitalize(&t.long_date(today(self))),
             greeting: t.fmt(
@@ -365,6 +370,119 @@ impl Core {
             todo_title: String::new(),
             sections,
         })
+    }
+
+    /// Work for others reachable from this user's menu: the home shows it
+    /// without having to visit every view.
+    fn work_items(&self, t: &Texts) -> ApiResult<Vec<WorkItem>> {
+        let mut out = Vec::new();
+        let mut seen = std::collections::BTreeSet::new();
+        for m in self.menu()? {
+            let param = |k: &str| m.params.get(k).cloned();
+            match m.view.as_str() {
+                "work_queue" => {
+                    let Some(wf) = param("workflow") else {
+                        continue;
+                    };
+                    let Ok(q) = self.work_queue(wf, param("unit_type")) else {
+                        continue;
+                    };
+                    for b in q.batches {
+                        let ready: Vec<&Action> =
+                            b.actions.iter().filter(|a| !a.disabled).collect();
+                        let missing = !b.missing.is_empty() && b.can_fill_on_behalf;
+                        if (ready.is_empty() && !missing)
+                            || !seen.insert((b.form.clone(), b.unit_id.clone(), b.period.clone()))
+                        {
+                            continue;
+                        }
+                        let subtitle = match ready.first() {
+                            Some(a) => format!("{} · {}", b.progress, a.label),
+                            None => {
+                                let names: Vec<&str> =
+                                    b.missing.iter().map(|p| p.name.as_str()).take(3).collect();
+                                let more = b.missing.len().saturating_sub(names.len());
+                                format!(
+                                    "{}: {}{}",
+                                    t.fmt(
+                                        "core.missing_count",
+                                        &[("n", b.missing.len().to_string())]
+                                    ),
+                                    names.join(", "),
+                                    if more > 0 {
+                                        format!(" +{more}")
+                                    } else {
+                                        String::new()
+                                    }
+                                )
+                            }
+                        };
+                        out.push(WorkItem {
+                            title: format!("{} · {} · {}", q.title, b.unit_name, b.period_label),
+                            subtitle,
+                            view: m.view.clone(),
+                            params: m.params.clone(),
+                            action: ready
+                                .first()
+                                .map_or_else(|| t.get("core.work.open"), |a| a.label.clone()),
+                            urgent: !ready.is_empty(),
+                        });
+                    }
+                }
+                "aggregate" => {
+                    let Some(agg) = param("aggregate") else {
+                        continue;
+                    };
+                    let Ok(a) = self.aggregate(agg, None) else {
+                        continue;
+                    };
+                    let todo = if a.can_generate && a.version.is_none() && a.registered_count > 0 {
+                        Some("core.work.aggregate")
+                    } else if a.can_distribute && a.version.is_some() && !a.distributed {
+                        Some("core.work.aggregate_send")
+                    } else {
+                        None
+                    };
+                    if let Some(key) = todo {
+                        out.push(WorkItem {
+                            title: format!("{} · {}", a.title, a.period_label),
+                            subtitle: t.get(key),
+                            view: m.view.clone(),
+                            params: m.params.clone(),
+                            action: t.get("core.work.open"),
+                            urgent: false,
+                        });
+                    }
+                }
+                "admin_alerts" => {
+                    let n = self.alerts().map(|a| a.len()).unwrap_or(0);
+                    if n > 0 {
+                        out.push(WorkItem {
+                            title: t.fmt("core.work.alerts", &[("n", n.to_string())]),
+                            subtitle: t.get("core.work.alerts_hint"),
+                            view: m.view.clone(),
+                            params: m.params.clone(),
+                            action: t.get("core.work.open"),
+                            urgent: false,
+                        });
+                    }
+                }
+                "sync_status" => {
+                    for p in self.pairings().unwrap_or_default() {
+                        out.push(WorkItem {
+                            title: t.get("core.work.pairing"),
+                            subtitle: t.fmt("core.work.pairing_hint", &[("name", p.person)]),
+                            view: m.view.clone(),
+                            params: m.params.clone(),
+                            action: t.get("core.work.open"),
+                            urgent: true,
+                        });
+                    }
+                }
+                _ => {}
+            }
+        }
+        Ok(out)
     }
 
     fn due_documents(&self, v: &View, me: PersonId, t: &Texts) -> ApiResult<Vec<DueDocument>> {
@@ -1743,6 +1861,7 @@ impl Core {
                     })
                     .collect();
                 PersonView {
+                    erased: v.proj.erasure.persons.contains(p),
                     person_id: p.to_string(),
                     name: if r.display_name.is_empty() {
                         "—".into()

@@ -509,9 +509,13 @@ export type Home = Home_Serialize | Home_Deserialize;
 
 export type HomeSection = HomeSection_Serialize | HomeSection_Deserialize;
 
-export type HomeSection_Deserialize = { kind: "documents_due"; title: string; items: DueDocument[] } | { kind: "assignments"; title: string; items: AssignmentItem[] } | { kind: "resources"; title: string; items: HeldResource_Deserialize[] } | { kind: "board"; title: string; items: BoardItem[] };
+export type HomeSection_Deserialize = { kind: "documents_due"; title: string; items: DueDocument[] } | { kind: "assignments"; title: string; items: AssignmentItem[] } | { kind: "resources"; title: string; items: HeldResource_Deserialize[] } | { kind: "board"; title: string; items: BoardItem[] } | 
+/**  Work waiting for this user in the views they can reach (core). */
+{ kind: "work"; title: string; items: WorkItem[] };
 
-export type HomeSection_Serialize = { kind: "documents_due"; title: string; items: DueDocument[] } | { kind: "assignments"; title: string; items: AssignmentItem[] } | { kind: "resources"; title: string; items: HeldResource_Serialize[] } | { kind: "board"; title: string; items: BoardItem[] };
+export type HomeSection_Serialize = { kind: "documents_due"; title: string; items: DueDocument[] } | { kind: "assignments"; title: string; items: AssignmentItem[] } | { kind: "resources"; title: string; items: HeldResource_Serialize[] } | { kind: "board"; title: string; items: BoardItem[] } | 
+/**  Work waiting for this user in the views they can reach (core). */
+{ kind: "work"; title: string; items: WorkItem[] };
 
 export type Home_Deserialize = {
 	date: string,
@@ -666,6 +670,8 @@ export type PersonView_Deserialize = {
 	unit?: string | null,
 	roles: Grant[],
 	devices: Choice[],
+	/**  Data erased on request (§14): kept only for the history. */
+	erased: boolean,
 };
 
 export type PersonView_Serialize = {
@@ -676,6 +682,8 @@ export type PersonView_Serialize = {
 	unit: string | null,
 	roles: Grant[],
 	devices: Choice[],
+	/**  Data erased on request (§14): kept only for the history. */
+	erased: boolean,
 };
 
 export type ProgramEditor = ProgramEditor_Serialize | ProgramEditor_Deserialize;
@@ -845,6 +853,20 @@ export type UnitView = {
 	unit_type: string,
 	members: string[],
 	roles: BoardLine[],
+};
+
+/**
+ *  Something to do for others: a batch to forward, missing documents of a
+ *  unit, an aggregate to prepare, alerts, devices waiting to join.
+ */
+export type WorkItem = {
+	title: string,
+	subtitle: string,
+	/**  View to open, with its parameters (as in the menu). */
+	view: string,
+	params: { [key in string]: string },
+	action: string,
+	urgent: boolean,
 };
 
 export type WorkQueue = WorkQueue_Serialize | WorkQueue_Deserialize;

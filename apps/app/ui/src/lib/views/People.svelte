@@ -16,6 +16,34 @@
   let unit = $state(''); let unitFrom = $state('');
   let invite = $state<Invitation | null>(null);
   let editAttrs = $state<Record<string, unknown>>({});
+  let search = $state('');
+  let unitFilter = $state('');
+  let adding = $state(false);
+  let showErased = $state(false);
+
+  const collator = new Intl.Collator('it', { sensitivity: 'base' });
+  const fold = (x: string) => x.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+  const visible = $derived(
+    (data?.persons ?? [])
+      .filter((p) => showErased || !p.erased)
+      .filter((p) => !unitFilter || p.unit === unitFilter)
+      .filter((p) => !search.trim() || fold(p.name).includes(fold(search.trim())))
+      .sort((a, b) => collator.compare(a.name, b.name))
+  );
+  const unitNames = $derived([...new Set((data?.persons ?? []).map((p) => p.unit).filter((u): u is string => !!u))].sort(collator.compare));
+  const erasedCount = $derived((data?.persons ?? []).filter((p) => p.erased).length);
+  const initials = (name: string) =>
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0]?.toUpperCase() ?? '')
+      .join('') || '—';
+  function toggle(id: string) {
+    open = open === id ? null : id;
+    invite = null;
+    editAttrs = {};
+  }
 
   async function load() {
     data = await run(api.people()).catch((e) => { fail(e); return null; });
@@ -35,6 +63,7 @@
     await act(() => run(api.addPerson(name.trim(), attrs)));
     name = '';
     attrs = {};
+    adding = false;
   }
   async function erase(person: string, name: string) {
     if (!confirm(t('erase_confirm').replace('{name}', name))) return;
@@ -58,17 +87,54 @@
 
 {#if data}
   <div class="stack page">
-    <h1>{t('people')}</h1>
-    {#each data.persons as p (p.person_id)}
-      <section class="card stack" data-testid="person">
-        <button type="button" class="head spread" onclick={() => { open = open === p.person_id ? null : p.person_id; invite = null; editAttrs = {}; }}>
-          <h3>{p.name}{#if me?.person_id === p.person_id} ·{/if}</h3>
-          <span class="muted">{p.unit ?? ''}</span>
-        </button>
+    <header class="spread">
+      <h1>{t('people')} <span class="count">{visible.length}</span></h1>
+      {#if data.can_manage}<button class="btn primary" aria-expanded={adding} onclick={() => (adding = !adding)}>{t('add_person')}</button>{/if}
+    </header>
+
+    {#if adding && data.can_manage}
+      <section class="card stack">
+        <h3>{t('add_person')}</h3>
+        <label for="pname">{t('name')}</label>
+        <input id="pname" bind:value={name} />
+        {#each data.attributes as f (f.id)}<FieldInput field={f} bind:value={attrs[f.id]} />{/each}
         <div class="row">
-          {#each p.qualifications as g (g.grant_id)}<span class="badge">{g.label}{g.period ? ` (${g.period})` : ''}</span>{/each}
-          {#each p.roles as g (g.grant_id)}<span class="badge ok">{g.label}</span>{/each}
+          <button class="btn primary" disabled={!name.trim()} onclick={addPerson}>{t('add')}</button>
+          <button class="btn" onclick={() => (adding = false)}>{t('cancel')}</button>
         </div>
+      </section>
+    {/if}
+
+    <div class="row toolbar">
+      <input class="grow" type="search" placeholder={t('people_search')} aria-label={t('people_search')} bind:value={search} />
+      {#if unitNames.length}
+        <select aria-label={t('unit')} bind:value={unitFilter}>
+          <option value="">{t('people_all_units')}</option>
+          {#each unitNames as u (u)}<option value={u}>{u}</option>{/each}
+        </select>
+      {/if}
+      {#if erasedCount}
+        <label class="row check"><input type="checkbox" bind:checked={showErased} /> {t('people_show_erased')} ({erasedCount})</label>
+      {/if}
+    </div>
+
+    {#if !visible.length}<p class="muted">{t('people_none')}</p>{/if}
+    <div class="card list">
+    {#each visible as p (p.person_id)}
+      <section class="person" class:open={open === p.person_id} data-testid="person">
+        <button type="button" class="head" aria-expanded={open === p.person_id} onclick={() => toggle(p.person_id)}>
+          <span class="avatar" aria-hidden="true">{initials(p.name)}</span>
+          <span class="who">
+            <span class="name">{p.erased ? t('person_erased') : p.name}{#if me?.person_id === p.person_id}<span class="muted me">({t('you')})</span>{/if}</span>
+            <span class="tags">
+              {#each p.roles as g (g.grant_id)}<span class="badge ok">{g.label}</span>{/each}
+              {#each p.qualifications.slice(0, 3) as g (g.grant_id)}<span class="badge">{g.label}{g.period ? ` (${g.period})` : ''}</span>{/each}
+              {#if p.qualifications.length > 3}<span class="badge">+{p.qualifications.length - 3}</span>{/if}
+            </span>
+          </span>
+          <span class="unit muted">{p.unit ?? ''}</span>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+        </button>
         {#if open === p.person_id && data.can_manage}
           <div class="stack edit">
             {#each data.attributes as f (f.id)}<FieldInput field={f} bind:value={editAttrs[f.id]} />{/each}
@@ -120,23 +186,32 @@
         {/if}
       </section>
     {/each}
-
-    {#if data.can_manage}
-      <section class="card stack">
-        <h3>{t('add_person')}</h3>
-        <label for="pname">{t('name')}</label>
-        <input id="pname" bind:value={name} />
-        {#each data.attributes as f (f.id)}<FieldInput field={f} bind:value={attrs[f.id]} />{/each}
-        <button class="btn primary" disabled={!name.trim()} onclick={addPerson}>{t('add')}</button>
-      </section>
-    {/if}
+    </div>
   </div>
 {/if}
 
 <style>
   .page { gap: 14px; }
-  .head { background: none; border: none; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; width: 100%; }
-  .edit { border-top: 1px solid var(--border); padding-top: 14px; }
+  .count { font-size: 0.6em; font-weight: 600; color: var(--muted); vertical-align: middle; }
+  .toolbar { gap: 10px; flex-wrap: wrap; }
+  .toolbar select { max-width: 220px; }
+  .check { gap: 6px; font-size: 14px; color: var(--muted); flex-wrap: nowrap; }
+  .check input { width: 18px; height: 18px; min-height: 0; margin: 0; flex: none; }
+  .toolbar input[type='search'] { min-width: 200px; }
+  .me { margin-left: 6px; font-weight: 400; }
+  .list { padding: 0; overflow: hidden; }
+  .person + .person { border-top: 1px solid var(--border); }
+  .person.open { background: var(--surface); }
+  .head { display: flex; align-items: center; gap: 12px; background: none; border: none; padding: 12px 16px; font: inherit; color: inherit; cursor: pointer; text-align: left; width: 100%; min-height: 56px; }
+  .head:hover { background: var(--primary-soft); }
+  .avatar { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; background: var(--primary-soft); color: var(--primary-strong); }
+  .who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .name { font-weight: 600; }
+  .tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .unit { flex: none; font-size: 14px; }
+  .chev { flex: none; color: var(--muted); transition: transform 0.15s; }
+  .open .chev { transform: rotate(90deg); }
+  .edit { border-top: 1px solid var(--border); padding: 14px 16px 16px; }
   .edit select { max-width: 260px; }
   .qr { width: 240px; background: #fff; padding: 8px; border-radius: 8px; }
   .qr :global(svg) { width: 100%; height: auto; }

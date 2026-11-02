@@ -17,9 +17,10 @@
   }
   load();
 
-  const todo = $derived(home?.sections.filter((s) => s.kind !== 'board') ?? []);
+  const todo = $derived(home?.sections.filter((s) => s.kind !== 'board' && s.kind !== 'work') ?? []);
   const board = $derived(home?.sections.find((s) => s.kind === 'board'));
   const count = $derived(todo.reduce((n, s) => n + (s.kind === 'resources' ? s.items.filter((r) => r.open_request).length : s.items.length), 0));
+  const work = $derived(home?.sections.find((s) => s.kind === 'work'));
 
   async function respond(a: AssignmentItem, accept: boolean) {
     try {
@@ -42,7 +43,9 @@
 
     <section class="stack" aria-labelledby="todo">
       <h2 id="todo">{t('todo')} · {count}</h2>
-      {#if count === 0}
+      {#if count === 0 && work?.kind === 'work' && work.items.length}
+        <p class="muted">{t('nothing_mine')}</p>
+      {:else if count === 0}
         <div class="empty">
           <img src="/package/mark.png" alt="" aria-hidden="true" onerror={(e) => e.currentTarget.remove()} />
           <p class="muted">{t('nothing')}</p>
@@ -78,6 +81,18 @@
         {/if}
       {/each}
     </section>
+
+    {#if work && work.kind === 'work' && work.items.length}
+      <section class="stack" aria-labelledby="work">
+        <h2 id="work">{t('work_for_others')} · {work.items.length}</h2>
+        {#each work.items as w, i (i)}
+          <div class="card spread">
+            <div class="stack tight grow"><h3>{w.title}</h3><span class:warn={w.urgent} class:muted={!w.urgent}>{w.subtitle}</span></div>
+            <button class="btn" class:primary={w.urgent} onclick={() => go(w.view, w.params)}>{w.action}</button>
+          </div>
+        {/each}
+      </section>
+    {/if}
 
     {#if board && board.kind === 'board' && board.items.length}
       <section class="stack" aria-labelledby="board">

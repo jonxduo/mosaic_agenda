@@ -53,6 +53,23 @@ fn core_texts(locale: &str) -> &'static [(&'static str, &'static str)] {
             ),
             ("core.total", "Totale"),
             ("core.menu.config", "Configurazione"),
+            ("core.work.open", "Apri"),
+            ("core.work.fill", "Compila"),
+            (
+                "core.work.alerts",
+                "{n, plural, one {# avviso da vedere} other {# avvisi da vedere}}",
+            ),
+            (
+                "core.work.alerts_hint",
+                "Situazioni da sistemare nell'organizzazione",
+            ),
+            ("core.work.pairing", "Un dispositivo chiede di unirsi"),
+            (
+                "core.work.pairing_hint",
+                "{name}: confronta il codice e conferma",
+            ),
+            ("core.work.aggregate", "Pronto da preparare"),
+            ("core.work.aggregate_send", "Pronto da inviare"),
         ],
         _ => &[
             ("core.month.1", "January"),
@@ -94,6 +111,20 @@ fn core_texts(locale: &str) -> &'static [(&'static str, &'static str)] {
             ),
             ("core.total", "Total"),
             ("core.menu.config", "Configuration"),
+            ("core.work.open", "Open"),
+            ("core.work.fill", "Fill in"),
+            (
+                "core.work.alerts",
+                "{n, plural, one {# alert to review} other {# alerts to review}}",
+            ),
+            ("core.work.alerts_hint", "Things to fix in the organization"),
+            ("core.work.pairing", "A device asks to join"),
+            (
+                "core.work.pairing_hint",
+                "{name}: compare the code and confirm",
+            ),
+            ("core.work.aggregate", "Ready to prepare"),
+            ("core.work.aggregate_send", "Ready to send"),
         ],
     }
 }
