@@ -15,7 +15,10 @@ use std::collections::BTreeSet;
 
 use core_crypto::{ChannelKeyring, DeviceKeys, DevicePublicKey};
 use core_events::order::{order_key, sort_events};
-use core_events::{EventHash, PayloadChannel, SignedEvent};
+use core_events::{EventHash, ObjectHeader, ObjectType, PayloadChannel, SignedEvent};
+use core_model::Id;
+use core_model::config::Retention;
+use time::Date;
 
 use crate::channels::absorb_keys;
 use crate::ops::Op;
@@ -111,6 +114,86 @@ impl Engine {
 
     pub fn keyring(&self) -> &ChannelKeyring {
         &self.ring
+    }
+
+    /// Events whose content must be erased on this device (§14): those
+    /// about a person whose erasure was requested (the person and the
+    /// documents they are the subject of), those past their retention period
+    /// (documents, programs) and any later event about an object already
+    /// erased. Only objects this device can see are found: what it cannot
+    /// read it cannot hold in clear either.
+    pub fn erasure_targets(&self) -> BTreeSet<EventHash> {
+        let p = &self.proj;
+        let events = &self.ctx.graph.events;
+        let headers: Vec<Option<ObjectHeader>> = events
+            .iter()
+            .map(|e| e.payload().ok().and_then(|p| p.object))
+            .collect();
+        let erased: Vec<bool> = self.ctx.decoded.iter().map(|d| d.erased).collect();
+        let mut objects: BTreeSet<(ObjectType, Id)> = BTreeSet::new();
+        for (h, _) in headers.iter().zip(&erased).filter(|(_, e)| **e) {
+            if let Some(h) = h {
+                objects.insert((h.object, h.id));
+            }
+        }
+        if objects.is_empty() && p.erasure.persons.is_empty() && p.erasure.retention.is_none() {
+            return BTreeSet::new();
+        }
+        for person in &p.erasure.persons {
+            objects.insert((ObjectType::Person, person.0));
+        }
+        let cfg = p.cfg();
+        for (id, d) in &p.documents {
+            let expired = || {
+                let before = p.erasure.retention?;
+                let retention = cfg?.form(&d.content.form)?.retention?;
+                let end = d
+                    .content
+                    .period
+                    .last_day()
+                    .or_else(|| d.history.first().map(|h| h.date))?;
+                Some(expires(end, retention)? < before)
+            };
+            if p.erasure.persons.contains(&d.content.subject) || expired() == Some(true) {
+                objects.insert((ObjectType::Document, *id));
+            }
+        }
+        for (id, prog) in &p.programs {
+            let expired = || {
+                let before = p.erasure.retention?;
+                let retention = cfg?.program_type(&prog.program_type)?.retention?;
+                let end = prog.occurrences.iter().max()?;
+                Some(expires(*end, retention)? < before)
+            };
+            if expired() == Some(true) {
+                objects.insert((ObjectType::Program, *id));
+            }
+        }
+        // Programs and their assignments share the program id.
+        let programs: Vec<Id> = objects
+            .iter()
+            .filter(|(t, _)| *t == ObjectType::Program)
+            .map(|(_, id)| *id)
+            .collect();
+        objects.extend(programs.into_iter().map(|id| (ObjectType::Assignment, id)));
+        events
+            .iter()
+            .zip(headers)
+            .zip(erased)
+            .filter(|((_, h), erased)| {
+                !erased
+                    && h.as_ref().is_some_and(|h| {
+                        matches!(
+                            h.object,
+                            ObjectType::Person
+                                | ObjectType::Document
+                                | ObjectType::Program
+                                | ObjectType::Assignment
+                        ) && objects.contains(&(h.object, h.id))
+                    })
+            })
+            .map(|((e, _), _)| e.id)
+            .collect()
     }
 
     pub fn contains(&self, id: &EventHash) -> bool {
@@ -449,4 +532,23 @@ fn merge(
         }
     }
     (events, decoded)
+}
+
+/// Last day a record ending on `end` is kept; `None` = kept forever.
+fn expires(end: Date, retention: Retention) -> Option<Date> {
+    match retention {
+        Retention::Forever(_) => None,
+        Retention::Days(n) => Some(crate::time::add_days(end, i64::from(n))),
+        Retention::Months(n) => add_months(end, n),
+        Retention::Years(n) => add_months(end, n.checked_mul(12)?),
+    }
+}
+
+fn add_months(date: Date, months: u32) -> Option<Date> {
+    let total =
+        i64::from(date.year()) * 12 + i64::from(u8::from(date.month())) - 1 + i64::from(months);
+    let year = i32::try_from(total.div_euclid(12)).ok()?;
+    let month = time::Month::try_from(u8::try_from(total.rem_euclid(12) + 1).ok()?).ok()?;
+    let last = month.length(year);
+    Date::from_calendar_date(year, month, date.day().min(last)).ok()
 }

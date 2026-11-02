@@ -292,6 +292,30 @@ impl<'a> Client<'a> {
         self.finish(chain)
     }
 
+    /// A person's event: in the organization channel, with the person in
+    /// the clear header so that an erased copy (§14) still names them.
+    fn person_event<T: Serialize>(
+        &self,
+        kind: EventKind,
+        person: PersonId,
+        payload: &T,
+    ) -> Result<Vec<SignedEvent>, ActionError> {
+        let mut chain = self.chain();
+        let header = ObjectHeader {
+            object: ObjectType::Person,
+            id: person.0,
+            config: None,
+        };
+        self.sealed(
+            &mut chain,
+            kind,
+            &ChannelDescriptor::Organization,
+            Some(header),
+            payload,
+        )?;
+        self.finish(chain)
+    }
+
     /// Background task (§8.3): for every channel whose current key this
     /// device has, distribute it to expected members still missing it (and
     /// rotate when a member left).
@@ -338,8 +362,9 @@ impl<'a> Client<'a> {
         attributes: Values,
     ) -> Result<(PersonId, Vec<SignedEvent>), ActionError> {
         let person = PersonId(new_id()?);
-        let ev = self.org_event(
+        let ev = self.person_event(
             EventKind::PersonAdded,
+            person,
             &PersonAdded {
                 person,
                 display_name: display_name.to_owned(),
@@ -354,8 +379,9 @@ impl<'a> Client<'a> {
         person: PersonId,
         attributes: Values,
     ) -> Result<Vec<SignedEvent>, ActionError> {
-        self.org_event(
+        self.person_event(
             EventKind::PersonUpdated,
+            person,
             &PersonUpdated {
                 person,
                 display_name: None,
@@ -493,6 +519,19 @@ impl<'a> Client<'a> {
         )
     }
 
+    /// Asks every device to erase the data of a person (§14).
+    pub fn request_erasure(&self, person: PersonId) -> Result<Vec<SignedEvent>, ActionError> {
+        self.org_event(
+            EventKind::PersonDataErasureRequested,
+            &ErasureRequested { person },
+        )
+    }
+
+    /// Applies the retention periods of the configuration as of `before` (§14).
+    pub fn apply_retention(&self, before: Date) -> Result<Vec<SignedEvent>, ActionError> {
+        self.org_event(EventKind::RetentionApplied, &RetentionApplied { before })
+    }
+
     pub fn revoke_device(&self, device: DevicePublicKey) -> Result<Vec<SignedEvent>, ActionError> {
         self.org_event(EventKind::DeviceRevoked, &DeviceRevoked { device })
     }
@@ -502,8 +541,9 @@ impl<'a> Client<'a> {
         person: PersonId,
         display_name: &str,
     ) -> Result<Vec<SignedEvent>, ActionError> {
-        self.org_event(
+        self.person_event(
             EventKind::PersonUpdated,
+            person,
             &PersonUpdated {
                 person,
                 display_name: Some(display_name.to_owned()),

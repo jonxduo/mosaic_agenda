@@ -41,6 +41,41 @@ fn file_is_encrypted_and_needs_the_key() {
 }
 
 #[test]
+fn erased_events_keep_their_place() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("events.db");
+    let key = DbKey::from_bytes([7; 32]);
+    let admin = DeviceKeys::generate().unwrap();
+    let (org, g) = genesis(&admin);
+    let a = child(&admin, org, &[(g.id, 0)], 1);
+    let b = child(&admin, org, &[(a.id, 1)], 2);
+    let mut s = EventStore::open(&path, &key).unwrap();
+    for e in [&g, &a, &b] {
+        s.insert(e, 0).unwrap();
+    }
+    assert!(s.erase(&a.id).unwrap());
+    assert!(!s.erase(&a.id).unwrap(), "already erased");
+    let stored = s.get(&a.id).unwrap().unwrap();
+    assert!(stored.is_erased());
+    assert_eq!(stored, a.shell().unwrap());
+    // The full event arriving again from a peer is a duplicate: it stays erased.
+    assert_eq!(s.insert(&a, 0).unwrap(), Inserted::Duplicate);
+    assert!(s.get(&a.id).unwrap().unwrap().is_erased());
+    assert_eq!(s.heads().unwrap(), vec![b.id]);
+    drop(s);
+    // A new store receiving the shell before its child accepts both.
+    let mut t = store();
+    t.insert(&g, 0).unwrap();
+    assert_eq!(
+        t.insert(&stored, 0).unwrap(),
+        Inserted::New(EventStatus::Valid)
+    );
+    assert_eq!(t.insert(&b, 0).unwrap(), Inserted::New(EventStatus::Valid));
+    let s = EventStore::open(&path, &key).unwrap();
+    assert!(s.get(&a.id).unwrap().unwrap().is_erased(), "persisted");
+}
+
+#[test]
 fn out_of_order_arrival_waits_for_parents() {
     let admin = DeviceKeys::generate().unwrap();
     let (org, g) = genesis(&admin);

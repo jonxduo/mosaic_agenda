@@ -38,6 +38,17 @@ pub enum Verdict {
     Superseded,
     /// From a device revoked concurrently, declared after the revocation.
     Quarantined,
+    /// Content erased (§14): only the shell is left.
+    Erased,
+}
+
+/// Privacy requests applied by the projection (§14).
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
+pub struct Erasure {
+    /// Persons whose data was asked to be erased.
+    pub persons: BTreeSet<PersonId>,
+    /// Latest `retention.applied` reference date.
+    pub retention: Option<Date>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -192,6 +203,7 @@ pub struct Projection {
     pub board: BTreeMap<Id, BoardPost>,
     pub alerts: Vec<Alert>,
     pub triggers: Vec<TriggerRecord>,
+    pub erasure: Erasure,
     /// Events of the projection with their decoded operation (valid only).
     #[serde(skip)]
     pub heads: Vec<(EventHash, u64)>,
@@ -288,6 +300,9 @@ pub(crate) struct Decoded {
     pub op: Option<Op>,
     /// Content present but undecodable.
     pub malformed: bool,
+    /// Content erased (§14). A person's events keep an empty operation, so
+    /// the person (and everything referring to them) stays valid.
+    pub erased: bool,
 }
 
 /// Inputs shared by the phases.
@@ -388,16 +403,48 @@ pub(crate) fn decode(e: &SignedEvent, keyring: &ChannelKeyring) -> Decoded {
             Some(op) => Decoded {
                 op: Some(op),
                 malformed: false,
+                erased: false,
             },
             None => Decoded {
                 op: None,
                 malformed: true,
+                erased: false,
             },
+        },
+        Err(EventError::Erased) => Decoded {
+            op: erased_person_op(e),
+            malformed: false,
+            erased: true,
         },
         Err(_) => Decoded {
             op: None,
             malformed: false,
+            erased: false,
         },
+    }
+}
+
+/// The person events of an erased person still create and keep the person,
+/// without name or attributes; the person id comes from the clear header.
+fn erased_person_op(e: &SignedEvent) -> Option<Op> {
+    let header = e.payload().ok()?.object?;
+    if header.object != core_events::ObjectType::Person {
+        return None;
+    }
+    let person = PersonId(header.id);
+    match e.body.kind {
+        EventKind::PersonAdded => Some(Op::PersonAdded(crate::ops::PersonAdded {
+            person,
+            display_name: String::new(),
+            attributes: Values::new(),
+        })),
+        EventKind::PersonUpdated => Some(Op::PersonUpdated(crate::ops::PersonUpdated {
+            person,
+            display_name: None,
+            attributes: Values::new(),
+            cleared: Vec::new(),
+        })),
+        _ => None,
     }
 }
 
@@ -468,6 +515,7 @@ pub(crate) fn organizational_phase(ctx: &mut Ctx, configs: Configs, org: OrgId) 
         board: BTreeMap::new(),
         alerts: Vec::new(),
         triggers: Vec::new(),
+        erasure: Erasure::default(),
         heads: Vec::new(),
     };
     let auth_list = ctx.auth_events.clone();
@@ -559,7 +607,11 @@ pub(crate) fn apply_event(
     } else if ctx.decoded[i].malformed {
         Verdict::Invalid("content cannot be decoded".into())
     } else if ctx.decoded[i].op.is_none() {
-        Verdict::PendingKey
+        if ctx.decoded[i].erased {
+            Verdict::Erased
+        } else {
+            Verdict::PendingKey
+        }
     } else if superseded.contains(&id) {
         Verdict::Superseded
     } else {
@@ -631,7 +683,11 @@ fn organizational_verdict(ctx: &mut Ctx, proj: &mut Projection, i: usize) -> Ver
         return Verdict::Invalid("content cannot be decoded".into());
     }
     let Some(op) = ctx.decoded[i].op.clone() else {
-        return Verdict::PendingKey;
+        return if ctx.decoded[i].erased {
+            Verdict::Erased
+        } else {
+            Verdict::PendingKey
+        };
     };
     let date = date_of(e.body.declared_time);
     let kind = e.body.kind;

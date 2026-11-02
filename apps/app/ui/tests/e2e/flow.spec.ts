@@ -134,3 +134,23 @@ test('guided configuration editor publishes a new version', async ({ browser, re
   const files = await call<{ files: { path: string; text: string }[] }>(request, a, 'config_files');
   expect(files.files.find((f) => f.path === 'package.yaml')!.text).toContain('rename: { from: host, to: chair }');
 });
+
+// F9: accessibility (§12.1, contrast AA) of the main views, light and dark.
+test('main views have no serious accessibility problems', async ({ browser }) => {
+  const { AxeBuilder } = await import('@axe-core/playwright');
+  const { a } = DEVICES;
+  for (const scheme of ['light', 'dark'] as const) {
+    const page = await device(browser, a);
+    await page.emulateMedia({ colorScheme: scheme });
+    for (const hash of ['#/home', '#/people', '#/settings', '#/config', '#/sync_status']) {
+      await open(page, a, hash);
+      await page.waitForTimeout(300);
+      const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+      const serious = result.violations
+        .filter((v) => v.impact === 'serious' || v.impact === 'critical')
+        .map((v) => `${scheme} ${hash} ${v.id}: ${v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(' | ')}`);
+      expect(serious, serious.join('\n')).toEqual([]);
+    }
+    await page.close();
+  }
+});

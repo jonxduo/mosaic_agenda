@@ -753,3 +753,123 @@ fn configuration_versions_and_migrations() {
         "{refused}"
     );
 }
+
+/// The engine of `who`'s first device over these events.
+fn engine_of(w: &World, events: &[SignedEvent], who: &str) -> Engine {
+    Engine::build_for(events.to_vec(), &w.device(who, None).unwrap().keys).unwrap()
+}
+
+/// What every device's store does with the targets: keep only the shells.
+fn shelled(
+    events: &[SignedEvent],
+    targets: &std::collections::BTreeSet<core_events::EventHash>,
+) -> Vec<SignedEvent> {
+    events
+        .iter()
+        .map(|e| {
+            if targets.contains(&e.id) {
+                e.shell().unwrap()
+            } else {
+                e.clone()
+            }
+        })
+        .collect()
+}
+
+/// §14: erasure of a person. Their documents disappear on every device that
+/// could read them, the person stays (without name) so the rest of the
+/// history keeps its meaning, and nothing becomes invalid.
+#[test]
+fn erasure_of_a_person() {
+    let (mut w, _) = club();
+    fill_and_send(&mut w, "m1");
+    fill_and_send(&mut w, "m2");
+    let m1 = w.person("m1").unwrap();
+    let before = engine_of(&w, &w.events, "lead");
+    assert!(before.erasure_targets().is_empty());
+    let docs = before.projection().documents.len();
+    assert!(docs >= 2);
+
+    // Only root administrators may ask for it.
+    assert!(w.act("lead", |c| c.request_erasure(m1)).is_err());
+    w.act(ADMIN, |c| c.request_erasure(m1)).unwrap();
+
+    for who in ["lead", "m1", "m2", ADMIN] {
+        let e = engine_of(&w, &w.events, who);
+        let targets = e.erasure_targets();
+        let after = engine_of(&w, &shelled(&w.events, &targets), who);
+        assert!(after.erasure_targets().is_empty(), "{who}: nothing left");
+        let p = after.projection();
+        assert!(
+            p.documents.values().all(|d| d.content.subject != m1),
+            "{who}: m1's documents are gone"
+        );
+        let rec = &p.auth.org.persons[&m1];
+        assert_eq!(rec.display_name, "", "{who}: name erased");
+        assert!(rec.attributes.is_empty());
+        assert!(
+            !p.alerts.iter().any(|a| a.kind == AlertKind::InvalidEvent),
+            "{who}: {:?}",
+            p.alerts
+        );
+        if who == "lead" {
+            assert_eq!(p.documents.len(), docs - 1);
+            assert!(
+                targets
+                    .iter()
+                    .any(|id| p.verdict(id) == Some(&Verdict::Erased))
+            );
+        }
+    }
+
+    // A device that receives the shells from one peer and the full events
+    // from another ends in the same state.
+    let lead = engine_of(&w, &w.events, "lead");
+    let targets = lead.erasure_targets();
+    let mut mixed = shelled(&w.events, &targets);
+    mixed.reverse();
+    let a = engine_of(&w, &mixed, "m2");
+    let b = engine_of(&w, &shelled(&w.events, &a.erasure_targets()), "m2");
+    let c = engine_of(&w, &shelled(&w.events, &targets), "m2");
+    let c = engine_of(&w, &shelled(&w.events, &c.erasure_targets()), "m2");
+    assert_eq!(b.projection().state_hash(), c.projection().state_hash());
+}
+
+/// §14: documents past the retention period of their form are erased once
+/// `retention.applied` covers them.
+#[test]
+fn retention_erases_old_documents() {
+    let (mut w, _) = club();
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../core-config/tests/fixtures/club");
+    let mut files = core_config::source_files(&dir).unwrap();
+    let forms = files.get_mut("forms.yaml").unwrap();
+    *forms = forms.replacen(
+        "    workflow: log\n",
+        "    workflow: log\n    retention: { months: 1 }\n",
+        1,
+    );
+    let pkg = core_config::load_files(&files).unwrap();
+    let v2 = core_config::compile_with_sources(pkg, files).unwrap().bytes;
+    w.act(ADMIN, |c| c.publish_config(2, v2)).unwrap();
+    fill_and_send(&mut w, "m1");
+
+    // November + 1 month = 30 December: still kept on 15 December.
+    w.act(ADMIN, |c| c.apply_retention(day("2026-12-15")))
+        .unwrap();
+    assert!(
+        engine_of(&w, &w.events, "lead")
+            .erasure_targets()
+            .is_empty()
+    );
+    w.act(ADMIN, |c| c.apply_retention(day("2027-01-15")))
+        .unwrap();
+    let e = engine_of(&w, &w.events, "lead");
+    let targets = e.erasure_targets();
+    assert!(!targets.is_empty());
+    let after = engine_of(&w, &shelled(&w.events, &targets), "lead");
+    assert!(after.projection().documents.is_empty());
+    assert!(after.erasure_targets().is_empty());
+    // People are not touched by retention.
+    let m1 = w.person("m1").unwrap();
+    assert_eq!(after.projection().auth.org.persons[&m1].display_name, "m1");
+}

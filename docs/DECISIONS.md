@@ -560,3 +560,55 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   vecchio non va più usato, altrimenti due copie firmerebbero con la stessa chiave. Per un
   computer in più si usa l'invito, non il backup. Nell'app il file si salva con la finestra di
   sistema (`tauri-plugin-dialog`), nel browser di sviluppo si scarica.
+
+## 2026-11-02 — F9: privacy e rifinitura
+
+- **Eventi cancellabili ("gusci")**: l'id di un evento ora copre il contenuto solo tramite il
+  suo hash (`id = blake3(postcard(corpo con il contenuto sostituito dal suo hash))`). Un
+  evento cancellato tiene `Content::Erased(hash)` al posto del contenuto: stesso id, stessa
+  firma, ancora verificabile, quindi resta nel grafo e si sincronizza come gli altri. Chi
+  riceve il guscio da un dispositivo e l'evento intero da un altro tiene quello arrivato per
+  primo; il motore poi lo cancella comunque se rientra in una cancellazione. **Il cambio di
+  formato rende illeggibili gli archivi creati prima** (nessuno in uso: solo dati di
+  sviluppo, spostati in `target/dev-data-before-f9`).
+- **Cosa si cancella** (`Engine::erasure_targets`, calcolato da ogni dispositivo con quello
+  che riesce a leggere, come chiede §14):
+  - `person.data_erasure_requested` (solo amministratori radice): gli eventi della persona
+    (aggiunta e modifiche: nome e attributi) e tutti gli eventi dei documenti di cui è
+    soggetto, con i loro allegati;
+  - `retention.applied { before }`: documenti il cui periodo è finito da più della
+    `retention` del modulo e programmi (con le assegnazioni) oltre la `retention` del tipo di
+    programma. Lotti, resoconti e storico delle risorse restano;
+  - ogni evento successivo su un oggetto già cancellato (per esempio una modifica arrivata in
+    ritardo da un dispositivo rimasto spento).
+- La persona cancellata **resta** nell'organizzazione senza nome né attributi (l'intestazione
+  in chiaro degli eventi persona ora porta l'id della persona): qualifiche, incarichi,
+  assegnazioni passate e lotti restano validi e nessun evento diventa invalido. Il nome
+  mostrato è "—". Se la persona deve anche uscire, l'amministratore chiude incarichi e
+  dispositivi come per chiunque.
+- Nell'archivio: l'evento viene riscritto come guscio, `PRAGMA secure_delete = ON` perché il
+  contenuto non resti nelle pagine libere del database, allegati eliminati dalla cartella dei
+  blob; un dispositivo archivio non li richiede più.
+- **Conservazione automatica**: il dispositivo di un amministratore radice pubblica
+  `retention.applied` con la data di oggi al massimo una volta alla settimana, durante la
+  sincronizzazione, se il pacchetto ha almeno una `retention`.
+- **Esportazione** (`export_person`): tutto ciò che il dispositivo vede in chiaro della
+  persona (attributi, qualifiche, incarichi, documenti con i valori e la storia,
+  assegnazioni, risorse). La può chiedere la persona stessa (Impostazioni → Dati personali)
+  o chi gestisce le persone (Persone → scheda). Formato JSON (file salvato con la finestra di
+  sistema) o pagina stampabile: il "PDF" è la stampa di sistema ("Salva come PDF"), senza
+  librerie in più.
+- L'informativa resta consultabile in Impostazioni → Dati personali.
+- **Accessibilità**: test automatico (axe, regole WCAG 2.1 A/AA) delle viste principali in
+  tema chiaro e scuro dentro i test Playwright. Corretto il contrasto del pulsante principale
+  e dei messaggi d'errore nel tema scuro (`--on-primary`, testo scuro su colori chiari).
+- Un test verifica che ogni comando della tabella di `dispatch` abbia il suo gestore (il
+  server di sviluppo e il ponte del browser usano quella tabella).
+- **Prestazioni** (`cargo xtask simulate --package congregazione --devices 120 --days 365`,
+  build release, Mac Apple Silicon): 9.440 eventi in un anno (658 di impianto, 8.782 di
+  attività), ~4,6 MB per dispositivo. Avvio a freddo del nucleo dell'amministratore: lettura
+  degli eventi 0,01 s, proiezione da zero 0,07 s. Con un margine di 5–10 volte per un
+  telefono di fascia media il nucleo resta sotto 1 s; il resto dell'avvio è la WebView. La
+  misura completa (dall'icona alla home) su un telefono reale è la prova 23 di
+  `docs/MOBILE_CHECKLIST.md`: non c'è un telefono a disposizione, quindi il criterio "< 2 s
+  su telefono di fascia media" resta da confermare lì.

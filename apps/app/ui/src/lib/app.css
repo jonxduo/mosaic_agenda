@@ -3,6 +3,8 @@
   --primary: var(--package-primary, #6a4ce6);
   --primary-strong: #5236c9;
   --primary-soft: #f0ecff;
+  /* Text on --primary (AA): white on the light theme, near black on the dark one. */
+  --on-primary: #ffffff;
   --brand-gradient: linear-gradient(135deg, #12c8f0 0%, #3d8bf2 28%, #7b61f0 50%, #d63fe0 72%, #ff6b8a 86%, #ff9f40 100%);
   --text: #16181d;
   --muted: #5b6270;
@@ -21,6 +23,7 @@
     --primary: #a99bff;
     --primary-strong: #c7bdff;
     --primary-soft: #2a2350;
+    --on-primary: #14102e;
     --text: #eceef2;
     --muted: #a4abb8;
     --border: #2c313a;
@@ -55,7 +58,7 @@ p { margin: 0; }
 .list-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
 .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 18px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; font-size: 15px; font-weight: 500; cursor: pointer; text-decoration: none; }
 .btn:hover { border-color: var(--muted); }
-.btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+.btn.primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); font-weight: 600; }
 .btn.primary:hover { background: var(--primary-strong); }
 .btn.small { min-height: 36px; padding: 0 12px; font-size: 14px; }
 .btn:disabled { opacity: 0.55; cursor: default; }

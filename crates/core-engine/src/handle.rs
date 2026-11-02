@@ -183,8 +183,15 @@ pub(crate) fn handle(
             Ok(())
         }
         Op::QuarantineResolved(_) => ensure(auth.is_root(author), "root administrators only"),
-        Op::ErasureRequested(_) | Op::RetentionApplied(_) => {
-            ensure(auth.is_root(author), "root administrators only")
+        Op::ErasureRequested(e) => {
+            ensure(auth.is_root(author), "root administrators only")?;
+            proj.erasure.persons.insert(e.person);
+            Ok(())
+        }
+        Op::RetentionApplied(r) => {
+            ensure(auth.is_root(author), "root administrators only")?;
+            proj.erasure.retention = proj.erasure.retention.max(Some(r.before));
+            Ok(())
         }
         Op::DocumentCreated(c) => document_created(proj, &h, c),
         Op::DocumentUpdated(u) => document_updated(proj, &h, u),

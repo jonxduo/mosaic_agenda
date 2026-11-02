@@ -1,9 +1,13 @@
 //! Event envelope (PROGETTO.md §7.1).
 //!
-//! `id = blake3(postcard(body))`, `signature = Ed25519(author, id)`.
+//! `id = blake3(postcard(digest of the body))`, `signature = Ed25519(author, id)`.
 //! The payload is `postcard(Payload)`: a minimal clear header naming the
 //! object (so devices outside the audience can relay and index the event)
 //! and the content, in clear for public kinds, sealed for a channel otherwise.
+//!
+//! The id covers the content only through its hash: an event whose content
+//! was erased (§14, erasure and retention) keeps that hash in its place and
+//! stays a verifiable "shell" (id, author, kind, parents, object header).
 
 use core_crypto::{
     ChannelKey, ChannelKeyring, ChannelRef, DeviceKeys, DevicePublicKey, Sealed, Signature, aad,
@@ -79,6 +83,44 @@ pub struct ObjectHeader {
 pub enum Content {
     Clear(Vec<u8>),
     Sealed(Sealed),
+    /// Erased: only the hash of the original content is left.
+    Erased([u8; 32]),
+}
+
+impl Content {
+    /// Hash covered by the event id; the same before and after erasure.
+    pub fn digest(&self) -> Result<[u8; 32], EventError> {
+        let mut h = blake3::Hasher::new();
+        match self {
+            Self::Clear(bytes) => {
+                h.update(b"org-app/content/clear");
+                h.update(bytes);
+            }
+            Self::Sealed(sealed) => {
+                h.update(b"org-app/content/sealed");
+                h.update(&postcard::to_allocvec(sealed).map_err(|_| EventError::Encoding)?);
+            }
+            Self::Erased(digest) => return Ok(*digest),
+        }
+        Ok(*h.finalize().as_bytes())
+    }
+}
+
+/// What the id is computed from: the body with the content replaced by its
+/// hash.
+#[derive(Serialize)]
+struct BodyDigest<'a> {
+    org: &'a OrgId,
+    author: &'a DevicePublicKey,
+    parents: &'a [EventHash],
+    depth: u64,
+    declared_time: i64,
+    kind: EventKind,
+    channel: &'a PayloadChannel,
+    object: &'a Option<ObjectHeader>,
+    content: [u8; 32],
+    attachments: &'a [BlobRef],
+    config_version: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -95,7 +137,22 @@ pub struct SignedEvent {
 }
 
 fn body_hash(body: &EventBody) -> Result<EventHash, EventError> {
-    let bytes = postcard::to_allocvec(body).map_err(|_| EventError::Encoding)?;
+    let payload: Payload =
+        postcard::from_bytes(&body.payload).map_err(|_| EventError::Structure("payload"))?;
+    let digest = BodyDigest {
+        org: &body.org,
+        author: &body.author,
+        parents: &body.parents,
+        depth: body.depth,
+        declared_time: body.declared_time,
+        kind: body.kind,
+        channel: &body.channel,
+        object: &payload.object,
+        content: payload.content.digest()?,
+        attachments: &body.attachments,
+        config_version: body.config_version,
+    };
+    let bytes = postcard::to_allocvec(&digest).map_err(|_| EventError::Encoding)?;
     Ok(EventHash(*blake3::hash(&bytes).as_bytes()))
 }
 
@@ -197,13 +254,32 @@ impl SignedEvent {
         }
         let payload = self.payload()?;
         match (b.kind.is_public(), b.channel, &payload.content) {
-            (true, PayloadChannel::Public, Content::Clear(_)) => Ok(()),
-            (false, PayloadChannel::Channel(_), Content::Sealed(_)) => Ok(()),
+            (true, PayloadChannel::Public, Content::Clear(_) | Content::Erased(_)) => Ok(()),
+            (false, PayloadChannel::Channel(_), Content::Sealed(_) | Content::Erased(_)) => Ok(()),
             (true, _, _) => Err(EventError::Structure("this kind must travel in clear")),
             (false, _, _) => Err(EventError::Structure(
                 "this kind must be encrypted for a channel",
             )),
         }
+    }
+
+    /// The same event without its content (and attachments' data): same id,
+    /// same signature, still verifiable.
+    pub fn shell(&self) -> Result<Self, EventError> {
+        let mut payload = self.payload()?;
+        payload.content = Content::Erased(payload.content.digest()?);
+        let mut body = self.body.clone();
+        body.payload = postcard::to_allocvec(&payload).map_err(|_| EventError::Encoding)?;
+        Ok(Self {
+            id: self.id,
+            body,
+            signature: self.signature,
+        })
+    }
+
+    pub fn is_erased(&self) -> bool {
+        self.payload()
+            .is_ok_and(|p| matches!(p.content, Content::Erased(_)))
     }
 
     pub fn payload(&self) -> Result<Payload, EventError> {
@@ -221,6 +297,7 @@ impl SignedEvent {
             (Content::Sealed(_), PayloadChannel::Public) => Err(EventError::Structure(
                 "sealed content on the public channel",
             )),
+            (Content::Erased(_), _) => Err(EventError::Erased),
         }
     }
 
@@ -231,6 +308,7 @@ impl SignedEvent {
                 postcard::from_bytes(&bytes).map_err(|_| EventError::Structure("content"))
             }
             Content::Sealed(_) => Err(EventError::Structure("content is encrypted")),
+            Content::Erased(_) => Err(EventError::Erased),
         }
     }
 }

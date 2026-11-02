@@ -67,6 +67,10 @@ export const commands = {
 	grantRole: (person: string, role: string, unit: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("grant_role", { person, role, unit })),
 	revokeDevice: (device: string) => typedError<null, ApiError>(__TAURI_INVOKE("revoke_device", { device })),
 	setArchive: (device: string, archive: boolean) => typedError<null, ApiError>(__TAURI_INVOKE("set_archive", { device, archive })),
+	exportPerson: (person: string) => typedError<PersonExport_Serialize, ApiError>(__TAURI_INVOKE("export_person", { person })),
+	requestErasure: (person: string) => typedError<null, ApiError>(__TAURI_INVOKE("request_erasure", { person })),
+	exportPersonTo: (person: string, path: string) => typedError<null, ApiError>(__TAURI_INVOKE("export_person_to", { person, path })),
+	privacyNotice: () => typedError<string | null, ApiError>(__TAURI_INVOKE("privacy_notice")),
 	units: () => typedError<UnitView[], ApiError>(__TAURI_INVOKE("units")),
 	alerts: () => typedError<Alert[], ApiError>(__TAURI_INVOKE("alerts")),
 	syncStatus: () => typedError<SyncStatus_Serialize, ApiError>(__TAURI_INVOKE("sync_status")),
@@ -367,6 +371,36 @@ export type DueDocument = {
 	urgent: boolean,
 };
 
+export type ExportedAssignment = {
+	program: string,
+	date: string,
+	slot: string,
+};
+
+export type ExportedDocument = {
+	form: string,
+	period: string,
+	state: string,
+	values: BoardLine[],
+	history: string[],
+};
+
+export type ExportedHolding = ExportedHolding_Serialize | ExportedHolding_Deserialize;
+
+export type ExportedHolding_Deserialize = {
+	resource: string,
+	since: string,
+	until?: string | null,
+	logs: number,
+};
+
+export type ExportedHolding_Serialize = {
+	resource: string,
+	since: string,
+	until: string | null,
+	logs: number,
+};
+
 export type Field = Field_Serialize | Field_Deserialize;
 
 export type Field_Deserialize = {
@@ -579,6 +613,31 @@ export type People_Serialize = {
 	units: Choice[],
 	unit_types: Choice[],
 	attributes: Field_Serialize[],
+};
+
+/**  Everything this device holds in clear about a person. */
+export type PersonExport = PersonExport_Serialize | PersonExport_Deserialize;
+
+/**  Everything this device holds in clear about a person. */
+export type PersonExport_Deserialize = {
+	generated_at: string,
+	person: PersonView_Deserialize,
+	documents: ExportedDocument[],
+	assignments: ExportedAssignment[],
+	resources: ExportedHolding_Deserialize[],
+	/**  Erasure already requested for this person. */
+	erasure_requested: boolean,
+};
+
+/**  Everything this device holds in clear about a person. */
+export type PersonExport_Serialize = {
+	generated_at: string,
+	person: PersonView_Serialize,
+	documents: ExportedDocument[],
+	assignments: ExportedAssignment[],
+	resources: ExportedHolding_Serialize[],
+	/**  Erasure already requested for this person. */
+	erasure_requested: boolean,
 };
 
 export type PersonRow = PersonRow_Serialize | PersonRow_Deserialize;

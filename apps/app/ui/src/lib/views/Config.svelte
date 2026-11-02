@@ -215,7 +215,7 @@
   .code { width: 100%; min-height: 60vh; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; line-height: 1.5; tab-size: 2; white-space: pre; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); resize: vertical; }
   .issues { max-height: 30vh; overflow: auto; gap: 6px; }
   .issue { display: flex; gap: 8px; align-items: baseline; text-align: left; border: none; background: none; font: inherit; font-size: 14px; color: var(--text); cursor: pointer; padding: 2px 0; }
-  .badge.err { background: var(--danger); color: #fff; }
+  .badge.err { background: var(--danger); color: var(--bg); }
   .warn { color: var(--warn); margin: 0; }
   .ok { color: var(--ok); margin: 0; }
   .notice-update { background: var(--primary-soft); }

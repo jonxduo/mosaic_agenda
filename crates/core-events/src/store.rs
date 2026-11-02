@@ -215,7 +215,11 @@ impl EventStore {
             }
             Err(e) => return Err(e.into()),
         }
-        conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")?;
+        // secure_delete: erased content (§14) is overwritten, not left in
+        // free pages.
+        conn.execute_batch(
+            "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA secure_delete = ON;",
+        )?;
         conn.execute_batch(SCHEMA)?;
         let version: Option<Vec<u8>> = conn
             .query_row(
@@ -322,6 +326,24 @@ impl EventStore {
         let status = connect_ready(&tx, event.id)?;
         tx.commit()?;
         Ok(Inserted::New(status))
+    }
+
+    /// Replaces a stored event by its shell (§14): the content is gone,
+    /// id, header and links stay. Returns false if it was already erased or
+    /// is unknown.
+    pub fn erase(&mut self, id: &EventHash) -> Result<bool, StoreError> {
+        let Some(event) = self.get(id)? else {
+            return Ok(false);
+        };
+        if event.is_erased() {
+            return Ok(false);
+        }
+        let raw = event.shell()?.to_bytes()?;
+        self.conn.execute(
+            "UPDATE events SET raw = ?1 WHERE id = ?2",
+            params![raw, id.0.to_vec()],
+        )?;
+        Ok(true)
     }
 
     pub fn get(&self, id: &EventHash) -> Result<Option<SignedEvent>, StoreError> {

@@ -16,7 +16,8 @@ di build. Specifica completa: [`docs/PROGETTO.md`](docs/PROGETTO.md). Decisioni 
 | F6 — Server | fatta: `server/push-service` e `core-push` (risvegli firmati, limiti, FCM/APNs), deploy con relay, DNS e Caddy in `server/deploy`, [`docs/DEPLOY.md`](docs/DEPLOY.md), app legate al proprio server con `--server` |
 | F7 — Mobile | fatta su emulatore e simulatore: app Android e iOS, segreti nel Keystore/Keychain, biometria, QR, sincronizzazione in background; restano credenziali push e prove su telefoni reali ([`docs/MOBILE_CHECKLIST.md`](docs/MOBILE_CHECKLIST.md)) |
 | F8 — Amministrazione | fatta: editor della configurazione (guidato e YAML) con validazione, simulazione, migrazioni e pubblicazione; dispositivi archivio; backup cifrato e ripristino |
-| F9–F10 | da fare |
+| F9 — Privacy e rifinitura | fatta: esportazione (JSON e stampa/PDF) e cancellazione dei dati di una persona su tutti i dispositivi, conservazione automatica, informativa consultabile, controllo di accessibilità nei test, tempi di avvio misurati |
+| F10 — Pilota | da fare |
 
 ## Comandi
 

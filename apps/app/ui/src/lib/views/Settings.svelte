@@ -5,6 +5,8 @@
   import { fail, toast } from '../toast.svelte';
   import { isMobile, biometricCheck } from '../mobile';
   import { exportBackup } from '../backup';
+  import { exportJson, printExport } from '../privacy.svelte';
+  import { markdown } from '../markdown';
 
   let { hasPin, biometric, onchange }: { hasPin: boolean; biometric: boolean; onchange: () => void } = $props();
   let s = $state<Settings | null>(null);
@@ -12,6 +14,24 @@
   let pass = $state('');
   let pass2 = $state('');
   let exporting = $state(false);
+  let notice = $state<string | null>(null);
+  let meId = $state<{ id: string; name: string } | null>(null);
+  run(api.status()).then((st) => (meId = st.me ? { id: st.me.person_id, name: st.me.display_name } : null)).catch(() => {});
+
+  async function showNotice() {
+    try {
+      notice = notice === null ? ((await run(api.privacyNotice())) ?? '') : null;
+    } catch (e) {
+      fail(e);
+    }
+  }
+  async function guard(f: () => Promise<unknown>) {
+    try {
+      await f();
+    } catch (e) {
+      fail(e);
+    }
+  }
 
   async function backup() {
     if (pass !== pass2) return toast(t('passphrase_mismatch'), true);
@@ -94,6 +114,19 @@
       {/if}
     </section>
     <section class="card stack">
+      <h2>{t('privacy_rights')}</h2>
+      <p class="muted">{t('my_data_hint')}</p>
+      {#if meId}
+        {@const m = meId}
+        <div class="row">
+          <button class="btn" onclick={() => guard(() => exportJson(m.id, m.name))}>{t('export_json')}</button>
+          <button class="btn" onclick={() => guard(() => printExport(m.id))}>{t('export_print')}</button>
+        </div>
+      {/if}
+      <div class="row"><button class="btn" aria-expanded={notice !== null} onclick={showNotice}>{t('privacy')}</button></div>
+      {#if notice}<div class="prose notice">{@html markdown(notice)}</div>{/if}
+    </section>
+    <section class="card stack">
       <h2>{t('backup')}</h2>
       <p class="muted">{t('backup_hint')}</p>
       <label for="pass">{t('passphrase')}</label>
@@ -107,4 +140,5 @@
 
 <style>
   .page { gap: 16px; }
+  .notice { max-height: 50vh; overflow: auto; }
 </style>

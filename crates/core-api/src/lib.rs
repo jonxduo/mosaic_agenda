@@ -10,12 +10,13 @@ pub mod commands;
 pub mod config;
 pub mod dispatch;
 pub mod dto;
+pub mod privacy;
 pub mod push;
 pub mod secrets;
 pub mod texts;
 pub mod views;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -666,7 +667,7 @@ impl Core {
             .ok_or_else(locked_error)?
             .events_since(after)
             .map_err(ApiError::internal)?;
-        let engine = match slot.take() {
+        let mut engine = match slot.take() {
             Some((engine, _)) => {
                 lock(&engine)?
                     .extend(&new, &self.keys)
@@ -682,6 +683,21 @@ impl Core {
                 ))
             }
         };
+        // Erasure and retention (§14): erase what the projection asks for,
+        // then start again from the store (the events changed in place).
+        let targets = lock(&engine)?.erasure_targets();
+        if !targets.is_empty() {
+            self.erase_events(&targets)?;
+            let (all, _) = lock(&self.state)?
+                .store
+                .store()
+                .ok_or_else(locked_error)?
+                .events_since(0)
+                .map_err(ApiError::internal)?;
+            engine = Arc::new(Mutex::new(
+                Engine::build_for(all, &self.keys).map_err(ApiError::internal)?,
+            ));
+        }
         *slot = Some((engine.clone(), last));
         drop(slot);
         let v = {
@@ -713,6 +729,7 @@ impl Core {
         let wanted = if archive {
             v.events
                 .iter()
+                .filter(|e| !e.is_erased())
                 .flat_map(|e| e.body.attachments.iter().map(|b| b.0))
                 .collect()
         } else {
@@ -728,6 +745,24 @@ impl Core {
             *cache = Some(v.clone());
         }
         Ok(v)
+    }
+
+    /// Replaces events by their shells and deletes their attachments (§14).
+    fn erase_events(&self, ids: &BTreeSet<core_events::EventHash>) -> ApiResult<()> {
+        let mut st = lock(&self.state)?;
+        let st = &mut *st;
+        let store = st.store.store_mut().ok_or_else(locked_error)?;
+        let mut blobs = Vec::new();
+        for id in ids {
+            if let Some(e) = store.get(id).map_err(ApiError::internal)? {
+                blobs.extend(e.body.attachments.iter().map(|b| b.0));
+            }
+            store.erase(id).map_err(ApiError::internal)?;
+        }
+        for hash in blobs {
+            st.blobs.remove(&hash).map_err(ApiError::internal)?;
+        }
+        Ok(())
     }
 
     pub fn me(&self) -> ApiResult<PersonId> {
@@ -889,6 +924,9 @@ impl Core {
             }
             return Ok(new);
         }
+        // Housekeeping of root administrators: retention (§14). A failure
+        // (e.g. no organization yet) is retried at the next round.
+        let _ = self.apply_retention_if_due();
         let Ok(v) = self.view() else {
             return Ok(0);
         };

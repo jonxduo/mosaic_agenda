@@ -14,6 +14,8 @@ pub enum EventError {
     Structure(&'static str),
     #[error("invalid genesis: {0}")]
     Genesis(&'static str),
+    #[error("the content of this event was erased")]
+    Erased,
     #[error(transparent)]
     Crypto(#[from] CryptoError),
 }

@@ -75,6 +75,10 @@ pub const COMMANDS: &[&str] = &[
     "grant_role",
     "revoke_device",
     "set_archive",
+    "export_person",
+    "request_erasure",
+    "export_person_to",
+    "privacy_notice",
     "units",
     "alerts",
     "sync_status",
@@ -238,6 +242,12 @@ pub async fn dispatch(core: &Arc<Core>, cmd: &str, input: Value) -> ApiResult<Va
         "set_archive" => {
             call!({ device: String, archive: bool } => core.set_archive(device, archive)?)
         }
+        "export_person" => call!({ person: String } => core.export_person(person)?),
+        "request_erasure" => call!({ person: String } => core.request_erasure(person)?),
+        "export_person_to" => {
+            call!({ person: String, path: String } => core.export_person_to(person, &path)?)
+        }
+        "privacy_notice" => json(core.privacy_notice()?),
         "units" => json(core.units()?),
         "alerts" => json(core.alerts()?),
         "sync_status" => json(core.sync_status().await?),

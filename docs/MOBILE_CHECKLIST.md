@@ -50,6 +50,13 @@ modello, versione del sistema, data ed esito (✅ / ❌ con nota).
 | 21 | Navigazione in basso, tasto indietro (Android) e gesto indietro (iOS) | | |
 | 22 | Tema scuro del sistema | | |
 
+## Prestazioni (F9)
+
+| # | Prova | Android | iOS |
+| --- | --- | --- | --- |
+| 23 | **Avvio a freddo < 2 s** (app chiusa del tutto, dall'icona alla home) su un telefono di fascia media con molti dati (il telefono di un partecipante al pilota dopo qualche mese; il simulatore stima un anno in 0,08 s di nucleo su desktop) | | |
+| 24 | Cancellazione dei dati di una persona: sparisce dal telefono dopo la sincronizzazione | | |
+
 ## Problemi trovati
 
 | Data | # | Descrizione | Stato |

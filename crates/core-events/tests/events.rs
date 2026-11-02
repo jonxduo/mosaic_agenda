@@ -178,6 +178,22 @@ fn sealed_content_with_clear_object_header() {
     );
     ring.insert(channel, [0; 32], key);
     assert_eq!(e.open(&ring).unwrap(), b"field values");
+
+    // Erasure (§14): the shell keeps id, signature and header, not the content.
+    let shell = e.shell().unwrap();
+    assert_eq!(shell.id, e.id);
+    assert!(shell.is_erased() && !e.is_erased());
+    let back = SignedEvent::from_bytes(&shell.to_bytes().unwrap()).unwrap();
+    assert_eq!(back.payload().unwrap().object, e.payload().unwrap().object);
+    assert_eq!(back.open(&ring), Err(EventError::Erased));
+    assert!(back.to_bytes().unwrap().len() < e.to_bytes().unwrap().len());
+    assert_eq!(back.shell().unwrap(), back, "erasing twice changes nothing");
+    // A forged shell (another content hash) does not match the signed id.
+    let mut forged = shell.clone();
+    let mut p = forged.payload().unwrap();
+    p.content = core_events::Content::Erased([9; 32]);
+    forged.body.payload = postcard::to_allocvec(&p).unwrap();
+    assert_eq!(forged.verify(), Err(EventError::BadId));
 }
 
 fn distribute(

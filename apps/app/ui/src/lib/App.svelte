@@ -8,6 +8,8 @@
   import { isMobile, biometricCheck, applyInsets } from './mobile';
   import Splash from './components/Splash.svelte';
   import { markdown } from './markdown';
+  import PrintExport from './components/PrintExport.svelte';
+  import { printing } from './privacy.svelte';
   import Onboarding from './views/Onboarding.svelte';
   import Home from './views/Home.svelte';
   import Form from './views/Form.svelte';
@@ -229,6 +231,8 @@
   </div>
 {/if}
 
+{#if printing.data}<PrintExport data={printing.data} />{/if}
+
 <div class="toasts" aria-live="polite">
   {#each toasts as x (x.id)}<div class="toast" class:error={x.error}>{x.text}</div>{/each}
 </div>
@@ -251,7 +255,7 @@
   .sheet { display: none; }
   .toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }
   .toast { background: var(--text); color: var(--bg); padding: 12px 16px; border-radius: 10px; font-size: 15px; max-width: 360px; box-shadow: 0 4px 16px rgb(0 0 0 / 0.15); }
-  .toast.error { background: var(--danger); color: #fff; }
+  .toast.error { background: var(--danger); color: var(--bg); }
   @media (max-width: 760px) {
     .side { display: none; }
     .content { padding: 32px 20px 110px; }

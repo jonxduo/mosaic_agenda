@@ -4,6 +4,7 @@
   import { t } from '../i18n';
   import FieldInput from '../components/FieldInput.svelte';
   import { fail, toast } from '../toast.svelte';
+  import { exportJson, printExport } from '../privacy.svelte';
 
   let { me }: { me: Me | null } = $props();
   let data = $state<PeopleData | null>(null);
@@ -34,6 +35,17 @@
     await act(() => run(api.addPerson(name.trim(), attrs)));
     name = '';
     attrs = {};
+  }
+  async function erase(person: string, name: string) {
+    if (!confirm(t('erase_confirm').replace('{name}', name))) return;
+    await act(() => run(api.requestErasure(person)));
+  }
+  async function guard(f: () => Promise<unknown>) {
+    try {
+      await f();
+    } catch (e) {
+      fail(e);
+    }
   }
   async function doInvite(person: string) {
     try {
@@ -91,6 +103,11 @@
               </div>
             {/each}
             <p class="muted">{t('archive_hint')}</p>
+            <div class="row" role="group" aria-label={t('privacy_rights')}>
+              <button class="btn small" onclick={() => guard(() => exportJson(p.person_id, p.name))}>{t('export_json')}</button>
+              <button class="btn small" onclick={() => guard(() => printExport(p.person_id))}>{t('export_print')}</button>
+              <button class="btn small" style="color: var(--danger)" onclick={() => erase(p.person_id, p.name)}>{t('erase_data')}</button>
+            </div>
             {#if invite}
               <div class="stack invite">
                 <p class="muted">{t('invite_hint')} {invite.expires_at}</p>

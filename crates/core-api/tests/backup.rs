@@ -98,3 +98,32 @@ async fn devices_can_be_marked_as_archive() {
         "invalid"
     );
 }
+
+/// Every command of the list reaches its handler (the dev server and the
+/// browser bridge use this table).
+#[tokio::test]
+async fn every_listed_command_is_dispatched() {
+    let dir = tempfile::tempdir().unwrap();
+    let a = open(dir.path(), Arc::new(MemorySecretStore::default()));
+    for cmd in core_api::dispatch::COMMANDS {
+        // Skip the ones that would wait on the network or stop the device.
+        if [
+            "sync_now",
+            "join_org",
+            "create_org",
+            "wipe",
+            "invite_device",
+        ]
+        .contains(cmd)
+        {
+            continue;
+        }
+        let r = core_api::dispatch::dispatch(&a, cmd, serde_json::json!({})).await;
+        if let Err(e) = r {
+            assert!(
+                !(e.kind == "not_found" && e.message.starts_with("command")),
+                "{cmd} has no handler"
+            );
+        }
+    }
+}
