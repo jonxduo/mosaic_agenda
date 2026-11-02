@@ -30,6 +30,7 @@
   import Sync from './views/Sync.svelte';
   import Settings from './views/Settings.svelte';
   import Config from './views/Config.svelte';
+  import Schedule from './views/Schedule.svelte';
   import Assignments from './views/Assignments.svelte';
 
   let status = $state<AppStatus | null>(null);
@@ -61,7 +62,7 @@
   let showApps = $state(false);
   let tick = $state(0);
   let seen = -1;
-  const EDITING = ['form', 'config', 'program_editor', 'people', 'roles', 'settings', 'resource_detail', 'units'];
+  const EDITING = ['form', 'config', 'schedule', 'program_editor', 'people', 'roles', 'settings', 'resource_detail', 'units'];
 
   applyInsets();
 
@@ -262,6 +263,7 @@
         {:else if route.view === 'admin_alerts'}<Alerts />
         {:else if route.view === 'sync_status'}<Sync me={status.me} />
         {:else if route.view === 'config'}<Config onchange={refresh} />
+        {:else if route.view === 'schedule'}<Schedule onchange={refresh} />
         {:else if route.view === 'settings'}<Settings hasPin={status.has_pin} biometric={status.biometric} onchange={refresh} />
         {:else}<Home me={status.me} onchange={refresh} />{/if}
       {/key}

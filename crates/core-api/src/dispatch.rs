@@ -48,6 +48,7 @@ pub const COMMANDS: &[&str] = &[
     "distribute_aggregate",
     "programs",
     "program",
+    "program_dates",
     "draft_program",
     "assign_slot",
     "send_program",
@@ -181,6 +182,9 @@ pub async fn dispatch(core: &Arc<Core>, cmd: &str, input: Value) -> ApiResult<Va
         }
         "programs" => call!({ types: Option<String> } => core.programs(types)?),
         "program" => call!({ program: String } => core.program(program)?),
+        "program_dates" => {
+            call!({ program_type: String, period: Option<String> } => core.program_dates(program_type, period)?)
+        }
         "draft_program" => {
             call!({ program_type: String, dates: Vec<String> } => core.draft_program(program_type, dates)?)
         }

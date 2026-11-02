@@ -254,6 +254,8 @@ impl Core {
         Ok(id.to_string())
     }
 
+    /// Assigns a slot (an empty `person` empties it). In a program that
+    /// rotates by week or month, every event of the group gets the same person.
     pub fn assign_slot(
         self: &Arc<Self>,
         program: String,
@@ -263,23 +265,63 @@ impl Core {
         person: String,
     ) -> ApiResult<ProgramEditor> {
         let id = parse_id(&program)?;
-        let key = SlotKey {
-            occurrence: u16::try_from(occurrence).map_err(ApiError::invalid)?,
-            slot: slug(&slot)?,
-            index: u16::try_from(index).map_err(ApiError::invalid)?,
-        };
-        let a = assignee(&person)?;
-        self.act_events(|c| {
-            c.assign(
-                id,
-                vec![AssignmentSpec {
+        let slot = slug(&slot)?;
+        let index = u16::try_from(index).map_err(ApiError::invalid)?;
+        let keys = self.group_keys(id, occurrence, &slot, index)?;
+        if person.is_empty() {
+            self.act_events(|c| c.update_program(id, Vec::new(), keys))?;
+        } else {
+            let a = assignee(&person)?;
+            let specs = keys
+                .into_iter()
+                .map(|key| AssignmentSpec {
                     key,
-                    assignee: a,
+                    assignee: a.clone(),
                     extra: Values::new(),
-                }],
-            )
-        })?;
+                })
+                .collect();
+            self.act_events(|c| c.assign(id, specs))?;
+        }
         self.program(program)
+    }
+
+    /// The slot keys of the group of `occurrence` (see `rotation`).
+    fn group_keys(
+        &self,
+        program: Id,
+        occurrence: u32,
+        slot: &Slug,
+        index: u16,
+    ) -> ApiResult<Vec<SlotKey>> {
+        let occ = usize::try_from(occurrence).map_err(ApiError::invalid)?;
+        let v = self.view()?;
+        let (program_type, occurrences) = match v.proj.programs.get(&program) {
+            Some(p) => (p.program_type.clone(), p.occurrences.clone()),
+            None => {
+                let s = v
+                    .proj
+                    .assigned_snapshots
+                    .get(&program)
+                    .or_else(|| v.proj.published.get(&program))
+                    .ok_or_else(|| ApiError::not_found("program"))?;
+                (s.program_type.clone(), s.occurrences.clone())
+            }
+        };
+        let group = cfg(&v)?
+            .program_type(&program_type)
+            .map(|d| crate::schedule::group_of(d, &occurrences, occ))
+            .filter(|g| !g.is_empty())
+            .unwrap_or_else(|| vec![occ]);
+        group
+            .into_iter()
+            .map(|o| {
+                Ok(SlotKey {
+                    occurrence: u16::try_from(o).map_err(ApiError::invalid)?,
+                    slot: slot.clone(),
+                    index,
+                })
+            })
+            .collect()
     }
 
     pub fn send_program(self: &Arc<Self>, program: String) -> ApiResult<ProgramEditor> {
@@ -308,21 +350,75 @@ impl Core {
     ) -> ApiResult<()> {
         let id = parse_id(&program)?;
         let t = slug(&program_type)?;
-        let key = SlotKey {
-            occurrence: u16::try_from(occurrence).map_err(ApiError::invalid)?,
-            slot: slug(&slot)?,
-            index: u16::try_from(index).map_err(ApiError::invalid)?,
-        };
+        let slot = slug(&slot)?;
+        let index = u16::try_from(index).map_err(ApiError::invalid)?;
         let a = match assignee_id {
             Some(a) => assignee(&a)?,
             None => Assignee::Person(self.me()?),
+        };
+        // The answer covers the events of the rotation held by the same person.
+        let keys: Vec<SlotKey> = {
+            let v = self.view()?;
+            let own = SlotKey {
+                occurrence: u16::try_from(occurrence).map_err(ApiError::invalid)?,
+                slot: slot.clone(),
+                index,
+            };
+            match &a {
+                Assignee::Person(p) => {
+                    let rotation = cfg(&v)?
+                        .program_type(&t)
+                        .map(|d| d.rotation)
+                        .unwrap_or_default();
+                    let items = v
+                        .proj
+                        .notices
+                        .get(&(id, *p))
+                        .map(|(_, items)| items.as_slice())
+                        .unwrap_or_default();
+                    let group = items
+                        .iter()
+                        .find(|i| i.key == own)
+                        .and_then(|i| crate::schedule::rotation_key(rotation, i.date));
+                    let mut keys: Vec<SlotKey> = items
+                        .iter()
+                        .filter(|i| {
+                            i.key == own
+                                || (group.is_some()
+                                    && i.key.slot == slot
+                                    && i.key.index == index
+                                    && crate::schedule::rotation_key(rotation, i.date) == group)
+                        })
+                        .map(|i| i.key.clone())
+                        .collect();
+                    if keys.is_empty() {
+                        keys.push(own);
+                    }
+                    keys
+                }
+                Assignee::External(_) => {
+                    let held = |k: &SlotKey| {
+                        v.proj
+                            .programs
+                            .get(&id)
+                            .is_some_and(|p| p.assignments.get(k).is_some_and(|(x, _)| *x == a))
+                    };
+                    let keys: Vec<SlotKey> = self
+                        .group_keys(id, occurrence, &slot, index)
+                        .unwrap_or_default()
+                        .into_iter()
+                        .filter(|k| *k == own || held(k))
+                        .collect();
+                    if keys.is_empty() { vec![own] } else { keys }
+                }
+            }
         };
         let response = if accept {
             Response::Accepted
         } else {
             Response::Declined { note }
         };
-        self.act_events(|c| c.respond(id, &t, key, a, response))
+        self.act_events(|c| c.respond_all(id, &t, keys, a, response))
     }
 
     pub fn add_external(self: &Arc<Self>, name: String) -> ApiResult<String> {

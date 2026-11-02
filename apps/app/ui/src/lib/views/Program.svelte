@@ -10,7 +10,6 @@
   run(api.program(program)).then((x) => (p = x)).catch(fail);
 
   async function assign(occurrence: number, slot: string, index: number, person: string) {
-    if (!person) return;
     try {
       p = await run(api.assignSlot(program, occurrence, slot, index, person));
     } catch (e) {
@@ -43,10 +42,13 @@
       <span class="badge">{t(`status_${p.status}` as never)}</span>
     </div>
     {#each p.warnings as w, i (i)}<p class="warn">{w}</p>{/each}
-    {#each p.occurrences as day, occ (occ)}
+    {#each p.groups as g (g.occurrence)}
       <section class="card stack">
-        <h3>{day}</h3>
-        {#each p.cells.filter((c) => c.occurrence === occ) as c (c.slot + c.index)}
+        <div class="stack tight">
+          <h3>{g.label}</h3>
+          {#if g.detail}<span class="muted">{g.detail}</span>{/if}
+        </div>
+        {#each p.cells.filter((c) => c.occurrence === g.occurrence) as c (c.slot + c.index)}
           <div class="list-row">
             <span class="grow">{c.label}</span>
             {#if p.can_edit}
@@ -75,4 +77,5 @@
 
 <style>
   .page { gap: 16px; }
+  .tight { gap: 2px; }
 </style>

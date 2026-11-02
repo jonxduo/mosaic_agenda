@@ -19,6 +19,7 @@ const SECTION: Record<string, Section> = {
   units: 'admin',
   roles: 'admin',
   admin_alerts: 'admin',
+  schedule: 'admin',
   config: 'admin',
   sync_status: 'system',
   settings: 'system'
@@ -61,6 +62,7 @@ export const ICONS: Record<string, string> = {
   roles: 'M12 15a6 6 0 1 0 0-12 6 6 0 0 0 0 12 M8.5 13.5 7 22l5-3 5 3-1.5-8.5',
   admin_alerts: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9 M10.3 21a1.94 1.94 0 0 0 3.4 0',
   config: 'M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z',
+  schedule: 'M8 2v4 M16 2v4 M3 9h18 M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z M12 13v3l2 1',
   sync_status: 'M21 12a9 9 0 0 1-15.5 6.2L3 16 M3 12a9 9 0 0 1 15.5-6.2L21 8 M21 3v5h-5 M3 21v-5h5',
   settings: 'M4 21v-7 M4 10V3 M12 21v-9 M12 8V3 M20 21v-5 M20 12V3 M1 14h6 M9 8h6 M17 16h6',
   admin: 'M12 3 4 6v6c0 5 3.4 8.3 8 9 4.6-.7 8-4 8-9V6z M9 12l2 2 4-4',

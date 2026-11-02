@@ -1621,6 +1621,11 @@
           ],
           "default": null
         },
+        "rotation": {
+          "$ref": "#/$defs/Rotation",
+          "default": "occurrence",
+          "description": "Assignments shared by the events of the same week or month."
+        },
         "slots": {
           "items": {
             "$ref": "#/$defs/SlotDef"
@@ -2253,6 +2258,15 @@
       },
       "type": "object"
     },
+    "Rotation": {
+      "description": "How long the same persons keep a slot within a program: a new choice for\nevery event, or one choice for all the events of a week or of a month.",
+      "enum": [
+        "occurrence",
+        "week",
+        "month"
+      ],
+      "type": "string"
+    },
     "Scalar": {
       "type": [
         "null",
@@ -2456,6 +2470,11 @@
           "format": "uint32",
           "minimum": 0,
           "type": "integer"
+        },
+        "enabled": {
+          "default": true,
+          "description": "Disabled slots stay in the package but are not assigned.",
+          "type": "boolean"
         },
         "extra_fields": {
           "default": [],

@@ -307,16 +307,7 @@ enum Plan {
 }
 
 fn weekday_of(rrule: &str) -> Option<Weekday> {
-    let by = rrule.split(';').find_map(|p| p.strip_prefix("BYDAY="))?;
-    Some(match by.split(',').next()? {
-        "MO" => Weekday::Monday,
-        "TU" => Weekday::Tuesday,
-        "WE" => Weekday::Wednesday,
-        "TH" => Weekday::Thursday,
-        "FR" => Weekday::Friday,
-        "SA" => Weekday::Saturday,
-        _ => Weekday::Sunday,
-    })
+    core_engine::time::weekly_days(rrule).first().copied()
 }
 
 struct Gen {

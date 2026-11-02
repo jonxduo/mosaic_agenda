@@ -149,10 +149,64 @@ pub fn is_monday(date: Date) -> bool {
     date.weekday() == Weekday::Monday
 }
 
+/// RRULE weekday codes, Monday first.
+pub const WEEKDAY_CODES: [&str; 7] = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+
+/// Days of a weekly RRULE (`FREQ=WEEKLY;BYDAY=TH,SU`); empty for other rules.
+pub fn weekly_days(rrule: &str) -> Vec<Weekday> {
+    let parts: Vec<&str> = rrule.split(';').collect();
+    if !parts.contains(&"FREQ=WEEKLY") {
+        return Vec::new();
+    }
+    parts
+        .iter()
+        .find_map(|p| p.strip_prefix("BYDAY="))
+        .map(|by| by.split(',').filter_map(weekday_of_code).collect())
+        .unwrap_or_default()
+}
+
+pub fn weekday_of_code(code: &str) -> Option<Weekday> {
+    let i = WEEKDAY_CODES.iter().position(|c| *c == code)?;
+    Some(Weekday::Monday.nth_next(i as u8))
+}
+
+/// Dates in `[from, to]` falling on one of `days`, in order.
+pub fn dates_on(days: &[Weekday], from: Date, to: Date) -> Vec<Date> {
+    let mut out = Vec::new();
+    let mut d = from;
+    while d <= to {
+        if days.contains(&d.weekday()) {
+            out.push(d);
+        }
+        d = match d.next_day() {
+            Some(n) => n,
+            None => break,
+        };
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use time::macros::date;
+
+    #[test]
+    fn weekly_rules() {
+        assert_eq!(
+            weekly_days("FREQ=WEEKLY;BYDAY=TH,SU"),
+            vec![Weekday::Thursday, Weekday::Sunday]
+        );
+        assert!(weekly_days("FREQ=MONTHLY;BYDAY=TH").is_empty());
+        let nov: PeriodKey = "2026-11".parse().unwrap_or(PeriodKey::Once);
+        let (Some(a), Some(b)) = (nov.start(), nov.last_day()) else {
+            panic!("month bounds");
+        };
+        let d = dates_on(&weekly_days("FREQ=WEEKLY;BYDAY=TH,SU"), a, b);
+        assert_eq!(d.len(), 9);
+        assert_eq!(d[0], date!(2026 - 11 - 01));
+        assert_eq!(d[1], date!(2026 - 11 - 05));
+    }
 
     #[test]
     fn month_bounds() {

@@ -923,6 +923,16 @@ impl<'a> Client<'a> {
         program: Id,
         assignments: Vec<AssignmentSpec>,
     ) -> Result<Vec<SignedEvent>, ActionError> {
+        self.update_program(program, assignments, Vec::new())
+    }
+
+    /// Sets some slots and empties others.
+    pub fn update_program(
+        &self,
+        program: Id,
+        assignments: Vec<AssignmentSpec>,
+        cleared: Vec<SlotKey>,
+    ) -> Result<Vec<SignedEvent>, ActionError> {
         let p = self
             .proj
             .programs
@@ -932,7 +942,7 @@ impl<'a> Client<'a> {
         let payload = ProgramUpdated {
             program,
             assignments,
-            cleared: Vec::new(),
+            cleared,
         };
         self.sealed(
             &mut chain,
@@ -1003,21 +1013,35 @@ impl<'a> Client<'a> {
         assignee: Assignee,
         response: Response,
     ) -> Result<Vec<SignedEvent>, ActionError> {
+        self.respond_all(program, program_type, vec![key], assignee, response)
+    }
+
+    /// The same answer for several slots (the events of a rotation).
+    pub fn respond_all(
+        &self,
+        program: Id,
+        program_type: &Slug,
+        keys: Vec<SlotKey>,
+        assignee: Assignee,
+        response: Response,
+    ) -> Result<Vec<SignedEvent>, ActionError> {
         let mut chain = self.chain();
-        let payload = AssignmentResponded {
-            program,
-            program_type: program_type.clone(),
-            key,
-            assignee: assignee.clone(),
-            response,
-        };
-        self.sealed(
-            &mut chain,
-            EventKind::AssignmentResponded,
-            &assignment_descriptor(program_type, &assignee),
-            Self::header(ObjectType::Assignment, program, program_type),
-            &payload,
-        )?;
+        for key in keys {
+            let payload = AssignmentResponded {
+                program,
+                program_type: program_type.clone(),
+                key,
+                assignee: assignee.clone(),
+                response: response.clone(),
+            };
+            self.sealed(
+                &mut chain,
+                EventKind::AssignmentResponded,
+                &assignment_descriptor(program_type, &assignee),
+                Self::header(ObjectType::Assignment, program, program_type),
+                &payload,
+            )?;
+        }
         self.finish(chain)
     }
 

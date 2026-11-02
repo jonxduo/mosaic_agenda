@@ -326,6 +326,16 @@ pub struct SlotCell {
     pub candidates: Vec<Choice>,
 }
 
+/// Events sharing the same persons (one event unless the program rotates
+/// by week or month). Its cells carry the first occurrence.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct ProgramGroup {
+    pub occurrence: u32,
+    pub label: String,
+    /// The dates of the group when it has more than one.
+    pub detail: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct ProgramEditor {
     pub program_id: String,
@@ -333,6 +343,7 @@ pub struct ProgramEditor {
     pub title: String,
     pub status: String,
     pub occurrences: Vec<String>,
+    pub groups: Vec<ProgramGroup>,
     pub cells: Vec<SlotCell>,
     pub can_edit: bool,
     pub can_send: bool,

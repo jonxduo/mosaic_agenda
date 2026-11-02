@@ -8,8 +8,8 @@ use core_model::audience::{AudienceDef, Selector, SystemAudience};
 use core_model::cond::{Cond, Expr};
 use core_model::config::{
     AggregateDef, ChoiceOption, FieldDef, FieldType, FormDef, MeasureOp, PackageConfig,
-    QualificationDef, QualificationDuration, Repeat, ResourceTypeDef, RoleDef, TriggerFilter,
-    ViewParams, WorkflowDef, default_label,
+    ProgramPeriod, QualificationDef, QualificationDuration, Repeat, ResourceTypeDef, RoleDef,
+    Rotation, TriggerFilter, ViewParams, WorkflowDef, default_label,
 };
 use core_model::strings::{GroupBy, MemberOf, ObjectKind, ObjectRef, ScopeDef};
 use core_model::{Scalar, Slug, TextKey};
@@ -1251,6 +1251,18 @@ impl<'a> Validator<'a> {
                         "expected an RRULE starting with FREQ=",
                     );
                 }
+                const DAYS: [&str; 7] = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+                let bad_day = r
+                    .split(';')
+                    .find_map(|x| x.strip_prefix("BYDAY="))
+                    .is_some_and(|by| by.split(',').any(|d| !DAYS.contains(&d)));
+                if bad_day {
+                    self.err(
+                        CALENDAR,
+                        format!("{p}.default_recurrence"),
+                        "BYDAY expects MO, TU, WE, TH, FR, SA or SU",
+                    );
+                }
             }
             if let Some(t) = &e.default_time {
                 let ok = t.len() == 5
@@ -1295,6 +1307,20 @@ impl<'a> Validator<'a> {
                         format!("unknown calendar event type `{e}`"),
                     );
                 }
+            }
+            if t.rotation == Rotation::Month && t.period != ProgramPeriod::Month {
+                self.err(
+                    PROGRAMS,
+                    format!("{p}.rotation"),
+                    "a monthly rotation needs `period: month`",
+                );
+            }
+            if !t.slots.is_empty() && t.slots.iter().all(|s| !s.enabled) {
+                self.err(
+                    PROGRAMS,
+                    format!("{p}.slots"),
+                    "at least one slot must be enabled",
+                );
             }
             self.role_ref(&t.owner_role, PROGRAMS, format!("{p}.owner_role"));
             for (j, r) in t.assistant_roles.iter().enumerate() {

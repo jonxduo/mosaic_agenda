@@ -40,6 +40,7 @@ export const commands = {
 	distributeAggregate: (aggregate: string, period: string) => typedError<AggregateView_Serialize, ApiError>(__TAURI_INVOKE("distribute_aggregate", { aggregate, period })),
 	programs: (types: string | null) => typedError<ProgramList, ApiError>(__TAURI_INVOKE("programs", { types })),
 	program: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("program", { program })),
+	programDates: (programType: string, period: string | null) => typedError<ProgramDates, ApiError>(__TAURI_INVOKE("program_dates", { programType, period })),
 	draftProgram: (programType: string, dates: string[]) => typedError<string, ApiError>(__TAURI_INVOKE("draft_program", { programType, dates })),
 	assignSlot: (program: string, occurrence: number, slot: string, index: number, person: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("assign_slot", { program, occurrence, slot, index, person })),
 	sendProgram: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("send_program", { program })),
@@ -686,6 +687,21 @@ export type PersonView_Serialize = {
 	erased: boolean,
 };
 
+/**  The dates proposed for a new program of a type. */
+export type ProgramDates = {
+	/**  Period key (`YYYY-MM` or `week-YYYY-MM-DD`). */
+	period: string,
+	label: string,
+	previous: string,
+	next: string,
+	/**  `YYYY-MM-DD`, in order. */
+	dates: string[],
+	/**  The same dates, for display. */
+	labels: string[],
+	/**  A program of this type already covers this period. */
+	exists: boolean,
+};
+
 export type ProgramEditor = ProgramEditor_Serialize | ProgramEditor_Deserialize;
 
 export type ProgramEditor_Deserialize = {
@@ -694,6 +710,7 @@ export type ProgramEditor_Deserialize = {
 	title: string,
 	status: string,
 	occurrences: string[],
+	groups: ProgramGroup_Deserialize[],
 	cells: SlotCell_Deserialize[],
 	can_edit: boolean,
 	can_send: boolean,
@@ -707,11 +724,40 @@ export type ProgramEditor_Serialize = {
 	title: string,
 	status: string,
 	occurrences: string[],
+	groups: ProgramGroup_Serialize[],
 	cells: SlotCell_Serialize[],
 	can_edit: boolean,
 	can_send: boolean,
 	can_publish: boolean,
 	warnings: string[],
+};
+
+/**
+ *  Events sharing the same persons (one event unless the program rotates
+ *  by week or month). Its cells carry the first occurrence.
+ */
+export type ProgramGroup = ProgramGroup_Serialize | ProgramGroup_Deserialize;
+
+/**
+ *  Events sharing the same persons (one event unless the program rotates
+ *  by week or month). Its cells carry the first occurrence.
+ */
+export type ProgramGroup_Deserialize = {
+	occurrence: number,
+	label: string,
+	/**  The dates of the group when it has more than one. */
+	detail?: string | null,
+};
+
+/**
+ *  Events sharing the same persons (one event unless the program rotates
+ *  by week or month). Its cells carry the first occurrence.
+ */
+export type ProgramGroup_Serialize = {
+	occurrence: number,
+	label: string,
+	/**  The dates of the group when it has more than one. */
+	detail: string | null,
 };
 
 export type ProgramList = {

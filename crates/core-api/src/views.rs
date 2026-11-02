@@ -7,7 +7,7 @@ use core_engine::ops::{Assignee, Response};
 use core_engine::projection::{BoardItem as PBoardItem, Document, ProgramStatus};
 use core_engine::rules::{expected_subjects, may_fill, present_subjects, step_actors, variant_for};
 use core_engine::time::{PeriodKey, add_days, date_of};
-use core_model::config::{FieldDef, FieldType, Periodicity, StepKind, ViewKind};
+use core_model::config::{FieldDef, FieldType, Periodicity, Rotation, StepKind, ViewKind};
 use core_model::eval::{EvalContext, Evaluator};
 use core_model::strings::{ObjectKind, ObjectRef};
 use core_model::{Permission, PersonId, Scalar, Slug, UnitId};
@@ -311,6 +311,11 @@ impl Core {
                 .is_allowed(cfg, me, Permission::ConfigPublish, None, None, today(self));
         if may_configure {
             items.push(MenuItem {
+                label: t.get("core.menu.schedule"),
+                view: "schedule".into(),
+                params: Default::default(),
+            });
+            items.push(MenuItem {
                 label: t.get("core.menu.config"),
                 view: "config".into(),
                 params: Default::default(),
@@ -522,23 +527,61 @@ impl Core {
 
     fn assignments_of(&self, v: &View, me: PersonId, t: &Texts) -> ApiResult<Vec<AssignmentItem>> {
         let cfg = cfg(v)?;
+        let now = today(self);
         let mut out = Vec::new();
         for ((program, person), (program_type, items)) in &v.proj.notices {
             if *person != me {
                 continue;
             }
             let def = cfg.program_type(program_type);
-            for it in items {
-                if it.date < today(self) {
-                    continue;
-                }
+            let rotation = def.map(|d| d.rotation).unwrap_or_default();
+            let answer =
+                |key: &core_engine::ops::SlotKey| v.proj.responses.get(&(*program, key.clone()));
+            // Items of a rotation are shown once per group (week or month).
+            let mut groups: Vec<(Option<PeriodKey>, &core_engine::ops::NoticeItem)> = Vec::new();
+            let mut members: BTreeMap<usize, Vec<&core_engine::ops::NoticeItem>> = BTreeMap::new();
+            for it in items.iter().filter(|it| it.date >= now) {
+                let g = crate::schedule::rotation_key(rotation, it.date);
+                let pos = groups.iter().position(|(k, first)| {
+                    g.is_some()
+                        && *k == g
+                        && first.key.slot == it.key.slot
+                        && first.key.index == it.key.index
+                });
+                let i = pos.unwrap_or_else(|| {
+                    groups.push((g, it));
+                    groups.len() - 1
+                });
+                members.entry(i).or_default().push(it);
+            }
+            for (i, (g, it)) in groups.iter().enumerate() {
+                let all = members.get(&i).map(Vec::as_slice).unwrap_or_default();
                 let slot_label = def
                     .and_then(|d| d.slots.iter().find(|s| s.id == it.key.slot))
                     .map_or_else(|| it.key.slot.to_string(), |s| t.get(s.label.as_str()));
-                let response = match v.proj.responses.get(&(*program, it.key.clone())) {
-                    None => "pending",
-                    Some(Response::Accepted) => "accepted",
-                    Some(Response::Declined { .. }) => "declined",
+                let response = if all
+                    .iter()
+                    .any(|x| matches!(answer(&x.key), Some(Response::Declined { .. })))
+                {
+                    "declined"
+                } else if all
+                    .iter()
+                    .all(|x| matches!(answer(&x.key), Some(Response::Accepted)))
+                {
+                    "accepted"
+                } else {
+                    "pending"
+                };
+                let when = match (g, all.len()) {
+                    (Some(k), n) if n > 1 => format!(
+                        "{} · {}",
+                        capitalize(&t.period(k)),
+                        all.iter()
+                            .map(|x| t.day_month(x.date))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ),
+                    _ => capitalize(&t.long_date(it.date)),
                 };
                 out.push(AssignmentItem {
                     program_id: program.to_string(),
@@ -550,7 +593,7 @@ impl Core {
                     subtitle: format!(
                         "{} · {}",
                         def.map_or_else(String::new, |d| t.get(d.label.as_str())),
-                        capitalize(&t.long_date(it.date))
+                        when
                     ),
                     response: response.into(),
                     can_respond: def.is_some_and(|d| d.acceptance) && response == "pending",
@@ -638,9 +681,22 @@ impl Core {
                 PBoardItem::Program(s) => {
                     let def = cfg.program_type(&s.program_type);
                     let first = s.occurrences.first().copied().unwrap_or(now);
+                    let rotation = def.map(|d| d.rotation).unwrap_or_default();
+                    let mut seen = BTreeSet::new();
                     let lines = s
                         .assignments
                         .iter()
+                        .filter(|a| {
+                            // One line per person and group of a rotation.
+                            let group = crate::schedule::rotation_key(rotation, a.date);
+                            group.is_none()
+                                || seen.insert((
+                                    group,
+                                    a.key.slot.clone(),
+                                    a.key.index,
+                                    a.display_name.clone(),
+                                ))
+                        })
                         .map(|a| {
                             let slot = def
                                 .and_then(|d| d.slots.iter().find(|x| x.id == a.key.slot))
@@ -648,10 +704,13 @@ impl Core {
                                     || a.key.slot.to_string(),
                                     |x| t.get(x.label.as_str()),
                                 );
-                            let when = if s.occurrences.len() > 1 {
-                                format!(" ({})", t.day_month(a.date))
-                            } else {
-                                String::new()
+                            let when = match rotation {
+                                _ if s.occurrences.len() < 2 => String::new(),
+                                Rotation::Occurrence => format!(" ({})", t.day_month(a.date)),
+                                Rotation::Week => {
+                                    format!(" ({})", t.period(&PeriodKey::week_of(a.date)))
+                                }
+                                Rotation::Month => String::new(),
                             };
                             BoardLine {
                                 label: format!("{slot}{when}"),
@@ -662,7 +721,10 @@ impl Core {
                     out.push(BoardItem {
                         id: id.to_string(),
                         title: def.map_or_else(String::new, |d| t.get(d.label.as_str())),
-                        subtitle: t.period(&PeriodKey::week_of(first)),
+                        subtitle: def.map_or_else(
+                            || t.period(&PeriodKey::week_of(first)),
+                            |d| t.period(&crate::schedule::period_of(d, first)),
+                        ),
                         body: lines,
                     });
                 }
@@ -1333,7 +1395,10 @@ impl Core {
                         .iter()
                         .find(|d| d.id == p.program_type)
                         .map_or_else(String::new, |d| t.get(d.label.as_str())),
-                    subtitle: t.period(&PeriodKey::week_of(first)),
+                    subtitle: defs.iter().find(|d| d.id == p.program_type).map_or_else(
+                        || t.period(&PeriodKey::week_of(first)),
+                        |d| t.period(&crate::schedule::period_of(d, first)),
+                    ),
                     status: match (p.status, v.proj.published.contains_key(id)) {
                         (_, true) => "published",
                         (ProgramStatus::Assigned, false) => "assigned",
@@ -1358,7 +1423,10 @@ impl Core {
                         .iter()
                         .find(|d| d.id == s.program_type)
                         .map_or_else(String::new, |d| t.get(d.label.as_str())),
-                    subtitle: t.period(&PeriodKey::week_of(first)),
+                    subtitle: defs.iter().find(|d| d.id == s.program_type).map_or_else(
+                        || t.period(&PeriodKey::week_of(first)),
+                        |d| t.period(&crate::schedule::period_of(d, first)),
+                    ),
                     status: if v.proj.published.contains_key(id) {
                         "published"
                     } else {
@@ -1478,9 +1546,14 @@ impl Core {
                     None,
                     now,
                 ));
+        let groups = crate::schedule::groups(def, &occurrences);
         let mut cells = Vec::new();
-        for (occ, date) in occurrences.iter().enumerate() {
-            for slot in &def.slots {
+        for group in &groups {
+            let occ = group.first().copied().unwrap_or_default();
+            let Some(date) = occurrences.get(occ) else {
+                continue;
+            };
+            for slot in def.slots.iter().filter(|s| s.enabled) {
                 let reps = match slot.repeat {
                     Some(core_model::config::Repeat::Count(n)) => n,
                     _ => 1,
@@ -1525,10 +1598,31 @@ impl Core {
                     } else {
                         Vec::new()
                     };
-                    let response = match v.proj.responses.get(&(id, key.clone())) {
-                        None => "pending",
-                        Some(Response::Accepted) => "accepted",
-                        Some(Response::Declined { .. }) => "declined",
+                    // The group's answer: declined if one is, accepted if all are.
+                    let answers: Vec<_> = group
+                        .iter()
+                        .map(|o| {
+                            v.proj.responses.get(&(
+                                id,
+                                core_engine::ops::SlotKey {
+                                    occurrence: *o as u16,
+                                    ..key.clone()
+                                },
+                            ))
+                        })
+                        .collect();
+                    let response = if answers
+                        .iter()
+                        .any(|r| matches!(r, Some(Response::Declined { .. })))
+                    {
+                        "declined"
+                    } else if answers
+                        .iter()
+                        .all(|r| matches!(r, Some(Response::Accepted)))
+                    {
+                        "accepted"
+                    } else {
+                        "pending"
                     };
                     let label = if slot.count * reps > 1 {
                         format!("{} {}", t.get(slot.label.as_str()), index + 1)
@@ -1568,7 +1662,8 @@ impl Core {
             title: format!(
                 "{} · {}",
                 t.get(def.label.as_str()),
-                t.period(&PeriodKey::week_of(
+                t.period(&crate::schedule::period_of(
+                    def,
                     occurrences.first().copied().unwrap_or(now)
                 ))
             ),
@@ -1576,6 +1671,30 @@ impl Core {
             occurrences: occurrences
                 .iter()
                 .map(|d| capitalize(&t.long_date(*d)))
+                .collect(),
+            groups: groups
+                .iter()
+                .filter_map(|g| {
+                    let first = *g.first()?;
+                    let d = *occurrences.get(first)?;
+                    let label = match def.rotation {
+                        Rotation::Occurrence => t.long_date(d),
+                        Rotation::Week => t.period(&PeriodKey::week_of(d)),
+                        Rotation::Month => t.period(&PeriodKey::month_of(d)),
+                    };
+                    let detail = (def.rotation != Rotation::Occurrence).then(|| {
+                        g.iter()
+                            .filter_map(|o| occurrences.get(*o))
+                            .map(|x| t.long_date(*x))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    });
+                    Some(ProgramGroup {
+                        occurrence: first as u32,
+                        label: capitalize(&label),
+                        detail,
+                    })
+                })
                 .collect(),
             cells,
             can_edit,

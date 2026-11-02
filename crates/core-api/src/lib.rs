@@ -12,6 +12,7 @@ pub mod dispatch;
 pub mod dto;
 pub mod privacy;
 pub mod push;
+pub mod schedule;
 pub mod secrets;
 pub mod texts;
 pub mod views;

@@ -688,6 +688,17 @@ pub enum ProgramPeriod {
     Month,
 }
 
+/// How long the same persons keep a slot within a program: a new choice for
+/// every event, or one choice for all the events of a week or of a month.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Rotation {
+    #[default]
+    Occurrence,
+    Week,
+    Month,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ProgramTypeDef {
@@ -695,6 +706,9 @@ pub struct ProgramTypeDef {
     pub label: TextKey,
     pub event_type: OneOrMany<Slug>,
     pub period: ProgramPeriod,
+    /// Assignments shared by the events of the same week or month.
+    #[serde(default)]
+    pub rotation: Rotation,
     pub owner_role: Slug,
     #[serde(default)]
     pub assistant_roles: Vec<Slug>,
@@ -736,6 +750,9 @@ pub struct SlotDef {
     pub repeat: Option<Repeat>,
     #[serde(default)]
     pub pair_with: Option<Slug>,
+    /// Disabled slots stay in the package but are not assigned.
+    #[serde(default = "yes")]
+    pub enabled: bool,
 }
 
 // ---------------------------------------------------------------------------

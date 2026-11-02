@@ -588,3 +588,31 @@ fn empty_package_is_valid() {
     assert!(warnings.is_empty());
     assert!(compile(pkg).is_ok());
 }
+
+/// A bundle whose compiled part a newer core cannot read (a field added to
+/// the model) is compiled again from the sources it carries.
+#[test]
+fn bundle_recompiled_from_sources_when_the_model_changed() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/club");
+    let (pkg, _) = core_config::load_and_validate(&dir).unwrap();
+    let sources = core_config::source_files(&dir).unwrap();
+    let bundle = core_config::compile_with_sources(pkg.clone(), sources.clone()).unwrap();
+    let normal = core_config::decode(&bundle.bytes).unwrap();
+    assert_eq!(normal.package, pkg);
+    assert_eq!(normal.sources, sources);
+
+    // Same header, unreadable compiled part. The compiled part is the same
+    // in a bundle without sources, whose header is: format, version, empty map.
+    let bare = core_config::compile(pkg.clone()).unwrap();
+    let bare_header = 1 + 1 + core_model::CORE_VERSION.len() + 1;
+    let body = bare.bytes.len() - bare_header;
+    let mut broken = bundle.bytes[..bundle.bytes.len() - body].to_vec();
+    broken.extend([0xff; 8]);
+    let again = core_config::decode(&broken).unwrap();
+    assert_eq!(again.package, pkg);
+
+    // Without sources there is nothing to recompile from.
+    let mut broken = bare.bytes[..bare_header].to_vec();
+    broken.extend([0xff; 8]);
+    assert!(core_config::decode(&broken).is_err());
+}

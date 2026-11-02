@@ -612,3 +612,27 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   misura completa (dall'icona alla home) su un telefono reale è la prova 23 di
   `docs/MOBILE_CHECKLIST.md`: non c'è un telefono a disposizione, quindi il criterio "< 2 s
   su telefono di fascia media" resta da confermare lì.
+
+## 2026-11-02 — Calendario e turni
+
+- **Vista "Calendario e turni"** (core, per chi può pubblicare la configurazione): giorni e ora
+  dei tipi di evento con ricorrenza settimanale (`default_recurrence`, `default_time` in
+  calendar.yaml) e, per i tipi di programma che coprono più tipi di evento, la rotazione e gli
+  slot da assegnare. Modifica calendar.yaml/programs.yaml con lo stesso editor YAML che
+  conserva i commenti e pubblica una nuova versione: niente evento nuovo, la configurazione
+  resta l'unica sorgente.
+- **`ProgramTypeDef.rotation`**: `occurrence` (predefinito) | `week` | `month`. Il motore non
+  cambia: l'API espande una scelta a tutte le occorrenze del gruppo (`assign_slot`, svuotare
+  con persona vuota) e una risposta a tutte le occorrenze del gruppo tenute dalla stessa
+  persona (`respond`, `Client::respond_all`). Home, bacheca ed editor mostrano un elemento per
+  gruppo. `rotation: month` richiede `period: month` (validazione).
+- **`SlotDef.enabled`** (predefinito `true`): il pacchetto offre un catalogo di slot,
+  l'organizzazione sceglie quali assegnare. Disattivare non è una rimozione: niente migrazione.
+- **Date proposte** (`program_dates`): dai giorni `BYDAY` delle ricorrenze settimanali dei tipi
+  di evento del programma, nel periodo dopo l'ultimo programma del tipo. L'utente le può
+  togliere; le eccezioni di calendario restano manuali.
+- **Formato del bundle 3**: intestazione con le sorgenti YAML *prima* del pacchetto compilato.
+  postcard non è auto-descrittivo, quindi un campo aggiunto al modello rendeva illeggibili le
+  versioni già pubblicate; ora, se la parte compilata non si legge, il nucleo ricompila il
+  pacchetto dalle sorgenti. I dati di sviluppo in formato 2 non si leggono più
+  (spostati in `target/dev-data-before-schedule`).

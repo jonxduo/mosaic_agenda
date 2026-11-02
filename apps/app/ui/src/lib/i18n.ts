@@ -15,7 +15,7 @@ const it = {
   pairing_requests: 'Richieste di abbinamento', pairing_confirm: 'Il codice coincide', pairing_refuse: 'Rifiuta',
   generate: 'Genera', distribute: 'Distribuisci', version: 'Versione', distributed: 'Distribuito', not_distributed: 'Non ancora distribuito',
   registered: 'Documenti registrati', period: 'Periodo', none_visible: 'Nessun dato visibile',
-  new_program: 'Nuovo programma', dates: 'Date (una per riga, AAAA-MM-GG)', send: 'Invia le assegnazioni', publish: 'Pubblica in bacheca',
+  new_program: 'Nuovo programma', dates: 'Date', previous: 'Precedente', next: 'Successivo', program_exists: 'Esiste già un programma per questo periodo', no_dates: 'Nessuna data: imposta i giorni in Calendario e turni', send: 'Invia le assegnazioni', publish: 'Pubblica in bacheca',
   status_draft: 'Bozza', status_assigned: 'Assegnato', status_published: 'Pubblicato', unassigned: '— non assegnato —',
   response_pending: 'In attesa', response_accepted: 'Accettato', response_declined: 'Declinato', add_external: 'Aggiungi persona esterna',
   available: 'Disponibile', assigned: 'Assegnata', holder: 'Detentore', history: 'Storico', add: 'Aggiungi', assign: 'Assegna',
@@ -62,7 +62,13 @@ const it = {
   config_load_app: 'Caricala per rivederla', config_modified: 'Modificato', config_error: 'Errore', config_warning: 'Avviso',
   config_valid: 'Nessun errore', config_simulation: 'Cosa cambierebbe', config_no_changes: 'Nessuna differenza',
   config_added: 'aggiunto', config_removed: 'ritirato', config_renamed: 'rinominato', config_changed: 'modificato',
-  config_open_docs: '{n} documenti aperti restano con la versione con cui sono nati.', menu: 'Menu', more: 'Altro', lock_now: 'Blocca ora', copy: 'Copia', copied: 'Copiato'
+  config_open_docs: '{n} documenti aperti restano con la versione con cui sono nati.', menu: 'Menu', more: 'Altro',
+  sch_title: 'Calendario e turni', sch_hint: 'Giorni degli eventi e come si ripetono gli incarichi. Salvando, la configurazione passa alla versione successiva su tutti i dispositivi.',
+  sch_events: 'Giorni e orari', sch_days: 'Giorni', sch_time: 'Ora', sch_programs: 'Turni degli incarichi', sch_rotation: 'Le stesse persone',
+  rot_occurrence: 'Cambiano a ogni evento', rot_week: 'Per tutta la settimana', rot_month: 'Per tutto il mese', sch_slots: 'Incarichi da assegnare',
+  sch_count: 'Persone', sch_save: 'Salva e pubblica', sch_saved: 'Impostazioni salvate (versione {n})', sch_none: 'Seleziona almeno un incarico',
+  sch_readonly: 'Solo chi può pubblicare la configurazione modifica queste impostazioni.',
+  wd_MO: 'Lun', wd_TU: 'Mar', wd_WE: 'Mer', wd_TH: 'Gio', wd_FR: 'Ven', wd_SA: 'Sab', wd_SU: 'Dom', lock_now: 'Blocca ora', copy: 'Copia', copied: 'Copiato'
 };
 
 export type Key = keyof typeof it;

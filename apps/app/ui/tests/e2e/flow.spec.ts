@@ -142,7 +142,7 @@ test('main views have no serious accessibility problems', async ({ browser }) =>
   for (const scheme of ['light', 'dark'] as const) {
     const page = await device(browser, a);
     await page.emulateMedia({ colorScheme: scheme });
-    for (const hash of ['#/home', '#/people', '#/settings', '#/config', '#/sync_status']) {
+    for (const hash of ['#/home', '#/people', '#/settings', '#/config', '#/schedule', '#/sync_status']) {
       await open(page, a, hash);
       await page.waitForTimeout(300);
       const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();

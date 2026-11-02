@@ -47,6 +47,7 @@ program_types:
     label: p.av
     event_type: [midweek_meeting, weekend_meeting]
     period: month
+    rotation: occurrence                 # ⚙ occurrence | week | month (Calendario e turni)
     owner_role: av_manager
     assistant_roles: [av_assistant]
     acceptance: true
@@ -54,12 +55,17 @@ program_types:
     remind_before: { days: 2 }
     retention: { years: 2 }
     slots:
-      - { id: mixer, label: s.mixer, count: 1, requires: *baptized }   # ⚙
-      - { id: microphones, label: s.microphones, count: 2, requires: *baptized }   # ⚙ numero
+      # ⚙ catalogo: l'amministratore sceglie quali assegnare e quante persone (Calendario e turni)
+      - { id: mixer, label: s.mixer, count: 1, requires: *baptized }
+      - { id: video, label: s.video, count: 1, requires: *baptized }
+      - { id: zoom, label: s.zoom, count: 1, requires: *baptized, enabled: false }
+      - { id: microphones, label: s.microphones, count: 2, requires: *baptized }
+      - { id: stage, label: s.stage, count: 1, requires: *baptized, enabled: false }
   - id: attendants
     label: p.attendants
     event_type: [midweek_meeting, weekend_meeting]
     period: month
+    rotation: occurrence                 # ⚙
     owner_role: attendant_manager
     assistant_roles: [attendant_assistant]
     acceptance: true
@@ -67,8 +73,10 @@ program_types:
     remind_before: { days: 2 }
     retention: { years: 2 }
     slots:
-      - { id: entrance, label: s.entrance, count: 1, requires: *baptized }   # ⚙
-      - { id: hall, label: s.hall, count: 1, requires: *baptized }           # ⚙
+      - { id: entrance, label: s.entrance, count: 1, requires: *baptized }
+      - { id: hall, label: s.hall, count: 1, requires: *baptized }
+      - { id: zoom_host, label: s.zoom_host, count: 1, requires: *baptized, enabled: false }
+      - { id: parking, label: s.parking, count: 1, requires: *baptized, enabled: false }
   - id: field_service
     label: p.field_service
     event_type: field_service_meeting
