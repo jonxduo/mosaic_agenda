@@ -5,6 +5,9 @@ use std::path::PathBuf;
 
 fn main() {
     println!("cargo:rerun-if-env-changed=APP_PACKAGE_BUNDLE");
+    for v in ["APP_RELAY_URLS", "APP_DNS_URL", "APP_PUSH_URL"] {
+        println!("cargo:rerun-if-env-changed={v}");
+    }
     let out = PathBuf::from(std::env::var("OUT_DIR").unwrap_or_else(|_| ".".into()));
     let bundle = match std::env::var("APP_PACKAGE_BUNDLE") {
         Ok(path) => {

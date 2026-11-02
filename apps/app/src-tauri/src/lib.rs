@@ -161,14 +161,34 @@ pub fn export_bindings(path: &str) -> Result<(), String> {
     specta_builder().export(ts, path).map_err(|e| e.to_string())
 }
 
+/// Development fallback; `APP_NETWORK=local` for tests on one machine.
 fn network() -> Network {
     match std::env::var("APP_NETWORK").as_deref() {
         Ok("local") => Network::Local,
-        Ok(urls) if urls.starts_with("https://") => {
-            Network::Relays(urls.split(',').map(str::to_owned).collect())
-        }
         _ => Network::PublicRelays,
     }
+}
+
+/// Server written in the genesis of organizations created by this build:
+/// `APP_RELAY_URLS` (comma separated), `APP_DNS_URL`, `APP_PUSH_URL`, set by
+/// `cargo xtask build --server <file>`.
+fn server() -> Option<core_api::NetworkParams> {
+    let relays: Vec<String> = option_env!("APP_RELAY_URLS")
+        .unwrap_or_default()
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
+        .collect();
+    (!relays.is_empty()).then(|| core_api::NetworkParams {
+        relay_urls: relays,
+        dns_url: option_env!("APP_DNS_URL")
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned),
+        push_url: option_env!("APP_PUSH_URL")
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned),
+    })
 }
 
 /// Keeps syncing while the app runs and shows new notifications (§9.2, §11.1).
@@ -274,6 +294,7 @@ pub fn run() -> Result<(), String> {
                 network: Some(network()),
                 clock: None,
                 pin_params: None,
+                server: server(),
             })
             .map_err(|e| {
                 Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error>

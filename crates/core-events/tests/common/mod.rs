@@ -24,6 +24,7 @@ pub fn org_with(admins: &[(&DeviceKeys, u8)]) -> NewOrganization {
         network: NetworkParams {
             relay_urls: vec![],
             dns_url: None,
+            push_url: None,
         },
         security: SecurityParams::default(),
     }

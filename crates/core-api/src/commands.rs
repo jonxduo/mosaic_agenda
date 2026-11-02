@@ -77,10 +77,11 @@ impl Core {
                 devices: vec![self.keys.identity()],
             }],
             config_bundle: self.bundle.clone(),
-            network: NetworkParams {
+            network: self.server.clone().unwrap_or(NetworkParams {
                 relay_urls: Vec::new(),
                 dns_url: None,
-            },
+                push_url: None,
+            }),
             security: SecurityParams::default(),
         };
         let (_, genesis) =

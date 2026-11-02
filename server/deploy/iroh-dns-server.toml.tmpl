@@ -1,0 +1,21 @@
+# Discovery (pkarr + DNS) for dns.${DOMAIN}. Optional: without it the apps
+# use n0's discovery service. pkarr is served over HTTP behind Caddy
+# (https://dns.${DOMAIN}/pkarr); DNS answers on port 53.
+pkarr_put_rate_limit = "smart"
+data_dir = "/data"
+
+[http]
+port = 8080
+bind_addr = "0.0.0.0"
+
+[dns]
+port = 53
+bind_addr = "0.0.0.0"
+default_soa = "ns1.dns.${DOMAIN} hostmaster.${DOMAIN} 0 10800 3600 604800 3600"
+default_ttl = 30
+origins = ["dns.${DOMAIN}.", "."]
+rr_a = "${PUBLIC_IP}"
+rr_ns = "ns1.dns.${DOMAIN}."
+
+[mainline]
+enabled = false

@@ -1,0 +1,71 @@
+# Support server (PROGETTO.md §10): no events and no attachments are stored.
+#   docker compose up -d                      relay + push + Caddy
+#   docker compose --profile dns up -d        also the discovery service
+name: orgapp
+
+services:
+  caddy:
+    image: caddy:2.10
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    env_file: .env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  iroh-relay:
+    build:
+      context: .
+      dockerfile: Dockerfile.iroh
+      args:
+        TOOL: iroh-relay
+    restart: unless-stopped
+    command: ["iroh-relay", "/config/iroh-relay.toml.tmpl"]
+    env_file: .env
+    ports:
+      - "8443:8443/tcp"
+      - "7842:7842/udp"
+    volumes:
+      - ./iroh-relay.toml.tmpl:/config/iroh-relay.toml.tmpl:ro
+      - caddy_data:/caddy:ro
+    depends_on:
+      - caddy
+
+  push-service:
+    build:
+      context: ../..
+      dockerfile: server/push-service/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PUSH_DATA: /data
+      PUSH_LISTEN: 0.0.0.0:8080
+    volumes:
+      - push_data:/data
+      - ./secrets:/secrets:ro
+
+  iroh-dns-server:
+    profiles: ["dns"]
+    build:
+      context: .
+      dockerfile: Dockerfile.iroh
+      args:
+        TOOL: iroh-dns-server
+    restart: unless-stopped
+    command: ["iroh-dns-server", "/config/iroh-dns-server.toml.tmpl"]
+    env_file: .env
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+    volumes:
+      - ./iroh-dns-server.toml.tmpl:/config/iroh-dns-server.toml.tmpl:ro
+      - dns_data:/data
+
+volumes:
+  caddy_data:
+  caddy_config:
+  push_data:
+  dns_data:

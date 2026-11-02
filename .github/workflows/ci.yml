@@ -87,3 +87,34 @@ jobs:
           node-version: 22
       - name: Desktop build for every package
         run: for p in packages/*/; do cargo xtask build --package "$(basename "$p")" --target desktop; done
+
+  server:
+    # F6: the support server from `docker compose up`, and three app cores
+    # syncing through its relay.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: System libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev libdbus-1-dev pkg-config
+      - name: Start relay and push service
+        working-directory: server/deploy
+        run: |
+          cp .env.example .env
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --build iroh-relay push-service
+          for i in $(seq 1 60); do curl -fsS http://localhost:3340/ping && curl -fsS http://localhost:8080/health && break; sleep 5; done
+          curl -fsS http://localhost:8080/health
+      - name: Push service tests
+        run: cargo test -p push-service -p core-push
+      - name: Three devices over the own relay
+        run: cargo test -p core-api --test flow three_devices_over_own_relay -- --ignored
+        env:
+          OWN_RELAY_URL: http://localhost:3340
+      - name: Server logs
+        if: failure()
+        working-directory: server/deploy
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml logs
+

@@ -1,0 +1,11 @@
+target
+node_modules
+**/node_modules
+apps/app/ui/build
+apps/app/ui/.svelte-kit
+apps/app/ui/test-results
+apps/app/ui/playwright-report
+.git
+.claude
+server/deploy/.env
+server/deploy/secrets

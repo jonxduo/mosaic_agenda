@@ -1,0 +1,20 @@
+# iroh relay (PROGETTO.md §10). The TLS certificate for relay.${DOMAIN} is
+# obtained by Caddy and reloaded from its data volume; HTTPS on 8443 because
+# Caddy owns 443 on the same IP. Clients use https://relay.${DOMAIN}:8443.
+enable_relay = true
+http_bind_addr = "[::]:3340"
+enable_quic_addr_discovery = true
+enable_metrics = true
+metrics_bind_addr = "127.0.0.1:9090"
+access = "everyone"
+
+[tls]
+https_bind_addr = "[::]:8443"
+quic_bind_addr = "[::]:7842"
+cert_mode = "Reloading"
+manual_cert_path = "/caddy/caddy/certificates/acme-v02.api.letsencrypt.org-directory/relay.${DOMAIN}/relay.${DOMAIN}.crt"
+manual_key_path = "/caddy/caddy/certificates/acme-v02.api.letsencrypt.org-directory/relay.${DOMAIN}/relay.${DOMAIN}.key"
+
+[limits]
+accept_conn_limit = 100.0
+accept_conn_burst = 200

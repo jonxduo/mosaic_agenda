@@ -21,6 +21,7 @@ tokio.workspace = true
 iroh.workspace = true
 iroh-gossip.workspace = true
 n0-future.workspace = true
+url.workspace = true
 image.workspace = true
 
 [dev-dependencies]

@@ -1,0 +1,18 @@
+# TLS for the push API and the discovery service, and the certificate of
+# the relay (served by the relay itself on 8443). No access logs: no IPs
+# kept (§10.1).
+{
+	email {$ACME_EMAIL}
+}
+
+api.{$DOMAIN} {
+	reverse_proxy push-service:8080
+}
+
+dns.{$DOMAIN} {
+	reverse_proxy iroh-dns-server:8080
+}
+
+relay.{$DOMAIN} {
+	respond "relay: use port 8443" 200
+}

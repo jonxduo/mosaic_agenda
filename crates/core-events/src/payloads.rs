@@ -19,6 +19,8 @@ pub struct NetworkParams {
     pub relay_urls: Vec<String>,
     /// pkarr/DNS discovery URL.
     pub dns_url: Option<String>,
+    /// Push wake-up service (`https://api.<domain>`); `None` = no push.
+    pub push_url: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -1,0 +1,20 @@
+# Official iroh binaries (relay and DNS discovery), built from crates.io at a
+# pinned version. Usage: --build-arg TOOL=iroh-relay|iroh-dns-server
+FROM rust:1-bookworm AS build
+ARG TOOL=iroh-relay
+ARG IROH_VERSION=1.4.1
+RUN if [ "$TOOL" = "iroh-relay" ]; then \
+      cargo install --locked "iroh-relay@${IROH_VERSION}" --features server --root /out; \
+    else \
+      cargo install --locked "iroh-dns-server@${IROH_VERSION}" --root /out; \
+    fi
+
+FROM debian:bookworm-slim
+ARG TOOL=iroh-relay
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates gettext-base \
+ && rm -rf /var/lib/apt/lists/*
+COPY --from=build /out/bin/${TOOL} /usr/local/bin/${TOOL}
+# Configuration templates use ${VARS} from the environment (envsubst).
+COPY render.sh /usr/local/bin/render.sh
+ENTRYPOINT ["/usr/local/bin/render.sh"]

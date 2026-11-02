@@ -1,0 +1,36 @@
+[package]
+name = "push-service"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "push-service"
+path = "src/main.rs"
+
+[dependencies]
+core-push.workspace = true
+core-crypto.workspace = true
+core-events.workspace = true
+axum.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+rusqlite.workspace = true
+reqwest.workspace = true
+jsonwebtoken.workspace = true
+hex.workspace = true
+thiserror.workspace = true
+async-trait = "0.1"
+
+[dev-dependencies]
+tempfile.workspace = true
+core-model.workspace = true
+rsa = { version = "0.9", features = ["pem"] }
+p256 = { version = "0.13", features = ["pem", "pkcs8"] }
+rand = "0.8"
+
+[lints]
+workspace = true

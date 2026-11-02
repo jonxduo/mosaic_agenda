@@ -95,8 +95,12 @@ pub enum Network {
     Local,
     /// n0's public relays (development).
     PublicRelays,
-    /// Own relays (production, from the genesis).
-    Relays(Vec<String>),
+    /// Own server (production, from the genesis): relays and, if set, the
+    /// pkarr/DNS discovery service (otherwise n0's discovery is used).
+    Server {
+        relays: Vec<String>,
+        dns: Option<String>,
+    },
 }
 
 #[derive(Clone)]
@@ -370,11 +374,24 @@ impl Node {
                 .bind_addr("127.0.0.1:0")
                 .map_err(t)?,
             Network::PublicRelays => Endpoint::builder(presets::N0),
-            Network::Relays(urls) => {
+            Network::Server { relays, dns } => {
                 let parsed: Vec<iroh::RelayUrl> =
-                    urls.iter().filter_map(|u| u.parse().ok()).collect();
-                Endpoint::builder(presets::N0)
-                    .relay_mode(RelayMode::Custom(iroh::RelayMap::from_iter(parsed)))
+                    relays.iter().filter_map(|u| u.parse().ok()).collect();
+                let relay_mode = RelayMode::Custom(iroh::RelayMap::from_iter(parsed));
+                match dns.as_deref().and_then(|d| url::Url::parse(d).ok()) {
+                    Some(pkarr) => {
+                        use iroh::address_lookup::{
+                            DnsAddressLookup, PkarrPublisher, PkarrResolver,
+                        };
+                        let origin = pkarr.host_str().unwrap_or_default().to_owned();
+                        Endpoint::builder(presets::Minimal)
+                            .address_lookup(PkarrPublisher::builder(pkarr.clone()))
+                            .address_lookup(PkarrResolver::builder(pkarr))
+                            .address_lookup(DnsAddressLookup::builder(origin))
+                            .relay_mode(relay_mode)
+                    }
+                    None => Endpoint::builder(presets::N0).relay_mode(relay_mode),
+                }
             }
         };
         let endpoint = builder

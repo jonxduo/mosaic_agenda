@@ -30,6 +30,7 @@ fn core(dir: &Path, name: &str, network: Network) -> Arc<Core> {
         network: Some(network),
         clock: None,
         pin_params: Some(core_crypto::pin::PinParams::insecure_for_tests()),
+        server: None,
     })
     .unwrap()
 }
@@ -243,6 +244,20 @@ async fn run_flow(network: Network) {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn three_devices_from_document_to_aggregate() {
     run_flow(Network::Local).await;
+}
+
+/// Over the organization's own relay (F6): `OWN_RELAY_URL` points to an
+/// `iroh-relay` (e.g. `http://localhost:3340` from `iroh-relay --dev` or the
+/// CI compose stack).
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "needs a running iroh-relay (OWN_RELAY_URL)"]
+async fn three_devices_over_own_relay() {
+    let url = std::env::var("OWN_RELAY_URL").unwrap_or_else(|_| "http://localhost:3340".into());
+    run_flow(Network::Server {
+        relays: vec![url],
+        dns: None,
+    })
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

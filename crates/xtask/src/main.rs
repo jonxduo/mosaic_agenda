@@ -50,11 +50,15 @@ enum Command {
         target: String,
         #[arg(long)]
         release: bool,
+        #[command(flatten)]
+        server: ServerArgs,
     },
     /// Desktop development run (Tauri dev with hot reload of the UI).
     Dev {
         #[arg(long)]
         package: String,
+        #[command(flatten)]
+        server: ServerArgs,
     },
     /// Regenerate the TypeScript bindings of the app commands.
     Bindings {
@@ -73,6 +77,36 @@ enum Command {
         #[arg(long, default_value_t = 1)]
         seed: u64,
     },
+}
+
+/// Own server written in the genesis of organizations created by the app
+/// (docs/DEPLOY.md). Without it: n0's public relays (development).
+#[derive(clap::Args, Debug, Default)]
+struct ServerArgs {
+    /// Domain of the support server: relay.<domain>:8443, api.<domain>.
+    #[arg(long)]
+    server: Option<String>,
+    /// Also use the discovery service at dns.<domain>.
+    #[arg(long, requires = "server")]
+    dns: bool,
+}
+
+impl ServerArgs {
+    fn env(&self) -> Vec<(&'static str, String)> {
+        match &self.server {
+            None => Vec::new(),
+            Some(d) => {
+                let mut v = vec![
+                    ("APP_RELAY_URLS", format!("https://relay.{d}:8443")),
+                    ("APP_PUSH_URL", format!("https://api.{d}")),
+                ];
+                if self.dns {
+                    v.push(("APP_DNS_URL", format!("https://dns.{d}/pkarr")));
+                }
+                v
+            }
+        }
+    }
 }
 
 fn root() -> PathBuf {
@@ -179,7 +213,7 @@ fn bundle(name: &str) -> Result<PathBuf> {
 }
 
 /// Directories scanned for domain terms, and parts skipped inside them.
-const LEAK_SCAN: &[&str] = &["crates", "apps/app"];
+const LEAK_SCAN: &[&str] = &["crates", "apps/app", "server"];
 const LEAK_SKIP: &[&str] = &[
     "target",
     "node_modules",
@@ -218,6 +252,13 @@ fn is_skipped(rel: &str) -> bool {
 
 /// Case-insensitive search of `terms` (lowercase, with their package) in the
 /// text files under `root/<dir>` for each scanned dir. Returns `path:line: term`.
+/// Names of third-party APIs that happen to contain a domain term; removed
+/// from a line before it is checked (lowercase).
+const THIRD_PARTY_NAMES: &[&str] = &[
+    // iroh's pkarr discovery announcer (crate iroh::address_lookup).
+    "pkarrpublisher",
+];
+
 fn scan_for_terms(root: &Path, dirs: &[&str], terms: &[(String, String)]) -> Result<Vec<String>> {
     let mut hits = Vec::new();
     for base in dirs {
@@ -238,7 +279,10 @@ fn scan_for_terms(root: &Path, dirs: &[&str], terms: &[(String, String)]) -> Res
                 continue; // binary file
             };
             for (n, line) in text.lines().enumerate() {
-                let lower = line.to_lowercase();
+                let mut lower = line.to_lowercase();
+                for name in THIRD_PARTY_NAMES {
+                    lower = lower.replace(name, "");
+                }
                 for (term, pkg) in terms {
                     if lower.contains(term.as_str()) {
                         let rel = entry.path().strip_prefix(root).unwrap_or(entry.path());
@@ -417,27 +461,29 @@ fn branding_overlay(name: &str) -> Result<PathBuf> {
     Ok(path)
 }
 
-fn tauri(name: &str, args: &[&str]) -> Result<()> {
+fn tauri(name: &str, args: &[&str], server: &ServerArgs) -> Result<()> {
     let bundle = bundle(name)?;
-    let overlay = branding_overlay(name)?;
+    // The Tauri CLI (used for the icons too) comes from the UI dependencies.
     sh(&mut pnpm(&["install", "--frozen-lockfile"]))?;
+    let overlay = branding_overlay(name)?;
     let tauri_bin = root().join(UI_DIR).join("node_modules/.bin/tauri");
     sh(std::process::Command::new(tauri_bin)
         .current_dir(root().join(APP_DIR))
         .args(args)
         .arg("--config")
         .arg(&overlay)
-        .env("APP_PACKAGE_BUNDLE", &bundle))
+        .env("APP_PACKAGE_BUNDLE", &bundle)
+        .envs(server.env()))
 }
 
-fn dev(name: &str) -> Result<()> {
-    tauri(name, &["dev"])
+fn dev(name: &str, server: &ServerArgs) -> Result<()> {
+    tauri(name, &["dev"], server)
 }
 
-fn build(name: &str, target: &str, release: bool) -> Result<()> {
+fn build(name: &str, target: &str, release: bool, server: &ServerArgs) -> Result<()> {
     match target {
-        "desktop" if release => tauri(name, &["build"]),
-        "desktop" => tauri(name, &["build", "--debug"]),
+        "desktop" if release => tauri(name, &["build"], server),
+        "desktop" => tauri(name, &["build", "--debug"], server),
         "android" => not_yet("build --target android", "F7"),
         "ios" => not_yet("build --target ios", "F8"),
         other => bail!("unknown target `{other}` (desktop, android, ios)"),
@@ -476,8 +522,9 @@ fn run() -> Result<()> {
             package,
             target,
             release,
-        } => build(&package, &target, release),
-        Command::Dev { package } => dev(&package),
+            server,
+        } => build(&package, &target, release, &server),
+        Command::Dev { package, server } => dev(&package, &server),
         Command::Bindings { check } => bindings(check),
         Command::Simulate {
             package,

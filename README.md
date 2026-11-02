@@ -13,7 +13,8 @@ di build. Specifica completa: [`docs/PROGETTO.md`](docs/PROGETTO.md). Decisioni 
 | F3 — Motore | fatto: `core-engine` (permessi sul passato causale, flussi, lotti, resoconti, programmi, territori, bacheca, promemoria, conflitti), `core-testkit`, 16 scenari |
 | F4 — Sincronizzazione | fatta: `core-sync` (riconciliazione, ricevute, stato di consegna, abbinamento, allegati, trasporto iroh con gossip), simulatore `cargo xtask simulate` |
 | F5 — Desktop | fatta: `core-api` (facciata e DTO), app Tauri 2 (comandi tipizzati, tray, notifiche locali, portachiavi), UI SvelteKit con le viste generiche, `api-dev-server`, test Playwright a tre dispositivi |
-| F6–F10 | da fare |
+| F6 — Server | fatta: `server/push-service` e `core-push` (risvegli firmati, limiti, FCM/APNs), deploy con relay, DNS e Caddy in `server/deploy`, [`docs/DEPLOY.md`](docs/DEPLOY.md), app legate al proprio server con `--server` |
+| F7–F10 | da fare |
 
 ## Comandi
 

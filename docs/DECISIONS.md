@@ -380,3 +380,56 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
 - PIN dimenticato: si perde la copia locale; si riabbina il dispositivo e i dati tornano dagli
   altri. La cancellazione dopo N tentativi sbagliati (§8.6) e la biometria arrivano con il
   mobile (F7/F8).
+
+## 2026-11-02 — Fase F6 (server)
+
+### Rete dalla genesi
+- `NetworkParams` della genesi ha ora anche `push_url`. L'app usa relay e discovery scritti nella
+  genesi della propria organizzazione (`Core::effective_network`); prima della genesi (nuovo
+  dispositivo che si abbina) usa quelli della build. `Network::Local` resta per i test.
+- La build sceglie il server con `cargo xtask build|dev --server <dominio> [--dns]`:
+  `https://relay.<dominio>:8443`, `https://api.<dominio>`, `https://dns.<dominio>/pkarr`
+  (variabili `APP_RELAY_URLS`, `APP_PUSH_URL`, `APP_DNS_URL` lette a compilazione). Senza
+  `--server`: relay pubblici di n0 (sviluppo).
+- Con `dns` il nodo usa solo la discovery propria (pkarr + DNS); senza, i relay propri con la
+  discovery di n0.
+- `check-domain-leak` ora controlla anche `server/` e ignora i nomi di API esterne che contengono
+  per caso un termine di dominio (`PkarrPublisher` di iroh contiene "publisher").
+
+### Servizio push (`server/push-service`, client `core-push`)
+- API come da §10.1, firme Ed25519 su `method || path || timestamp (LE) || blake3(body)`, ±5
+  minuti; lo stesso codice di firma/verifica in `core-push` per client e server.
+- Primo `POST /v1/org/membership` di un'organizzazione: invece di "il primo che registra diventa
+  amministratore" (chiunque conosca l'id potrebbe appropriarsene) il chiamante invia l'evento di
+  genesi; il servizio verifica firma e id e accetta solo un dispositivo di un amministratore
+  radice. Gli amministratori del servizio sono i dispositivi degli amministratori radice (lista
+  aggiornata da loro). La genesi non viene salvata.
+- `register` è accettato solo per dispositivi già nell'elenco dell'organizzazione; quando un
+  dispositivo esce dall'elenco il suo token viene cancellato. Token che FCM/APNs dichiarano non
+  validi (404/410) vengono cancellati.
+- Limiti: 60 `wake` all'ora per mittente, 10 push all'ora per destinatario, una sola push per
+  destinatario in 2 minuti; massimo 500 destinatari per richiesta e 10.000 dispositivi per
+  organizzazione.
+- Invio: FCM HTTP v1 (JWT RS256 del service account → token OAuth, in cache), APNs con token
+  ES256 (`.p8`, rinnovato ogni 50 minuti), HTTP/2. JWT con `jsonwebtoken` in Rust puro;
+  TLS con rustls + ring come il resto del progetto.
+- Nell'app: dopo un'azione locale si attende 10 s la consegna diretta, poi si chiede il
+  risveglio dei dispositivi destinatari senza ricevuta (al massimo una richiesta ogni 2 minuti
+  per dispositivo). Un amministratore radice pubblica l'elenco dei dispositivi quando cambia
+  (impronta salvata nelle impostazioni locali). La registrazione del token arriva con il mobile
+  (F7); `PushProvider` con l'implementazione vuota del desktop è già in `core-push`.
+- Backup giornaliero dell'archivio (`VACUUM INTO`, 7 copie a rotazione).
+
+### Deploy (`server/deploy`)
+- Relay e DNS: binari ufficiali compilati da crates.io alla versione di iroh dell'app
+  (`Dockerfile.iroh`, `IROH_VERSION=1.4.1`); configurazioni come modelli con `envsubst`.
+- Stesso IP per tutto: Caddy tiene 80/443 (`api.`, `dns.` e il certificato di `relay.`), il
+  relay serve HTTPS sulla 8443 con il certificato di Caddy riletto periodicamente
+  (`cert_mode = "Reloading"`), QUIC sulla 7842. La discovery è un profilo facoltativo (`dns`).
+- Accesso al relay: aperto a tutti (con limiti di connessione). Un controllo per dispositivo
+  (modalità `http` del relay verso il servizio push) bloccherebbe l'abbinamento dei nuovi
+  dispositivi, che non sono ancora nell'elenco: da rivedere.
+- Verifica: Docker non è disponibile sulla macchina di sviluppo; la CI (job `server`) avvia
+  relay e servizio push con `docker compose` e fa girare il flusso a tre dispositivi sul relay
+  proprio. In locale lo stesso flusso è passato con il binario ufficiale `iroh-relay --dev`
+  (metriche del relay: client collegati).

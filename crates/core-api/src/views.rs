@@ -1921,11 +1921,11 @@ impl Core {
         });
         Ok(SyncStatus {
             online: node.is_some(),
-            relay: match &self.network {
+            relay: match self.effective_network() {
                 None => "offline".into(),
                 Some(core_sync::net::Network::Local) => "local".into(),
                 Some(core_sync::net::Network::PublicRelays) => "public relays".into(),
-                Some(core_sync::net::Network::Relays(r)) => r.join(", "),
+                Some(core_sync::net::Network::Server { relays, .. }) => relays.join(", "),
             },
             events,
             outbox,

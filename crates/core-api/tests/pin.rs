@@ -24,6 +24,7 @@ fn open(dir: &Path, secrets: Arc<MemorySecretStore>) -> Arc<Core> {
         network: None,
         clock: None,
         pin_params: Some(PinParams::insecure_for_tests()),
+        server: None,
     })
     .unwrap()
 }
@@ -96,6 +97,7 @@ fn open_net(dir: &Path, name: &str) -> Arc<Core> {
         network: Some(core_sync::net::Network::Local),
         clock: None,
         pin_params: Some(PinParams::insecure_for_tests()),
+        server: None,
     })
     .unwrap()
 }

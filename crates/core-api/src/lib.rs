@@ -8,6 +8,7 @@
 pub mod commands;
 pub mod dispatch;
 pub mod dto;
+pub mod push;
 pub mod secrets;
 pub mod texts;
 pub mod views;
@@ -34,6 +35,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use tokio::sync::oneshot;
 
+pub use core_events::payloads::NetworkParams;
 pub use dto::*;
 use texts::Texts;
 
@@ -94,6 +96,9 @@ pub struct CoreOptions {
     pub clock: Option<i64>,
     /// Cost of the PIN key derivation (`None` = the secure default).
     pub pin_params: Option<PinParams>,
+    /// Server written in the genesis of an organization created here
+    /// (relays, discovery, push); `None` = development defaults.
+    pub server: Option<core_events::payloads::NetworkParams>,
 }
 
 /// A decoded view of the local events, rebuilt when they change.
@@ -154,6 +159,9 @@ pub struct LocalSettings {
     /// Notifications already shown (trigger event + text).
     pub notified: Vec<String>,
     pub last_sync: Option<i64>,
+    /// Fingerprint of the membership last sent to the push service.
+    #[serde(default)]
+    pub push_published: Option<String>,
 }
 
 pub struct Core {
@@ -175,6 +183,11 @@ pub struct Core {
     /// Where events received while locked are sealed to.
     inbox_public: Mutex<Option<InboxPublicKey>>,
     pin_params: PinParams,
+    pub(crate) server: Option<core_events::payloads::NetworkParams>,
+    /// Push service client, by URL.
+    push: Mutex<Option<(String, core_push::PushClient)>>,
+    /// Last wake-up request per device (client-side coalescing).
+    woken: Mutex<BTreeMap<DevicePublicKey, i64>>,
     /// Peers of the last unlocked round, to keep receiving while locked.
     peers_cache: Mutex<Vec<DevicePublicKey>>,
     pairings: Arc<Mutex<Pairings>>,
@@ -184,7 +197,7 @@ pub struct Core {
     clock: Option<i64>,
 }
 
-fn lock<T>(m: &Mutex<T>) -> ApiResult<std::sync::MutexGuard<'_, T>> {
+pub(crate) fn lock<T>(m: &Mutex<T>) -> ApiResult<std::sync::MutexGuard<'_, T>> {
     m.lock().map_err(|_| ApiError::internal("state poisoned"))
 }
 
@@ -254,7 +267,10 @@ impl Core {
             db_key: Mutex::new(db_key),
             inbox_public: Mutex::new(inbox_public),
             pin_params: opts.pin_params.unwrap_or_default(),
+            server: opts.server,
             peers_cache: Mutex::new(Vec::new()),
+            push: Mutex::new(None),
+            woken: Mutex::new(BTreeMap::new()),
             pairings: Arc::new(Mutex::new(Pairings::default())),
             local: Mutex::new(local),
             locked: AtomicBool::new(with_pin),
@@ -573,6 +589,7 @@ impl Core {
                         let _ = node.announce(heads).await;
                         let _ = core.sync_round().await;
                     }
+                    push::schedule_wake(core);
                 });
             }
         }
@@ -609,8 +626,37 @@ impl Core {
     // ----- network ------------------------------------------------------------
 
     /// Starts the endpoint (if a network is configured).
+    /// Network parameters in the genesis of this device's organization.
+    pub fn genesis_network(&self) -> Option<core_events::payloads::NetworkParams> {
+        let st = self.state.lock().ok()?;
+        let store = st.store.store()?;
+        let org = store.org()?;
+        let genesis = store.get(&core_events::EventHash(org.0)).ok()??;
+        genesis
+            .public_content::<core_events::payloads::GenesisPayload>()
+            .ok()
+            .map(|g| g.network)
+    }
+
+    /// The network to use: the server named in the genesis, else the
+    /// configured one (`Local` always wins: tests).
+    pub fn effective_network(&self) -> Option<Network> {
+        let base = self.network.clone()?;
+        if matches!(base, Network::Local) {
+            return Some(base);
+        }
+        let params = self.genesis_network().or_else(|| self.server.clone());
+        Some(match params {
+            Some(p) if !p.relay_urls.is_empty() => Network::Server {
+                relays: p.relay_urls,
+                dns: p.dns_url,
+            },
+            _ => base,
+        })
+    }
+
     pub async fn start_network(self: &Arc<Self>) -> ApiResult<()> {
-        let Some(network) = self.network.clone() else {
+        let Some(network) = self.effective_network() else {
             return Ok(());
         };
         let mut guard = self.node.lock().await;
@@ -713,6 +759,7 @@ impl Core {
                 let _ = core_sync::delivery::update_outbox(store, &v.proj);
             }
         }
+        let _ = self.publish_membership().await;
         let now = self.now();
         self.update_local(|l| l.last_sync = Some(now))?;
         Ok(new)

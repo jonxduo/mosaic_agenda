@@ -1,0 +1,15 @@
+# Local/CI variant: plain HTTP, no Caddy and no certificates. The relay runs
+# in its development mode on 3340, the push service on 8080.
+#   docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d iroh-relay push-service
+services:
+  iroh-relay:
+    command: ["iroh-relay", "/config/iroh-relay.toml.tmpl", "--dev"]
+    ports: !override
+      - "3340:3340/tcp"
+    depends_on: !reset []
+  push-service:
+    environment:
+      FCM_SERVICE_ACCOUNT_FILE: ""
+      APNS_KEY_FILE: ""
+    ports:
+      - "8080:8080"
