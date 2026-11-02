@@ -42,7 +42,8 @@
   function toggle(id: string) {
     open = open === id ? null : id;
     invite = null;
-    editAttrs = {};
+    // The form starts from the values the person has.
+    editAttrs = { ...(data?.persons.find((p) => p.person_id === id)?.values ?? {}) };
   }
 
   async function load() {
@@ -126,11 +127,18 @@
           <span class="avatar" aria-hidden="true">{initials(p.name)}</span>
           <span class="who">
             <span class="name">{p.erased ? t('person_erased') : p.name}{#if me?.person_id === p.person_id}<span class="muted me">({t('you')})</span>{/if}</span>
-            <span class="tags">
-              {#each p.roles as g (g.grant_id)}<span class="badge ok">{g.label}</span>{/each}
-              {#each p.qualifications.slice(0, 3) as g (g.grant_id)}<span class="badge">{g.label}{g.period ? ` (${g.period})` : ''}</span>{/each}
-              {#if p.qualifications.length > 3}<span class="badge">+{p.qualifications.length - 3}</span>{/if}
-            </span>
+            {#if p.unit}<span class="unit-inline muted">{p.unit}</span>{/if}
+            {#if p.facts.length}
+              <span class="facts">
+                {#each p.facts as f, i (i)}<span class="fact">{#if f.label}<span class="muted">{f.label}</span> {/if}{f.value}</span>{/each}
+              </span>
+            {/if}
+            {#if p.marks.length || p.roles.length}
+              <span class="tags">
+                {#each p.marks as m (m)}<span class="badge mark">{m}</span>{/each}
+                {#each p.roles as g (g.grant_id)}<span class="badge">{g.label}</span>{/each}
+              </span>
+            {/if}
           </span>
           <span class="unit muted">{p.unit ?? ''}</span>
           <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
@@ -208,6 +216,20 @@
   .who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
   .name { font-weight: 600; }
   .tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .facts { display: flex; flex-wrap: wrap; column-gap: 14px; row-gap: 2px; font-size: 14px; }
+  .fact { white-space: nowrap; }
+  .fact .muted { font-size: 13px; margin-right: 4px; }
+  .tags .badge { white-space: nowrap; }
+  .head:hover .mark, .open .mark { background: var(--bg); }
+  .unit-inline { display: none; font-size: 13px; }
+  @media (max-width: 640px) {
+    .unit { display: none; }
+    .unit-inline { display: block; }
+    .facts { column-gap: 10px; }
+    .head { align-items: flex-start; }
+    .chev { margin-top: 8px; }
+  }
+  .mark { background: var(--primary-soft); color: var(--primary-strong); border-color: transparent; font-weight: 600; }
   .unit { flex: none; font-size: 14px; }
   .chev { flex: none; color: var(--muted); transition: transform 0.15s; }
   .open .chev { transform: rotate(90deg); }

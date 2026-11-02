@@ -673,6 +673,15 @@ export type PersonView_Deserialize = {
 	devices: Choice[],
 	/**  Data erased on request (§14): kept only for the history. */
 	erased: boolean,
+	/**
+	 *  The row's summary (package `ui.people`): dates and attributes
+	 *  (an empty label for a choice, whose value says it all)…
+	 */
+	facts: BoardLine[],
+	/**  …and the qualifications shown as marks. */
+	marks: string[],
+	/**  Attribute values as stored, to fill the edit form. */
+	values: JsonMap,
 };
 
 export type PersonView_Serialize = {
@@ -685,6 +694,15 @@ export type PersonView_Serialize = {
 	devices: Choice[],
 	/**  Data erased on request (§14): kept only for the history. */
 	erased: boolean,
+	/**
+	 *  The row's summary (package `ui.people`): dates and attributes
+	 *  (an empty label for a choice, whose value says it all)…
+	 */
+	facts: BoardLine[],
+	/**  …and the qualifications shown as marks. */
+	marks: string[],
+	/**  Attribute values as stored, to fill the edit form. */
+	values: JsonMap,
 };
 
 /**  The dates proposed for a new program of a type. */

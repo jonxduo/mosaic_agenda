@@ -25,6 +25,8 @@ files:
 person_attributes:
   # serve per i requisiti di alcuni incarichi e parti
   - { id: sex, type: choice, options: [m, f], read_audience: admins_and_elders }
+  - { id: birth_date, type: date, read_audience: admins_and_elders }
+  - { id: hope, type: choice, options: [other_sheep, anointed], read_audience: admins_and_elders }
   - { id: phone, type: text, max_length: 40, read_audience: contacts_readers }
   - { id: email, type: text, max_length: 120, read_audience: contacts_readers }
   # false = un incaricato compila per conto

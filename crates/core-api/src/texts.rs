@@ -186,6 +186,16 @@ impl Texts {
         }
     }
 
+    /// `03/11/1980` / `11/03/1980`.
+    pub fn short_date(&self, d: Date) -> String {
+        let (day, month) = (d.day(), u8::from(d.month()));
+        if self.locale == "en" {
+            format!("{month:02}/{day:02}/{}", d.year())
+        } else {
+            format!("{day:02}/{month:02}/{}", d.year())
+        }
+    }
+
     /// `domenica 1 novembre`.
     pub fn long_date(&self, d: Date) -> String {
         let wd = self.get(&format!(

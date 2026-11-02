@@ -978,6 +978,22 @@ pub struct UiFile {
     pub home: Vec<ViewRef>,
     #[serde(default)]
     pub menu: Vec<MenuItem>,
+    /// What the people list shows on each person's row.
+    #[serde(default)]
+    pub people: PeopleUi,
+}
+
+/// The summary on a person's row: attributes, qualifications shown with
+/// the date they were granted, and qualifications shown as marks.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PeopleUi {
+    #[serde(default)]
+    pub attributes: Vec<Slug>,
+    #[serde(default)]
+    pub dated_qualifications: Vec<Slug>,
+    #[serde(default)]
+    pub qualifications: Vec<Slug>,
 }
 
 /// Generic views of the core (PROGETTO.md §12.2) and home widgets.

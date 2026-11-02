@@ -1979,7 +1979,86 @@ impl Core {
                         period: String::new(),
                     })
                     .collect();
+                let ui = &cfg.package().ui.people;
+                let defs = &cfg.package().manifest.person_attributes;
+                let attr_label = |a: &core_model::config::PersonAttributeDef| {
+                    a.label.as_ref().map_or_else(
+                        || t.get(&core_model::config::default_label::field(a.id.as_str())),
+                        |l| t.get(l.as_str()),
+                    )
+                };
+                let fact = |id: &Slug| {
+                    let a = defs.iter().find(|a| &a.id == id)?;
+                    let val = r.attributes.get(id)?;
+                    Some(match (a.ty, val) {
+                        (FieldType::Date, Scalar::Str(s)) => BoardLine {
+                            label: attr_label(a),
+                            value: core_engine::time::parse_date(s)
+                                .map_or_else(|| s.clone(), |d| t.short_date(d)),
+                        },
+                        (_, Scalar::Str(s)) if a.options.is_some() => BoardLine {
+                            label: String::new(),
+                            value: t.get(&core_model::config::default_label::option(s)),
+                        },
+                        (_, other) => BoardLine {
+                            label: attr_label(a),
+                            value: display_value(other),
+                        },
+                    })
+                };
+                let held = |q: &Slug| {
+                    auth.org
+                        .qualification_grants
+                        .iter()
+                        .filter(|g| {
+                            g.person == *p
+                                && &g.qualification == q
+                                && g.period.start <= now
+                                && g.period.end.is_none_or(|e| e > now)
+                        })
+                        .map(|g| g.period.start)
+                        .min()
+                };
+                let label_of = |q: &Slug| {
+                    cfg.qualification(q)
+                        .map_or_else(|| q.to_string(), |x| t.get(x.label.as_str()))
+                };
+                let is_date =
+                    |id: &Slug| defs.iter().any(|a| &a.id == id && a.ty == FieldType::Date);
+                let mut facts: Vec<BoardLine> = ui
+                    .attributes
+                    .iter()
+                    .filter(|a| is_date(a))
+                    .filter_map(&fact)
+                    .collect();
+                facts.extend(ui.dated_qualifications.iter().filter_map(|q| {
+                    held(q).map(|d| BoardLine {
+                        label: label_of(q),
+                        value: t.short_date(d),
+                    })
+                }));
+                facts.extend(
+                    ui.attributes
+                        .iter()
+                        .filter(|a| !is_date(a))
+                        .filter_map(fact),
+                );
+                let marks = ui
+                    .qualifications
+                    .iter()
+                    .filter(|q| held(q).is_some())
+                    .map(label_of)
+                    .collect();
+                let values = JsonMap(
+                    r.attributes
+                        .iter()
+                        .map(|(k, v)| (k.to_string(), scalar_json(v)))
+                        .collect(),
+                );
                 PersonView {
+                    facts,
+                    marks,
+                    values,
                     erased: v.proj.erasure.persons.contains(p),
                     person_id: p.to_string(),
                     name: if r.display_name.is_empty() {

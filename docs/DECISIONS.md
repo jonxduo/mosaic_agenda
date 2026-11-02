@@ -636,3 +636,9 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   versioni già pubblicate; ora, se la parte compilata non si legge, il nucleo ricompila il
   pacchetto dalle sorgenti. I dati di sviluppo in formato 2 non si leggono più
   (spostati in `target/dev-data-before-schedule`).
+- **Riga delle persone** (`ui.people` in ui.yaml): il pacchetto sceglie gli attributi
+  (`attributes`), le qualifiche mostrate con la data da cui valgono (`dated_qualifications`) e
+  quelle mostrate come contrassegni (`qualifications`). Il nucleo restituisce `facts`
+  (date prima, poi le scelte senza etichetta) e `marks`; `values` riempie il modulo di modifica
+  con i valori attuali. Congregazione: nascita, battesimo, sesso, speranza
+  (`birth_date`, `hope`, nuovi attributi per anziani e amministratori), nomine e servizi.

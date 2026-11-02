@@ -23,3 +23,10 @@ menu:
   - { label: menu.alerts, view: admin_alerts, visible_to: app_admins }
   - { label: menu.sync, view: sync_status }
   - { label: menu.settings, view: settings }
+
+# Riga di ogni persona nell'elenco (come la cartolina del proclamatore):
+# date e attributi, poi le nomine e i servizi tenuti oggi.
+people:
+  attributes: [birth_date, sex, hope]
+  dated_qualifications: [baptized]
+  qualifications: [elder, ministerial_servant, regular_pioneer, special_pioneer, field_missionary]

@@ -403,6 +403,13 @@ pub struct PersonView {
     pub devices: Vec<Choice>,
     /// Data erased on request (§14): kept only for the history.
     pub erased: bool,
+    /// The row's summary (package `ui.people`): dates and attributes
+    /// (an empty label for a choice, whose value says it all)…
+    pub facts: Vec<BoardLine>,
+    /// …and the qualifications shown as marks.
+    pub marks: Vec<String>,
+    /// Attribute values as stored, to fill the edit form.
+    pub values: JsonMap,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

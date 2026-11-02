@@ -1403,6 +1403,34 @@
         }
       ]
     },
+    "PeopleUi": {
+      "additionalProperties": false,
+      "description": "The summary on a person's row: attributes, qualifications shown with\nthe date they were granted, and qualifications shown as marks.",
+      "properties": {
+        "attributes": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Slug"
+          },
+          "type": "array"
+        },
+        "dated_qualifications": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Slug"
+          },
+          "type": "array"
+        },
+        "qualifications": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Slug"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
     "PeriodUnit": {
       "enum": [
         "week",
@@ -2841,6 +2869,15 @@
             "$ref": "#/$defs/MenuItem"
           },
           "type": "array"
+        },
+        "people": {
+          "$ref": "#/$defs/PeopleUi",
+          "default": {
+            "attributes": [],
+            "dated_qualifications": [],
+            "qualifications": []
+          },
+          "description": "What the people list shows on each person's row."
         }
       },
       "type": "object"

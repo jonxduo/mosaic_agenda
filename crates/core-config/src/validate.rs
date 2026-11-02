@@ -1612,6 +1612,38 @@ impl<'a> Validator<'a> {
             }
             self.view_params(&m.params, &format!("{p}.params"));
         }
+        let people = &self.pkg.ui.people;
+        for (i, a) in people.attributes.iter().enumerate() {
+            if !self
+                .pkg
+                .manifest
+                .person_attributes
+                .iter()
+                .any(|x| &x.id == a)
+            {
+                self.err(
+                    UI,
+                    format!("people.attributes[{i}]"),
+                    format!("unknown person attribute `{a}`"),
+                );
+            }
+        }
+        let quals: Vec<(String, Slug)> = people
+            .dated_qualifications
+            .iter()
+            .enumerate()
+            .map(|(i, q)| (format!("people.dated_qualifications[{i}]"), q.clone()))
+            .chain(
+                people
+                    .qualifications
+                    .iter()
+                    .enumerate()
+                    .map(|(i, q)| (format!("people.qualifications[{i}]"), q.clone())),
+            )
+            .collect();
+        for (path, q) in quals {
+            self.qual_ref(&q, UI, path);
+        }
     }
 
     fn texts(&mut self) {
