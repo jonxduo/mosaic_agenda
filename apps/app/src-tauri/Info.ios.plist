@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Merged by the Tauri CLI into gen/apple/.../Info.plist on every iOS build. -->
+<plist version="1.0">
+<dict>
+	<key>NSCameraUsageDescription</key>
+	<string>La fotocamera serve solo per leggere i codici QR di invito e di collegamento.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Face ID serve per sbloccare l'app senza digitare il PIN.</string>
+</dict>
+</plist>

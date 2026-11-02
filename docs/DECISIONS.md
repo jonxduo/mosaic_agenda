@@ -460,3 +460,31 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   `CoreOptions::security`.
 - QR: plugin ufficiale `barcode-scanner` per leggere l'invito al primo avvio.
 - Versioni dei plugin JS allineate a quelle Rust (il CLI di Tauri rifiuta major/minor diversi).
+
+## 2026-11-02 — Fase F7 (mobile), iOS
+
+- Prima build iOS, provata sul simulatore (iPhone 18 Pro, iOS 27.2): informativa, creazione
+  dell'organizzazione, home; contenuto fuori da status bar e indicatore home
+  (`env(safe-area-inset-*)` con `viewport-fit=cover`); dati e chiavi conservati dopo la
+  chiusura forzata (Keychain).
+- `libc` fissata a `=0.2.189` (solo per iOS, nel `Cargo.toml` dell'app): dalla 0.2.190 libc
+  non definisce più per iOS le costanti di routing (`RTM_*`, `RTAX_*`) e `in6_ifreq`, e
+  `netwatch`/`netdev` (usati da iroh) non compilano. Da togliere quando iroh passa a
+  `netdev` 0.47 o libc torna a definirle.
+- `SystemConfiguration.framework` collegato all'app iOS (`bundle.iOS.frameworks` in
+  `tauri.conf.json`): lo usano `netdev` e `n0-dns-resolver`; le librerie statiche Rust non
+  portano con sé i framework.
+- Descrizioni d'uso di fotocamera (QR) e Face ID in `apps/app/src-tauri/Info.ios.plist`, che la
+  CLI di Tauri unisce al plist generato a ogni build (niente modifiche a `gen/`).
+- `cargo xtask build --target ios`:
+  - la fase Xcode "Build Rust Code" lancia `node tauri …` da `gen/apple` e non riceve
+    l'ambiente di xtask: xtask scrive lì uno script `tauri` che imposta `APP_PACKAGE_BUNDLE`
+    (e gli URL del server) e poi avvia la CLI. Senza, l'app partiva senza pacchetto e si
+    chiudeva subito;
+  - il progetto nativo si rigenera anche quando cambia `tauri.conf.json` (alcune impostazioni,
+    come i framework, valgono solo all'`init`);
+  - SDK e NDK Android solo per `--target android` (i loro strumenti nel `PATH` coprirebbero il
+    `clang` di Apple); per iOS `LANG=en_US.UTF-8` richiesto da CocoaPods.
+- Strumenti in più per iOS: CocoaPods (`brew install cocoapods`; senza, la CLI prova a
+  installarlo con `sudo gem`).
+- Non provati sul simulatore: Face ID, lettura del QR (nessuna fotocamera), push.

@@ -311,13 +311,14 @@ proptest! {
             sync_pair(&mut left[lo], &mut right[0]);
             prop_assert_eq!(ids(&left[lo].store), ids(&right[0].store), "pair {} {}", lo, hi);
         }
-        // A final round along a chain guarantees full propagation.
-        for _ in 0..2 {
-            for i in 0..9 {
-                let (left, right) = devs.split_at_mut(i + 1);
-                sync_pair(&mut left[i], &mut right[0]);
-                prop_assert_eq!(ids(&left[i].store), ids(&right[0].store), "chain {}", i);
-            }
+        // A final pass along the chain and back guarantees full propagation:
+        // forward, the last device collects everything; backward, it flows
+        // to all the others.
+        let pairs: Vec<usize> = (0..9).chain((0..9).rev()).collect();
+        for i in pairs {
+            let (left, right) = devs.split_at_mut(i + 1);
+            sync_pair(&mut left[i], &mut right[0]);
+            prop_assert_eq!(ids(&left[i].store), ids(&right[0].store), "chain {}", i);
         }
         let all: BTreeSet<_> = w.events.iter().map(|e| e.id).collect();
         for d in &devs {
@@ -602,3 +603,4 @@ fn locked_device_receives_into_the_inbox() {
     assert_eq!(ids(&LocalLog::Open(store)).len(), w.events.len());
     assert_eq!(Inbox::open(dir.path()).unwrap().unwrap().pending(), 0);
 }
+
