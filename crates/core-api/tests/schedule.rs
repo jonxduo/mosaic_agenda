@@ -139,3 +139,77 @@ async fn monthly_rotation_assigns_the_whole_month() {
         .unwrap();
     assert!(a.export_person(bob).unwrap().assignments.is_empty());
 }
+
+/// A privilege ticked today counts for the events of a program already
+/// started: the editor offers the person and the engine accepts the choice.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn qualification_granted_today_counts_for_past_events() {
+    let dir = tempfile::tempdir().unwrap();
+    let a = Core::open(CoreOptions {
+        data_dir: dir.path().join("a"),
+        bundle: club_bundle(),
+        secrets: Arc::new(MemorySecretStore::default()),
+        network: None,
+        // 10 November 2026.
+        clock: Some(1_794_301_200_000),
+        pin_params: Some(PinParams::insecure_for_tests()),
+        server: None,
+        security: None,
+    })
+    .unwrap();
+    a.create_org("Club".into(), "Alice".into()).await.unwrap();
+    let alice = a.people().unwrap().persons[0].person_id.clone();
+    a.grant_qualification(alice.clone(), "member".into(), None, None)
+        .unwrap();
+    a.grant_role(alice.clone(), "keeper".into(), None).unwrap();
+    let bob = a
+        .add_person(
+            "Bob".into(),
+            core_api::dto::JsonMap(
+                [("level".to_owned(), serde_json::json!(2))]
+                    .into_iter()
+                    .collect(),
+            )
+            .0,
+        )
+        .unwrap();
+    a.grant_qualification(bob.clone(), "member".into(), None, None)
+        .unwrap();
+    let id = a
+        .draft_program(
+            "weekly_plan".into(),
+            vec!["2026-11-02".into(), "2026-11-16".into()],
+        )
+        .unwrap();
+    let hosts = |a: &Arc<Core>| {
+        a.program(id.clone())
+            .unwrap()
+            .cells
+            .into_iter()
+            .filter(|c| c.slot == "host")
+            .map(|c| c.candidates.iter().any(|x| x.id == bob))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(hosts(&a), vec![false, false], "not senior yet");
+    assert!(
+        a.assign_slot(id.clone(), 0, "host".into(), 0, bob.clone())
+            .is_err()
+    );
+
+    // Senior from today: offered and accepted for the past event too, and
+    // the administrator is a candidate like everyone else.
+    a.grant_qualification(bob.clone(), "senior".into(), None, None)
+        .unwrap();
+    assert_eq!(hosts(&a), vec![true, true]);
+    a.assign_slot(id.clone(), 0, "host".into(), 0, bob.clone())
+        .unwrap();
+    a.assign_slot(id.clone(), 1, "host".into(), 0, bob).unwrap();
+    let talker = a
+        .program(id)
+        .unwrap()
+        .cells
+        .into_iter()
+        .find(|c| c.slot == "talker")
+        .unwrap();
+    assert!(talker.candidates.iter().any(|x| x.id == alice));
+}

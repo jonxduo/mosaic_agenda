@@ -1593,13 +1593,15 @@ impl Core {
                             .persons
                             .iter()
                             .filter(|(p, r)| {
+                                // Same rule as the engine: requirements on the
+                                // event day, or today if the event is past.
                                 r.active
-                                    && !v.proj.auth.is_root(**p)
+                                    && !v.proj.erasure.persons.contains(p)
                                     && v.proj.auth.satisfies(
                                         cfg,
                                         **p,
                                         slot.requires.as_ref(),
-                                        *date,
+                                        (*date).max(now),
                                     )
                             })
                             .map(|(p, r)| Choice {

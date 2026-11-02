@@ -1074,9 +1074,12 @@ fn program_updated(proj: &mut Projection, h: &H<'_>, u: &ProgramUpdated) -> Resu
         match &a.assignee {
             Assignee::Person(person) => {
                 ensure(h.auth.person_exists(*person), "unknown person")?;
+                // On the event day, or on the day of the assignment when the
+                // event is already past (a qualification granted today counts
+                // for the rest of a program that has started).
                 ensure(
                     h.auth
-                        .satisfies(&h.cfg, *person, slot.requires.as_ref(), date),
+                        .satisfies(&h.cfg, *person, slot.requires.as_ref(), date.max(h.date)),
                     &format!("the person does not meet the requirements of `{}`", slot.id),
                 )?;
                 let doubled = p.assignments.iter().any(|(k, (x, _))| {
