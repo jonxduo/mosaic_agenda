@@ -15,7 +15,7 @@ const it = {
   pairing_requests: 'Richieste di abbinamento', pairing_confirm: 'Il codice coincide', pairing_refuse: 'Rifiuta',
   generate: 'Genera', distribute: 'Distribuisci', version: 'Versione', distributed: 'Distribuito', not_distributed: 'Non ancora distribuito',
   registered: 'Documenti registrati', period: 'Periodo', none_visible: 'Nessun dato visibile',
-  new_program: 'Nuovo programma', dates: 'Date', previous: 'Precedente', next: 'Successivo', program_exists: 'Esiste già un programma per questo periodo', no_dates: 'Nessuna data: imposta i giorni in Calendario e turni', send: 'Invia le assegnazioni', publish: 'Pubblica in bacheca',
+  new_program: 'Nuovo programma', dates: 'Date', previous: 'Precedente', next: 'Successivo', program_exists: 'Esiste già un programma per questo periodo', no_dates: 'Nessuna data: imposta i giorni in Calendario e turni', send: 'Invia le assegnazioni', draft_saved: 'Bozza salvata', unsaved_changes: '{n} modifiche da salvare', publish: 'Pubblica in bacheca',
   status_draft: 'Bozza', status_assigned: 'Assegnato', status_published: 'Pubblicato', unassigned: '— non assegnato —',
   response_pending: 'In attesa', response_accepted: 'Accettato', response_declined: 'Declinato', add_external: 'Aggiungi persona esterna',
   available: 'Disponibile', assigned: 'Assegnata', holder: 'Detentore', history: 'Storico', add: 'Aggiungi', assign: 'Assegna',

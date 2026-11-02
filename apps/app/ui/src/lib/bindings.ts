@@ -43,6 +43,7 @@ export const commands = {
 	programDates: (programType: string, period: string | null) => typedError<ProgramDates, ApiError>(__TAURI_INVOKE("program_dates", { programType, period })),
 	draftProgram: (programType: string, dates: string[]) => typedError<string, ApiError>(__TAURI_INVOKE("draft_program", { programType, dates })),
 	assignSlot: (program: string, occurrence: number, slot: string, index: number, person: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("assign_slot", { program, occurrence, slot, index, person })),
+	assignSlots: (program: string, changes: SlotChange[]) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("assign_slots", { program, changes })),
 	sendProgram: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("send_program", { program })),
 	publishProgram: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("publish_program", { program })),
 	respond: (program: string, programType: string, occurrence: number, slot: string, index: number, accept: boolean, note: string | null, assignee: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("respond", { program, programType, occurrence, slot, index, accept, note, assignee })),
@@ -902,6 +903,14 @@ export type SlotCell_Serialize = {
 	candidates: Choice[],
 	/**  The slot changes at every event inside a group (see `ProgramGroup::days`). */
 	per_event: boolean,
+};
+
+/**  One slot choice of the program editor (an empty `person` empties it). */
+export type SlotChange = {
+	occurrence: number,
+	slot: string,
+	index: number,
+	person: string,
 };
 
 export type SyncStatus = SyncStatus_Serialize | SyncStatus_Deserialize;

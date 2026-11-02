@@ -51,6 +51,7 @@ pub const COMMANDS: &[&str] = &[
     "program_dates",
     "draft_program",
     "assign_slot",
+    "assign_slots",
     "send_program",
     "publish_program",
     "respond",
@@ -190,6 +191,9 @@ pub async fn dispatch(core: &Arc<Core>, cmd: &str, input: Value) -> ApiResult<Va
         }
         "assign_slot" => {
             call!({ program: String, occurrence: u32, slot: String, index: u32, person: String } => core.assign_slot(program, occurrence, slot, index, person)?)
+        }
+        "assign_slots" => {
+            call!({ program: String, changes: Vec<crate::dto::SlotChange> } => core.assign_slots(program, changes)?)
         }
         "send_program" => call!({ program: String } => core.send_program(program)?),
         "publish_program" => call!({ program: String } => core.publish_program(program)?),

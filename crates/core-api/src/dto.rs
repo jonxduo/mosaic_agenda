@@ -328,6 +328,15 @@ pub struct SlotCell {
     pub per_event: bool,
 }
 
+/// One slot choice of the program editor (an empty `person` empties it).
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct SlotChange {
+    pub occurrence: u32,
+    pub slot: String,
+    pub index: u32,
+    pub person: String,
+}
+
 /// Events sharing the same persons (one event unless the program rotates
 /// by week or month). Its cells carry the first occurrence.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

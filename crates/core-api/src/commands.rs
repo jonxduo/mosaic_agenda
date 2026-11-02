@@ -264,23 +264,43 @@ impl Core {
         index: u32,
         person: String,
     ) -> ApiResult<ProgramEditor> {
+        self.assign_slots(
+            program,
+            vec![SlotChange {
+                occurrence,
+                slot,
+                index,
+                person,
+            }],
+        )
+    }
+
+    /// Saves the draft: several slot choices in one change of the program.
+    pub fn assign_slots(
+        self: &Arc<Self>,
+        program: String,
+        changes: Vec<SlotChange>,
+    ) -> ApiResult<ProgramEditor> {
         let id = parse_id(&program)?;
-        let slot = slug(&slot)?;
-        let index = u16::try_from(index).map_err(ApiError::invalid)?;
-        let keys = self.group_keys(id, occurrence, &slot, index)?;
-        if person.is_empty() {
-            self.act_events(|c| c.update_program(id, Vec::new(), keys))?;
-        } else {
-            let a = assignee(&person)?;
-            let specs = keys
-                .into_iter()
-                .map(|key| AssignmentSpec {
+        let mut specs = Vec::new();
+        let mut cleared = Vec::new();
+        for ch in changes {
+            let slot = slug(&ch.slot)?;
+            let index = u16::try_from(ch.index).map_err(ApiError::invalid)?;
+            let keys = self.group_keys(id, ch.occurrence, &slot, index)?;
+            if ch.person.is_empty() {
+                cleared.extend(keys);
+            } else {
+                let a = assignee(&ch.person)?;
+                specs.extend(keys.into_iter().map(|key| AssignmentSpec {
                     key,
                     assignee: a.clone(),
                     extra: Values::new(),
-                })
-                .collect();
-            self.act_events(|c| c.assign(id, specs))?;
+                }));
+            }
+        }
+        if !specs.is_empty() || !cleared.is_empty() {
+            self.act_events(|c| c.update_program(id, specs, cleared))?;
         }
         self.program(program)
     }

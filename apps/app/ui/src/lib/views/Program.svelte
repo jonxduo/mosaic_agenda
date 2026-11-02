@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ProgramEditor_Serialize as Editor, SlotCell_Serialize as Cell } from '../bindings';
+  import type { ProgramEditor_Serialize as Editor, SlotCell_Serialize as Cell, SlotChange } from '../bindings';
   import { api, run } from '../api';
   import { t } from '../i18n';
   import { fail, toast } from '../toast.svelte';
@@ -9,14 +9,35 @@
   let external = $state('');
   run(api.program(program)).then((x) => (p = x)).catch(fail);
 
-  async function assign(occurrence: number, slot: string, index: number, person: string) {
+  // Choices stay here until "Salva bozza" (or "Invia", which saves first).
+  let pending = $state<Record<string, SlotChange>>({});
+  let busy = $state(false);
+  const keyOf = (c: { occurrence: number; slot: string; index: number }) => `${c.occurrence}|${c.slot}|${c.index}`;
+  const changed = $derived(Object.keys(pending).length);
+  const valueOf = (c: Cell) => pending[keyOf(c)]?.person ?? c.assignee ?? '';
+
+  function choose(c: Cell, person: string) {
+    const k = keyOf(c);
+    if (person === (c.assignee ?? '')) delete pending[k];
+    else pending[k] = { occurrence: c.occurrence, slot: c.slot, index: c.index, person };
+  }
+  async function save(quiet = false) {
+    if (!changed) return true;
+    busy = true;
     try {
-      p = await run(api.assignSlot(program, occurrence, slot, index, person));
+      p = await run(api.assignSlots(program, Object.values(pending)));
+      pending = {};
+      if (!quiet) toast(t('draft_saved'));
+      return true;
     } catch (e) {
       fail(e);
+      return false;
+    } finally {
+      busy = false;
     }
   }
   async function act(kind: 'send' | 'publish') {
+    if (!(await save(true))) return;
     try {
       p = kind === 'send' ? await run(api.sendProgram(program)) : await run(api.publishProgram(program));
       toast(t('saved'));
@@ -39,12 +60,12 @@
   <div class="list-row">
     <span class="grow">{c.label}</span>
     {#if p?.can_edit}
-      <select aria-label={c.label} value={c.assignee ?? ''} onchange={(e) => assign(c.occurrence, c.slot, c.index, e.currentTarget.value)} style="max-width: 260px">
+      <select aria-label={c.label} class:changed={keyOf(c) in pending} value={valueOf(c)} onchange={(e) => choose(c, e.currentTarget.value)} style="max-width: 260px">
         <option value="">{t('unassigned')}</option>
         {#each c.candidates as o (o.id)}<option value={o.id}>{o.label}</option>{/each}
       </select>
     {:else}<span>{c.assignee_name ?? '—'}</span>{/if}
-    {#if c.assignee}<span class="badge" class:ok={c.response === 'accepted'}>{t(`response_${c.response}` as never)}</span>{/if}
+ {#if c.assignee && !(keyOf(c) in pending)}<span class="badge" class:ok={c.response === 'accepted'}>{t(`response_${c.response}` as never)}</span>{/if}
   </div>
 {/snippet}
 
@@ -74,9 +95,13 @@
         {/if}
       </section>
     {/each}
-    <div class="row">
-      {#if p.can_send}<button class="btn primary" onclick={() => act('send')}>{t('send')}</button>{/if}
-      {#if p.can_publish}<button class="btn" onclick={() => act('publish')}>{t('publish')}</button>{/if}
+    <div class="row actions">
+      {#if p.can_edit}
+        <button class="btn" disabled={busy || !changed} onclick={() => save()}>{t('save')}</button>
+      {/if}
+      {#if p.can_send}<button class="btn primary" disabled={busy} onclick={() => act('send')}>{t('send')}</button>{/if}
+      {#if p.can_publish}<button class="btn" disabled={busy} onclick={() => act('publish')}>{t('publish')}</button>{/if}
+      {#if changed}<span class="muted" role="status">{t('unsaved_changes').replace('{n}', String(changed))}</span>{/if}
     </div>
     {#if p.can_edit}
       <div class="row">
@@ -90,5 +115,8 @@
 <style>
   .page { gap: 16px; }
   .tight { gap: 2px; }
+  select.changed { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }
+  .actions { position: sticky; bottom: 12px; background: var(--page); padding: 8px 0; }
+  @media (max-width: 640px) { .actions { bottom: 96px; } }
   .day { margin-top: 10px; font-size: 14px; color: var(--muted); font-weight: 600; }
 </style>
