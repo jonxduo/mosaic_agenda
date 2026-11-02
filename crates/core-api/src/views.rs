@@ -123,6 +123,16 @@ fn params_map(p: &core_model::config::ViewParams) -> BTreeMap<String, String> {
     if let Some(x) = &p.unit_type {
         m.insert("unit_type".into(), x.to_string());
     }
+    if !p.qualifications.is_empty() {
+        m.insert(
+            "qualifications".into(),
+            p.qualifications
+                .iter()
+                .map(Slug::to_string)
+                .collect::<Vec<_>>()
+                .join(","),
+        );
+    }
     if !p.types.is_empty() {
         m.insert(
             "types".into(),
@@ -2485,7 +2495,7 @@ pub(crate) fn capitalize(s: &str) -> String {
     }
 }
 
-trait UnitsOf {
+pub(crate) trait UnitsOf {
     fn units_of_name(&self, p: PersonId, at: Date) -> Option<String>;
 }
 

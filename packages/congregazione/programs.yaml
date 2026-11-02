@@ -16,18 +16,18 @@ program_types:
     remind_before: { days: 2 }
     retention: { years: 2 }              # ⚙
     slots:                               # ⚙ struttura da verificare con il sorvegliante; requisiti modificabili
-      - { id: chairman, label: s.chairman, requires: *elder }   # ⚙ da confermare
-      - { id: opening_prayer, label: s.opening_prayer, requires: *baptized }
-      - { id: treasures_talk, label: s.treasures_talk, requires: *elder_or_ms, extra_fields: [ { id: title, type: text } ] }
-      - { id: spiritual_gems, label: s.spiritual_gems, requires: *elder_or_ms }
-      - { id: bible_reading, label: s.bible_reading, requires: *male }
-      - { id: student_part, label: s.student_part, repeat: { count: 4 }, requires: { has_qualification: publisher },
+      - { id: chairman, label: s.chairman, requires: { has_qualification: can_lmm_chairman } }
+      - { id: opening_prayer, label: s.opening_prayer, requires: { has_qualification: can_prayer } }
+      - { id: treasures_talk, label: s.treasures_talk, requires: { has_qualification: can_treasures }, extra_fields: [ { id: title, type: text } ] }
+      - { id: spiritual_gems, label: s.spiritual_gems, requires: { has_qualification: can_gems } }
+      - { id: bible_reading, label: s.bible_reading, requires: { has_qualification: can_bible_reading } }
+      - { id: student_part, label: s.student_part, repeat: { count: 4 }, requires: { has_qualification: can_student },
           extra_fields: [ { id: title, type: text }, { id: minutes, type: integer, min: 0 } ], pair_with: student_assistant }
-      - { id: student_assistant, label: s.student_assistant, repeat: { count: 4 }, requires: { has_qualification: publisher } }
-      - { id: living_part, label: s.living_part, repeat: { count: 2 }, requires: *elder_or_ms, extra_fields: [ { id: title, type: text } ] }
-      - { id: cbs_conductor, label: s.cbs_conductor, requires: *elder_or_ms }
-      - { id: cbs_reader, label: s.cbs_reader, requires: *male }
-      - { id: closing_prayer, label: s.closing_prayer, requires: *baptized }
+      - { id: student_assistant, label: s.student_assistant, repeat: { count: 4 }, requires: { has_qualification: can_student } }
+      - { id: living_part, label: s.living_part, repeat: { count: 2 }, requires: { has_qualification: can_living }, extra_fields: [ { id: title, type: text } ] }
+      - { id: cbs_conductor, label: s.cbs_conductor, requires: { has_qualification: can_cbs_conductor } }
+      - { id: cbs_reader, label: s.cbs_reader, requires: { has_qualification: can_cbs_reader } }
+      - { id: closing_prayer, label: s.closing_prayer, requires: { has_qualification: can_prayer } }
   - id: weekend
     label: p.weekend
     event_type: weekend_meeting
@@ -38,11 +38,12 @@ program_types:
     remind_before: { days: 2 }
     retention: { years: 2 }
     slots:
-      - { id: talk, label: s.public_talk, allow_external: true, requires: *elder_or_ms,
+      - { id: chairman, label: s.weekend_chairman, requires: { has_qualification: can_public_chairman } }
+      - { id: talk, label: s.public_talk, allow_external: true, requires: { has_qualification: can_public_talk },
           extra_fields: [ { id: theme, type: text }, { id: home_congregation, type: text } ] }
-      - { id: opening_prayer, label: s.opening_prayer, requires: *baptized }
-      - { id: closing_prayer, label: s.closing_prayer, requires: *baptized }
-      - { id: wt_reader, label: s.wt_reader, requires: *male }
+      - { id: opening_prayer, label: s.opening_prayer, requires: { has_qualification: can_prayer } }
+      - { id: closing_prayer, label: s.closing_prayer, requires: { has_qualification: can_prayer } }
+      - { id: wt_reader, label: s.wt_reader, requires: { has_qualification: can_wt_reader } }
   - id: av
     label: p.av
     event_type: [midweek_meeting, weekend_meeting]
@@ -56,11 +57,11 @@ program_types:
     retention: { years: 2 }
     slots:
       # ⚙ catalogo: l'amministratore sceglie quali assegnare e quante persone (Calendario e turni)
-      - { id: mixer, label: s.mixer, count: 1, requires: *baptized }
-      - { id: video, label: s.video, count: 1, requires: *baptized }
-      - { id: zoom, label: s.zoom, count: 1, requires: *baptized, enabled: false }
-      - { id: microphones, label: s.microphones, count: 2, requires: *baptized }
-      - { id: stage, label: s.stage, count: 1, requires: *baptized, enabled: false }
+      - { id: mixer, label: s.mixer, count: 1, requires: { has_qualification: can_av } }
+      - { id: video, label: s.video, count: 1, requires: { has_qualification: can_av } }
+      - { id: zoom, label: s.zoom, count: 1, requires: { has_qualification: can_av }, enabled: false }
+      - { id: microphones, label: s.microphones, count: 2, requires: { has_qualification: can_microphones } }
+      - { id: stage, label: s.stage, count: 1, requires: { has_qualification: can_av }, enabled: false }
   - id: attendants
     label: p.attendants
     event_type: [midweek_meeting, weekend_meeting]
@@ -73,10 +74,10 @@ program_types:
     remind_before: { days: 2 }
     retention: { years: 2 }
     slots:
-      - { id: entrance, label: s.entrance, count: 1, requires: *baptized }
-      - { id: hall, label: s.hall, count: 1, requires: *baptized }
-      - { id: zoom_host, label: s.zoom_host, count: 1, requires: *baptized, enabled: false }
-      - { id: parking, label: s.parking, count: 1, requires: *baptized, enabled: false }
+      - { id: entrance, label: s.entrance, count: 1, requires: { has_qualification: can_attendant } }
+      - { id: hall, label: s.hall, count: 1, requires: { has_qualification: can_attendant } }
+      - { id: zoom_host, label: s.zoom_host, count: 1, requires: { has_qualification: can_av }, enabled: false }
+      - { id: parking, label: s.parking, count: 1, requires: { has_qualification: can_attendant }, enabled: false }
   - id: field_service
     label: p.field_service
     event_type: field_service_meeting

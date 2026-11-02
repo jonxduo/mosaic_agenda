@@ -71,6 +71,8 @@ pub const COMMANDS: &[&str] = &[
     "add_person",
     "update_person",
     "grant_qualification",
+    "qualification_matrix",
+    "set_qualifications",
     "end_grant",
     "create_unit",
     "set_membership",
@@ -233,6 +235,12 @@ pub async fn dispatch(core: &Arc<Core>, cmd: &str, input: Value) -> ApiResult<Va
         }
         "grant_qualification" => {
             call!({ person: String, qualification: String, from: Option<String>, until: Option<String> } => core.grant_qualification(person, qualification, from, until)?)
+        }
+        "qualification_matrix" => {
+            call!({ qualifications: String } => core.qualification_matrix(qualifications)?)
+        }
+        "set_qualifications" => {
+            call!({ qualifications: String, changes: Vec<crate::matrix::QualificationChange> } => core.set_qualifications(qualifications, changes)?)
         }
         "end_grant" => {
             call!({ kind: String, grant: String, end: Option<String> } => core.end_grant(kind, grant, end)?)

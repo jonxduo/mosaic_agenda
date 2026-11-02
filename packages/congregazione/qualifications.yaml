@@ -1,3 +1,8 @@
+x-req:
+  baptized: &q_baptized { has_qualification: baptized }
+  brother: &q_brother { all: [ { has_qualification: baptized }, { attribute: { name: sex, op: eq, value: m } } ] }
+  male: &q_male { attribute: { name: sex, op: eq, value: m } }
+  elder_or_ms: &q_elder_or_ms { any: [ { has_qualification: elder }, { has_qualification: ministerial_servant } ] }
 sets: [full_time]
 qualifications:
   - { id: publisher, label: q.publisher, duration: permanent, visibility: congregation }
@@ -26,3 +31,22 @@ qualifications:
   - { id: field_missionary, label: q.field_missionary, duration: permanent,
       requires: { has_qualification: baptized }, sets: [full_time],
       excludes: [auxiliary_pioneer, regular_pioneer, special_pioneer], visibility: congregation }
+
+  # --- Abilitazioni: a chi si possono affidare le parti e i turni dei programmi.
+  # Si concedono dalla tabella "Incarichi" (una colonna ciascuna); gli slot dei
+  # programmi le richiedono, così l'editor propone solo chi è abilitato. ⚙
+  - { id: can_attendant, label: q.can_attendant, duration: permanent, requires: *q_baptized, visibility: elders }
+  - { id: can_av, label: q.can_av, duration: permanent, requires: *q_baptized, visibility: elders }
+  - { id: can_microphones, label: q.can_microphones, duration: permanent, requires: *q_baptized, visibility: elders }
+  - { id: can_lmm_chairman, label: q.can_lmm_chairman, duration: permanent, requires: { has_qualification: elder }, visibility: elders }
+  - { id: can_public_chairman, label: q.can_public_chairman, duration: permanent, requires: *q_elder_or_ms, visibility: elders }
+  - { id: can_cbs_conductor, label: q.can_cbs_conductor, duration: permanent, requires: *q_elder_or_ms, visibility: elders }
+  - { id: can_cbs_reader, label: q.can_cbs_reader, duration: permanent, requires: *q_male, visibility: elders }
+  - { id: can_wt_reader, label: q.can_wt_reader, duration: permanent, requires: *q_male, visibility: elders }
+  - { id: can_treasures, label: q.can_treasures, duration: permanent, requires: *q_elder_or_ms, visibility: elders }
+  - { id: can_gems, label: q.can_gems, duration: permanent, requires: *q_elder_or_ms, visibility: elders }
+  - { id: can_living, label: q.can_living, duration: permanent, requires: *q_elder_or_ms, visibility: elders }
+  - { id: can_bible_reading, label: q.can_bible_reading, duration: permanent, requires: *q_male, visibility: elders }
+  - { id: can_student, label: q.can_student, duration: permanent, requires: { has_qualification: publisher }, visibility: elders }
+  - { id: can_prayer, label: q.can_prayer, duration: permanent, requires: *q_brother, visibility: elders }
+  - { id: can_public_talk, label: q.can_public_talk, duration: permanent, requires: *q_elder_or_ms, visibility: elders }

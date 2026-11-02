@@ -4,8 +4,8 @@ given:
   people:
     - { id: lmm, qualifications: [publisher, baptized, elder], attributes: { sex: m }, roles: [lmm_overseer] }
     - { id: bm, qualifications: [publisher, baptized, ministerial_servant], attributes: { sex: m }, roles: [board_manager] }
-    - { id: giulio, qualifications: [publisher, baptized], attributes: { sex: m } }
-    - { id: anna, qualifications: [publisher, baptized], attributes: { sex: f } }
+    - { id: giulio, qualifications: [publisher, baptized, can_bible_reading], attributes: { sex: m } }
+    - { id: anna, qualifications: [publisher, baptized, can_student], attributes: { sex: f } }
     - { id: paolo, qualifications: [publisher], attributes: { sex: m } }
 when:
   - { as: lmm, do: program.draft, name: w45, type: midweek, dates: [2026-11-05] }

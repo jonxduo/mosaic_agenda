@@ -10,6 +10,7 @@ pub mod commands;
 pub mod config;
 pub mod dispatch;
 pub mod dto;
+pub mod matrix;
 pub mod privacy;
 pub mod push;
 pub mod schedule;

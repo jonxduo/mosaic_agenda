@@ -1025,6 +1025,8 @@ pub enum ViewKind {
     AdminAlerts,
     ConfigEditor,
     Settings,
+    /// Persons × qualifications, each cell granted or not.
+    QualificationMatrix,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, JsonSchema)]
@@ -1043,6 +1045,9 @@ pub struct ViewParams {
     /// Program types for `program_list`.
     #[serde(default)]
     pub types: Vec<Slug>,
+    /// Columns of `qualification_matrix`.
+    #[serde(default)]
+    pub qualifications: Vec<Slug>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]

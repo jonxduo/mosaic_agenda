@@ -5,7 +5,7 @@ given:
   people:
     - { id: pmc, qualifications: [publisher, baptized, elder], attributes: { sex: m }, roles: [public_meeting_coordinator] }
     - { id: bm, qualifications: [publisher, baptized, ministerial_servant], attributes: { sex: m }, roles: [board_manager] }
-    - { id: paolo, qualifications: [publisher, baptized], attributes: { sex: m } }
+    - { id: paolo, qualifications: [publisher, baptized, can_prayer], attributes: { sex: m } }
 when:
   - { as: pmc, do: program.draft, name: w46, type: weekend, dates: [2026-11-08] }
   - { as: pmc, do: program.assign, program: w46, slot: opening_prayer, person: oratore, expect: denied, reason: "external" }

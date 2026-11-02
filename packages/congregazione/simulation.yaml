@@ -3,11 +3,15 @@
 groups: 7
 ios_share: 0.4                      # quota di telefoni iOS (push visibile, risveglio meno affidabile)
 profiles:
-  - { weight: 50, qualifications: [publisher, baptized], attributes: { sex: f } }
-  - { weight: 12, qualifications: [publisher], attributes: { sex: m } }
-  - { weight: 8,  qualifications: [publisher, baptized, regular_pioneer], attributes: { sex: f } }
-  - { weight: 15, qualifications: [publisher, baptized, ministerial_servant], attributes: { sex: m } }
-  - { weight: 15, qualifications: [publisher, baptized, elder], attributes: { sex: m } }
+  - { weight: 50, qualifications: [publisher, baptized, can_student], attributes: { sex: f } }
+  - { weight: 12, qualifications: [publisher, can_student, can_bible_reading], attributes: { sex: m } }
+  - { weight: 8,  qualifications: [publisher, baptized, regular_pioneer, can_student], attributes: { sex: f } }
+  - { weight: 15, qualifications: [publisher, baptized, ministerial_servant, can_student, can_bible_reading, can_prayer,
+                                   can_av, can_microphones, can_attendant, can_cbs_reader, can_wt_reader, can_treasures,
+                                   can_gems, can_living, can_public_talk, can_public_chairman], attributes: { sex: m } }
+  - { weight: 15, qualifications: [publisher, baptized, elder, can_prayer, can_lmm_chairman, can_public_chairman,
+                                   can_public_talk, can_treasures, can_gems, can_living, can_cbs_conductor,
+                                   can_attendant], attributes: { sex: m } }
 # Incarichi assegnati a chi ne soddisfa i requisiti (per unità o uno per l'organizzazione).
 roles:
   - { role: group_overseer, per_unit: true }

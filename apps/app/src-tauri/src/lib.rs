@@ -108,6 +108,8 @@ cmd!(return_resource(resource: String) -> () => |c| c.return_resource(resource))
 cmd!(people() -> People => |c| c.people());
 cmd!(add_person(name: String, attributes: Map) -> String => |c| c.add_person(name, attributes.0));
 cmd!(update_person(person: String, name: Option<String>, attributes: Map) -> () => |c| c.update_person(person, name, attributes.0));
+cmd!(qualification_matrix(qualifications: String) -> core_api::matrix::QualificationMatrix => |c| c.qualification_matrix(qualifications));
+cmd!(set_qualifications(qualifications: String, changes: Vec<core_api::matrix::QualificationChange>) -> core_api::matrix::QualificationMatrix => |c| c.set_qualifications(qualifications, changes));
 cmd!(grant_qualification(person: String, qualification: String, from: Option<String>, until: Option<String>) -> () => |c| c.grant_qualification(person, qualification, from, until));
 cmd!(end_grant(kind: String, grant: String, end: Option<String>) -> () => |c| c.end_grant(kind, grant, end));
 cmd!(create_unit(unit_type: String, name: String) -> String => |c| c.create_unit(unit_type, name));
@@ -187,6 +189,8 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         add_person,
         update_person,
         grant_qualification,
+        qualification_matrix,
+        set_qualifications,
         end_grant,
         create_unit,
         set_membership,

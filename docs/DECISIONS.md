@@ -652,3 +652,11 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   risponde "no" in silenzio; ogni conferma è ora un dialogo dell'app. "Calendario e turni"
   controlla prima di pubblicare che la versione non sia cambiata nel frattempo ed elenca gli
   errori di `config_check` invece di un generico "Dati non validi".
+- **Vista `qualification_matrix`** (core, generica): righe = persone, colonne = le qualifiche
+  elencate nel parametro `qualifications` del menu; una spunta concede la qualifica, toglierla
+  la chiude (oggi). Le celle di chi non soddisfa `requires` o tiene una qualifica esclusa sono
+  disattivate. Le modifiche restano in pagina fino a "Salva" (`set_qualifications`, un evento
+  per cella). Congregazione: "Incarichi" mostra le abilitazioni `can_*` (usciere, audio/video,
+  microfonista, presidenti, discorso, tesori, gemme, lettura biblica, dimostrazione, vita
+  cristiana, studio biblico, lettori, preghiera); gli slot dei programmi le richiedono, così
+  l'editor propone solo chi è abilitato. Aggiunto lo slot `chairman` all'adunanza pubblica.

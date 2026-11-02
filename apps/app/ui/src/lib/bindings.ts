@@ -63,6 +63,8 @@ export const commands = {
 	addPerson: (name: string, attributes: JsonMap) => typedError<string, ApiError>(__TAURI_INVOKE("add_person", { name, attributes })),
 	updatePerson: (person: string, name: string | null, attributes: JsonMap) => typedError<null, ApiError>(__TAURI_INVOKE("update_person", { person, name, attributes })),
 	grantQualification: (person: string, qualification: string, from: string | null, until: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("grant_qualification", { person, qualification, from, until })),
+	qualificationMatrix: (qualifications: string) => typedError<QualificationMatrix_Serialize, ApiError>(__TAURI_INVOKE("qualification_matrix", { qualifications })),
+	setQualifications: (qualifications: string, changes: QualificationChange[]) => typedError<QualificationMatrix_Serialize, ApiError>(__TAURI_INVOKE("set_qualifications", { qualifications, changes })),
 	endGrant: (kind: string, grant: string, end: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("end_grant", { kind, grant, end })),
 	createUnit: (unitType: string, name: string) => typedError<string, ApiError>(__TAURI_INVOKE("create_unit", { unitType, name })),
 	setMembership: (person: string, unit: string, from: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("set_membership", { person, unit, from })),
@@ -542,6 +544,33 @@ export type Invitation = {
 /**  Field values sent by the interface (`id → value`). */
 export type JsonMap = { [key in string]: unknown };
 
+export type MatrixCell = {
+	held: boolean,
+	/**
+	 *  Whether the person meets the qualification's requirements (and
+	 *  holds none it excludes): only then it can be granted.
+	 */
+	allowed: boolean,
+};
+
+export type MatrixRow = MatrixRow_Serialize | MatrixRow_Deserialize;
+
+export type MatrixRow_Deserialize = {
+	person_id: string,
+	name: string,
+	unit?: string | null,
+	/**  One per column, in order. */
+	cells: MatrixCell[],
+};
+
+export type MatrixRow_Serialize = {
+	person_id: string,
+	name: string,
+	unit: string | null,
+	/**  One per column, in order. */
+	cells: MatrixCell[],
+};
+
 export type Me = {
 	person_id: string,
 	display_name: string,
@@ -800,6 +829,27 @@ export type ProgramRow = {
 	title: string,
 	subtitle: string,
 	status: string,
+};
+
+/**  One cell changed in the matrix. */
+export type QualificationChange = {
+	person: string,
+	qualification: string,
+	held: boolean,
+};
+
+export type QualificationMatrix = QualificationMatrix_Serialize | QualificationMatrix_Deserialize;
+
+export type QualificationMatrix_Deserialize = {
+	columns: Choice[],
+	rows: MatrixRow_Deserialize[],
+	can_manage: boolean,
+};
+
+export type QualificationMatrix_Serialize = {
+	columns: Choice[],
+	rows: MatrixRow_Serialize[],
+	can_manage: boolean,
 };
 
 export type ResourceDetail = ResourceDetail_Serialize | ResourceDetail_Deserialize;

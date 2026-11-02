@@ -1597,6 +1597,9 @@ impl<'a> Validator<'a> {
                 );
             }
         }
+        for (i, q) in params.qualifications.iter().enumerate() {
+            self.qual_ref(q, UI, format!("{path}.qualifications[{i}]"));
+        }
     }
 
     fn ui(&mut self) {

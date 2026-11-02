@@ -1195,6 +1195,7 @@
           "default": {
             "aggregate": null,
             "form": null,
+            "qualifications": [],
             "resource_type": null,
             "types": [],
             "unit_type": null,
@@ -2965,31 +2966,40 @@
     },
     "ViewKind": {
       "description": "Generic views of the core (PROGETTO.md §12.2) and home widgets.",
-      "enum": [
-        "onboarding",
-        "home",
-        "form",
-        "my_documents",
-        "my_documents_due",
-        "work_queue",
-        "batch",
-        "aggregate",
-        "program_list",
-        "program_editor",
-        "my_assignments",
-        "board",
-        "resource_list",
-        "resource_detail",
-        "my_resources",
-        "people",
-        "units",
-        "roles",
-        "sync_status",
-        "admin_alerts",
-        "config_editor",
-        "settings"
-      ],
-      "type": "string"
+      "oneOf": [
+        {
+          "enum": [
+            "onboarding",
+            "home",
+            "form",
+            "my_documents",
+            "my_documents_due",
+            "work_queue",
+            "batch",
+            "aggregate",
+            "program_list",
+            "program_editor",
+            "my_assignments",
+            "board",
+            "resource_list",
+            "resource_detail",
+            "my_resources",
+            "people",
+            "units",
+            "roles",
+            "sync_status",
+            "admin_alerts",
+            "config_editor",
+            "settings"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "qualification_matrix",
+          "description": "Persons × qualifications, each cell granted or not.",
+          "type": "string"
+        }
+      ]
     },
     "ViewParams": {
       "additionalProperties": false,
@@ -3015,6 +3025,14 @@
             }
           ],
           "default": null
+        },
+        "qualifications": {
+          "default": [],
+          "description": "Columns of `qualification_matrix`.",
+          "items": {
+            "$ref": "#/$defs/Slug"
+          },
+          "type": "array"
         },
         "resource_type": {
           "anyOf": [
@@ -3068,6 +3086,7 @@
           "default": {
             "aggregate": null,
             "form": null,
+            "qualifications": [],
             "resource_type": null,
             "types": [],
             "unit_type": null,
