@@ -80,7 +80,7 @@ pub(crate) fn state_label(t: &Texts, state: &Slug) -> String {
     if s == key { state.to_string() } else { s }
 }
 
-fn today(core: &Core) -> Date {
+pub(crate) fn today(core: &Core) -> Date {
     date_of(core.now())
 }
 
@@ -160,6 +160,22 @@ impl Core {
                     .cloned()
             })
             .flatten();
+        if self
+            .restart_needed
+            .load(std::sync::atomic::Ordering::SeqCst)
+        {
+            return Ok(AppStatus {
+                state: AppState::Restart,
+                branding,
+                org_name: None,
+                me: None,
+                unsynced: 0,
+                unsynced_label: String::new(),
+                has_pin: false,
+                biometric: false,
+                privacy_notice: None,
+            });
+        }
         if !self.has_org() {
             return Ok(AppStatus {
                 state: AppState::Empty,
@@ -272,7 +288,7 @@ impl Core {
         let me = self.me()?;
         let t = self.texts();
         let cfg = cfg(&v)?;
-        Ok(cfg
+        let mut items: Vec<MenuItem> = cfg
             .package()
             .ui
             .menu
@@ -287,7 +303,20 @@ impl Core {
                 view: view_name(m.view),
                 params: params_map(&m.params),
             })
-            .collect())
+            .collect();
+        // Core view: the configuration editor, for who may publish (§12.4).
+        let may_configure = v.proj.auth.is_root(me)
+            || v.proj
+                .auth
+                .is_allowed(cfg, me, Permission::ConfigPublish, None, None, today(self));
+        if may_configure {
+            items.push(MenuItem {
+                label: t.get("core.menu.config"),
+                view: "config".into(),
+                params: Default::default(),
+            });
+        }
+        Ok(items)
     }
 
     // ----- home -------------------------------------------------------------------
@@ -1850,8 +1879,13 @@ impl Core {
     pub fn alerts(&self) -> ApiResult<Vec<Alert>> {
         self.ensure_unlocked()?;
         let v = self.view()?;
+        self.alerts_of(&v)
+    }
+
+    /// Alerts of a view (also used on a simulated one, see `config`).
+    pub(crate) fn alerts_of(&self, v: &View) -> ApiResult<Vec<Alert>> {
         let t = self.texts();
-        let cfg = cfg(&v)?;
+        let cfg = cfg(v)?;
         let mut out: Vec<Alert> = v
             .proj
             .alerts
@@ -1881,7 +1915,7 @@ impl Core {
                             "{} · {}",
                             cfg.role(&role)
                                 .map_or_else(|| role.to_string(), |r| t.get(r.label.as_str())),
-                            name_of(&v, person)
+                            name_of(v, person)
                         ),
                     })
                 }

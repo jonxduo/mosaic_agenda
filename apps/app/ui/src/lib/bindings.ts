@@ -17,6 +17,14 @@ export const commands = {
 	setPin: (pin: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("set_pin", { pin })),
 	unlock: (pin: string) => typedError<boolean, ApiError>(__TAURI_INVOKE("unlock", { pin })),
 	unlockBiometric: () => typedError<boolean, ApiError>(__TAURI_INVOKE("unlock_biometric")),
+	configFiles: () => typedError<ConfigVersion_Serialize, ApiError>(__TAURI_INVOKE("config_files")),
+	exportBackup: (passphrase: string) => typedError<string, ApiError>(__TAURI_INVOKE("export_backup", { passphrase })),
+	exportBackupTo: (path: string, passphrase: string) => typedError<null, ApiError>(__TAURI_INVOKE("export_backup_to", { path, passphrase })),
+	restoreBackup: (data: string, passphrase: string) => typedError<null, ApiError>(__TAURI_INVOKE("restore_backup", { data, passphrase })),
+	configAppFiles: () => typedError<ConfigFile[], ApiError>(__TAURI_INVOKE("config_app_files")),
+	configCheck: (files: ConfigFile[]) => typedError<ConfigIssue[], ApiError>(__TAURI_INVOKE("config_check", { files })),
+	configSimulate: (files: ConfigFile[]) => typedError<ConfigSimulation_Serialize, ApiError>(__TAURI_INVOKE("config_simulate", { files })),
+	configPublish: (files: ConfigFile[]) => typedError<number, ApiError>(__TAURI_INVOKE("config_publish", { files })),
 	setBiometric: (on: boolean) => typedError<null, ApiError>(__TAURI_INVOKE("set_biometric", { on })),
 	lock: () => typedError<null, ApiError>(__TAURI_INVOKE("lock")),
 	menu: () => typedError<MenuItem[], ApiError>(__TAURI_INVOKE("menu")),
@@ -58,6 +66,7 @@ export const commands = {
 	setMembership: (person: string, unit: string, from: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("set_membership", { person, unit, from })),
 	grantRole: (person: string, role: string, unit: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("grant_role", { person, role, unit })),
 	revokeDevice: (device: string) => typedError<null, ApiError>(__TAURI_INVOKE("revoke_device", { device })),
+	setArchive: (device: string, archive: boolean) => typedError<null, ApiError>(__TAURI_INVOKE("set_archive", { device, archive })),
 	units: () => typedError<UnitView[], ApiError>(__TAURI_INVOKE("units")),
 	alerts: () => typedError<Alert[], ApiError>(__TAURI_INVOKE("alerts")),
 	syncStatus: () => typedError<SyncStatus_Serialize, ApiError>(__TAURI_INVOKE("sync_status")),
@@ -129,7 +138,9 @@ export type AppState =
 /**  Joined, waiting for the inviter to add this device. */
 "joining" | "ready" | 
 /**  Local data erased after too many wrong PINs: restart the app. */
-"wiped";
+"wiped" | 
+/**  A backup was restored: restart the app to use it. */
+"restart";
 
 export type AppStatus = AppStatus_Serialize | AppStatus_Deserialize;
 
@@ -174,6 +185,12 @@ export type AssignmentItem = {
 	/**  `pending`, `accepted`, `declined`. */
 	response: string,
 	can_respond: boolean,
+};
+
+export type AudienceChange = {
+	audience: string,
+	added: string[],
+	removed: string[],
 };
 
 export type BatchView = BatchView_Serialize | BatchView_Deserialize;
@@ -229,6 +246,90 @@ export type Branding = {
 export type Choice = {
 	id: string,
 	label: string,
+};
+
+export type ConfigChange = ConfigChange_Serialize | ConfigChange_Deserialize;
+
+export type ConfigChange_Deserialize = {
+	kind: string,
+	id: string,
+	/**  `added`, `removed`, `renamed`, `changed`. */
+	what: string,
+	renamed_to?: string | null,
+};
+
+export type ConfigChange_Serialize = {
+	kind: string,
+	id: string,
+	/**  `added`, `removed`, `renamed`, `changed`. */
+	what: string,
+	renamed_to: string | null,
+};
+
+export type ConfigFile = {
+	/**  Path in the package (`roles.yaml`, `texts/it.yaml`, …). */
+	path: string,
+	text: string,
+};
+
+export type ConfigIssue = {
+	/**  `error` or `warning`. */
+	severity: string,
+	file: string,
+	path: string,
+	message: string,
+};
+
+export type ConfigSimulation = ConfigSimulation_Serialize | ConfigSimulation_Deserialize;
+
+export type ConfigSimulation_Deserialize = {
+	issues: ConfigIssue[],
+	changes: ConfigChange_Deserialize[],
+	/**  Who enters or leaves each audience today. */
+	audiences: AudienceChange[],
+	/**  Alerts that appear / disappear (e.g. role grants no longer valid). */
+	new_alerts: string[],
+	gone_alerts: string[],
+	/**  Open documents: they keep the version they were created with. */
+	open_documents: number,
+};
+
+export type ConfigSimulation_Serialize = {
+	issues: ConfigIssue[],
+	changes: ConfigChange_Serialize[],
+	/**  Who enters or leaves each audience today. */
+	audiences: AudienceChange[],
+	/**  Alerts that appear / disappear (e.g. role grants no longer valid). */
+	new_alerts: string[],
+	gone_alerts: string[],
+	/**  Open documents: they keep the version they were created with. */
+	open_documents: number,
+};
+
+export type ConfigVersion = ConfigVersion_Serialize | ConfigVersion_Deserialize;
+
+export type ConfigVersion_Deserialize = {
+	/**  Active version of the organization. */
+	version: number,
+	/**  Version of the package inside it (`package.yaml`). */
+	package_version: string,
+	files: ConfigFile[],
+	/**  This person may publish a new version. */
+	can_publish: boolean,
+	/**  The app carries a newer version of the package than the active one. */
+	app_update?: string | null,
+};
+
+export type ConfigVersion_Serialize = {
+	/**  Active version of the organization. */
+	version: number,
+	/**  Version of the package inside it (`package.yaml`). */
+	package_version: string,
+	files: ConfigFile[],
+	/**  This person may publish a new version. */
+	can_publish: boolean,
+	/**  The app carries a newer version of the package than the active one. */
+	app_update: string | null,
 };
 
 export type DocumentRow = DocumentRow_Serialize | DocumentRow_Deserialize;

@@ -217,7 +217,12 @@ fn ui_assets(name: &str) -> Result<()> {
 
 fn bundle(name: &str) -> Result<PathBuf> {
     let pkg = validate(name)?;
-    let bundle = core_config::compile(pkg).context("compiling the package")?;
+    let sources = core_config::source_files(&package_dir(name)?).map_err(|issues| {
+        print_issues(&issues);
+        anyhow::anyhow!("reading the package files")
+    })?;
+    let bundle =
+        core_config::compile_with_sources(pkg, sources).context("compiling the package")?;
     let out = root().join("target/package").join(package_key(name));
     std::fs::create_dir_all(&out)?;
     std::fs::write(out.join("bundle.bin"), &bundle.bytes)?;

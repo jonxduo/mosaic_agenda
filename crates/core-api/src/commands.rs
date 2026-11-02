@@ -539,15 +539,15 @@ impl Core {
     }
 
     pub fn revoke_device(self: &Arc<Self>, device: String) -> ApiResult<()> {
-        let bytes = data_encoding::HEXLOWER
-            .decode(device.as_bytes())
-            .map_err(ApiError::invalid)?;
-        let key = core_crypto::DevicePublicKey(
-            bytes
-                .try_into()
-                .map_err(|_| ApiError::invalid("device id"))?,
-        );
+        let key = device_key(&device)?;
         self.act_events(|c| c.revoke_device(key))
+    }
+
+    /// Marks a device as an archive (§9.4): always-on desktop that keeps
+    /// the whole history and every attachment, contacted first.
+    pub fn set_archive(self: &Arc<Self>, device: String, archive: bool) -> ApiResult<()> {
+        let key = device_key(&device)?;
+        self.act_events(|c| c.set_archive(key, archive))
     }
 
     pub fn update_settings(
@@ -574,4 +574,15 @@ impl Core {
         self.sync_round().await?;
         self.sync_status().await
     }
+}
+
+fn device_key(device: &str) -> ApiResult<core_crypto::DevicePublicKey> {
+    let bytes = data_encoding::HEXLOWER
+        .decode(device.as_bytes())
+        .map_err(ApiError::invalid)?;
+    Ok(core_crypto::DevicePublicKey(
+        bytes
+            .try_into()
+            .map_err(|_| ApiError::invalid("device id"))?,
+    ))
 }

@@ -37,6 +37,7 @@ tauri-specta.workspace = true
 specta.workspace = true
 specta-typescript.workspace = true
 tauri-plugin-secret-store.workspace = true
+tauri-plugin-dialog.workspace = true
 
 # Mobile: biometric unlock and QR scanning (PROGETTO.md §8.6, §9.5).
 [target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]

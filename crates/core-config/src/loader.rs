@@ -116,17 +116,31 @@ fn parse_typed<T: DeserializeOwned>(
     }
 }
 
-fn read(dir: &Path, rel: &str) -> Result<String, Issue> {
-    std::fs::read_to_string(dir.join(rel))
-        .map_err(|e| Issue::error(rel, "", format!("cannot read file: {e}")))
+/// Where the package files come from: a folder, or texts in memory (the
+/// configuration editor).
+#[derive(Clone, Copy)]
+pub(crate) enum Source<'a> {
+    Dir(&'a Path),
+    Files(&'a BTreeMap<String, String>),
+}
+
+fn read(src: Source<'_>, rel: &str) -> Result<String, Issue> {
+    match src {
+        Source::Dir(dir) => std::fs::read_to_string(dir.join(rel))
+            .map_err(|e| Issue::error(rel, "", format!("cannot read file: {e}"))),
+        Source::Files(files) => files
+            .get(rel)
+            .cloned()
+            .ok_or_else(|| Issue::error(rel, "", "missing file")),
+    }
 }
 
 fn load_file<T: DeserializeOwned>(
-    dir: &Path,
+    src: Source<'_>,
     rel: &str,
     definition: &str,
 ) -> Result<T, Vec<Issue>> {
-    let text = read(dir, rel).map_err(|e| vec![e])?;
+    let text = read(src, rel).map_err(|e| vec![e])?;
     let json = yaml_to_json(rel, &text).map_err(|e| vec![e])?;
     parse_typed(rel, definition, strip_extensions(json))
 }
@@ -176,6 +190,48 @@ fn privacy_path(manifest_path: &str, default_locale: &str, locale: &str) -> Stri
 /// Loads every file of the package. Fails with all the errors found;
 /// semantic checks are left to [`crate::validate`].
 pub fn load_package(dir: &Path) -> Result<PackageConfig, Vec<Issue>> {
+    load_from(Source::Dir(dir))
+}
+
+/// Like [`load_package`], from file texts keyed by their path in the package
+/// (`package.yaml`, `roles.yaml`, `texts/it.yaml`, `privacy/it.md`, …).
+pub fn load_files(files: &BTreeMap<String, String>) -> Result<PackageConfig, Vec<Issue>> {
+    load_from(Source::Files(files))
+}
+
+/// The text files of a package folder, keyed by their path in the package:
+/// what the configuration editor shows and edits.
+pub fn source_files(dir: &Path) -> Result<BTreeMap<String, String>, Vec<Issue>> {
+    let manifest: Manifest = load_file(Source::Dir(dir), MANIFEST, "Manifest")?;
+    let mut paths: Vec<String> = vec![MANIFEST.to_owned()];
+    paths.extend(manifest.files.iter().cloned());
+    for locale in &manifest.locales {
+        paths.push(format!("texts/{locale}.yaml"));
+        paths.push(privacy_path(
+            &manifest.privacy_notice,
+            manifest.default_locale.as_str(),
+            locale.as_str(),
+        ));
+    }
+    let mut out = BTreeMap::new();
+    let mut issues = Vec::new();
+    for p in paths {
+        match read(Source::Dir(dir), &p) {
+            Ok(t) => {
+                out.insert(p, t);
+            }
+            Err(e) => issues.push(e),
+        }
+    }
+    if issues.is_empty() {
+        Ok(out)
+    } else {
+        Err(issues)
+    }
+}
+
+fn load_from(src: Source<'_>) -> Result<PackageConfig, Vec<Issue>> {
+    let dir = src;
     let manifest: Manifest = load_file(dir, MANIFEST, "Manifest")?;
     let mut issues = Vec::new();
 

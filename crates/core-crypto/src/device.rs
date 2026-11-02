@@ -141,7 +141,8 @@ impl DeviceKeys {
         Zeroizing::new(self.signing.to_bytes())
     }
 
-    pub(crate) fn exchange_secret(&self) -> Zeroizing<[u8; 32]> {
+    /// X25519 secret (backups of the device identity, §9.5).
+    pub fn exchange_secret(&self) -> Zeroizing<[u8; 32]> {
         Zeroizing::new(self.exchange.to_bytes())
     }
 }

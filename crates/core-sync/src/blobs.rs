@@ -24,6 +24,8 @@ pub trait BlobStore: Send {
     fn get(&self, hash: &[u8; 32]) -> Result<Option<Vec<u8>>, String>;
     fn put(&mut self, hash: &[u8; 32], data: &[u8]) -> Result<(), String>;
     fn remove(&mut self, hash: &[u8; 32]) -> Result<(), String>;
+    /// Every stored blob (backup).
+    fn hashes(&self) -> Vec<[u8; 32]>;
 }
 
 #[derive(Debug, Default, Clone)]
@@ -45,6 +47,9 @@ impl BlobStore for MemBlobStore {
     fn remove(&mut self, hash: &[u8; 32]) -> Result<(), String> {
         self.items.remove(hash);
         Ok(())
+    }
+    fn hashes(&self) -> Vec<[u8; 32]> {
+        self.items.keys().copied().collect()
     }
 }
 
@@ -88,6 +93,20 @@ impl BlobStore for DirBlobStore {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
             Err(e) => Err(e.to_string()),
         }
+    }
+    fn hashes(&self) -> Vec<[u8; 32]> {
+        let Ok(entries) = std::fs::read_dir(&self.dir) else {
+            return Vec::new();
+        };
+        entries
+            .filter_map(|e| e.ok())
+            .filter_map(|e| {
+                let name = e.file_name().to_string_lossy().into_owned();
+                blake3::Hash::from_hex(name.as_bytes())
+                    .ok()
+                    .map(|h| *h.as_bytes())
+            })
+            .collect()
     }
 }
 

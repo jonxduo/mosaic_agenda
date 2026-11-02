@@ -9,13 +9,17 @@ mod compat;
 mod compile;
 mod issue;
 mod loader;
+mod migrate;
 pub mod schema;
 mod validate;
 
 pub use compat::{CompatError, version_matches};
-pub use compile::{Bundle, COMPILED_FORMAT, CompiledConfig, DecodeError, compile, decode};
+pub use compile::{
+    Bundle, COMPILED_FORMAT, CompiledConfig, DecodeError, compile, compile_with_sources, decode,
+};
 pub use issue::{Issue, Severity};
-pub use loader::{PACKAGE_FILES, load_package};
+pub use loader::{PACKAGE_FILES, load_files, load_package, source_files};
+pub use migrate::{Change, check_migrations, diff, renames};
 pub use validate::validate;
 
 use std::path::Path;

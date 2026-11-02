@@ -4,6 +4,7 @@
   import { t } from '../i18n';
   import { fail } from '../toast.svelte';
   import { isMobile, scanQr } from '../mobile';
+  import { restoreBackup } from '../backup';
 
   let { status, onchange }: { status: AppStatus; onchange: () => void } = $props();
   let orgName = $state('');
@@ -11,6 +12,21 @@
   let ticket = $state('');
   let code = $state<string | null>(null);
   let busy = $state(false);
+  let backupFile = $state<File | null>(null);
+  let backupPass = $state('');
+
+  async function restore() {
+    if (!backupFile) return;
+    busy = true;
+    try {
+      await restoreBackup(backupFile, backupPass);
+      onchange();
+    } catch (e) {
+      fail(e);
+    } finally {
+      busy = false;
+    }
+  }
 
   async function create() {
     busy = true;
@@ -75,6 +91,14 @@
       <textarea id="ticket" bind:value={ticket}></textarea>
       <button class="btn" disabled={busy || !ticket.trim()} onclick={join}>{t('join')}</button>
       {#if isMobile}<button class="btn primary" disabled={busy} onclick={scanAndJoin}>{t('scan_qr')}</button>{/if}
+    </section>
+    <section class="card stack" aria-labelledby="restore">
+      <h3 id="restore">{t('backup_restore')}</h3>
+      <label for="bfile">{t('backup_file')}</label>
+      <input id="bfile" type="file" accept=".orgbackup" onchange={(e) => (backupFile = e.currentTarget.files?.[0] ?? null)} />
+      <label for="bpass">{t('passphrase')}</label>
+      <input id="bpass" type="password" autocomplete="off" bind:value={backupPass} />
+      <button class="btn" disabled={busy || !backupFile || backupPass.length < 8} onclick={restore}>{t('backup_restore_btn')}</button>
     </section>
   {/if}
 </main>

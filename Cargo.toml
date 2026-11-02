@@ -79,6 +79,7 @@ tauri = { version = "2.12", features = ["tray-icon"] }
 tauri-build = { version = "2.7", features = [] }
 tauri-plugin-notification = "2.8"
 tauri-plugin-biometric = "2"
+tauri-plugin-dialog = "2"
 tauri-plugin-barcode-scanner = "2"
 keyring = "4.2"
 axum = "0.8"

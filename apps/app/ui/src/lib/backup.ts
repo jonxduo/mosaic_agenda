@@ -1,0 +1,33 @@
+// Encrypted backup file (§9.5): saved with the system dialog in the app,
+// downloaded in the browser (development).
+import { save } from '@tauri-apps/plugin-dialog';
+import { api, run } from './api';
+
+const inBrowser = () => typeof window !== 'undefined' && Boolean((window as unknown as { __ORGAPP_BROWSER__?: boolean }).__ORGAPP_BROWSER__);
+
+/** Returns false when the person cancelled the save dialog. */
+export async function exportBackup(passphrase: string): Promise<boolean> {
+  const name = `backup-${new Date().toISOString().slice(0, 10)}.orgbackup`;
+  if (!inBrowser()) {
+    const path = await save({ defaultPath: name, filters: [{ name: 'Backup', extensions: ['orgbackup'] }] });
+    if (!path) return false;
+    await run(api.exportBackupTo(path, passphrase));
+    return true;
+  }
+  const data = await run(api.exportBackup(passphrase));
+  const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+  return true;
+}
+
+export async function restoreBackup(file: File, passphrase: string): Promise<void> {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  let bin = '';
+  for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+  await run(api.restoreBackup(btoa(bin), passphrase));
+}

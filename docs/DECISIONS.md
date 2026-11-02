@@ -509,3 +509,43 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
 - Informativa e altri testi del pacchetto in Markdown: convertitore minimo nostro
   (`markdown.ts`: titoli, paragrafi, citazioni, elenchi, grassetto, corsivo, link web) che
   prima fa l'escape di tutto, così nessun HTML del testo arriva alla pagina.
+
+## 2026-11-02 — F8: amministrazione e configurazione
+
+- **Sorgenti nel bundle** (formato compilato 2): `CompiledConfig.sources` porta i file YAML
+  del pacchetto (package.yaml, file del manifest, testi, informative). L'editor parte da
+  quelli della versione in uso, non da una cartella sul disco; `config.published` porta il
+  nuovo bundle con le sue sorgenti, così il desktop successivo può ancora modificarle.
+- **Migrazioni** (`core-config::migrate`): un elemento con id (qualifica, tipo di unità,
+  incarico, pubblico, modulo, flusso, resoconto, tipo di evento, tipo di programma, slot, tipo
+  di risorsa) che sparisce va dichiarato in `migrations` di package.yaml come `rename: {from,
+  to}` (il nuovo id deve esistere, il vecchio no) o `retire: {id}`; altrimenti la versione è
+  rifiutata. Lo stesso controllo lo fa il motore su `config.published` (una versione che lo
+  viola è negata a tutti i dispositivi), e applica i rename alle assegnazioni esistenti
+  (qualifiche, incarichi, tipi di unità). Cambiare l'id del pacchetto è vietato.
+- **Simulazione**: la nuova versione viene pubblicata su una copia degli eventi e il motore
+  ricostruito da zero; si mostrano errori, differenze elemento per elemento (slot come
+  `programma.slot`, testi per chiave e lingua), persone entrate/uscite da ogni pubblico (alla
+  data di oggi), avvisi nuovi o spariti e documenti aperti. Niente rete, niente scrittura.
+- La pubblicazione numera la versione `max + 1` e richiede `config.publish` (o il ruolo
+  radice). Se la nuova versione chiede una versione del nucleo più recente, l'editor lo
+  segnala: servirà un aggiornamento dell'app.
+- **Editor**: per ora solo la vista testuale YAML con validazione in tempo reale (600 ms dopo
+  l'ultima battuta), errori per file, simulazione e pubblicazione. Gli editor guidati di §12.4
+  (incarichi, pubblici, campi, slot, testi, promemoria) **restano da fare**: producono gli
+  stessi file, quindi si aggiungono sopra senza cambiare il resto.
+- L'aggiornamento periodico della UI (20 s) rimontava la vista e cancellava le modifiche non
+  salvate: ora non tocca le viste di modifica (`EDITING` in App.svelte) e solo se sono
+  arrivati eventi.
+- **Dispositivi archivio**: dalla scheda della persona (Persone) si attiva/disattiva
+  `device.archive_set` (serve `devices.manage`) e si revoca un dispositivo. Un dispositivo
+  archivio chiede ai pari tutti gli allegati citati dagli eventi (gli altri li prendono su
+  richiesta) ed è il primo contattato (già in F4).
+- **Backup** (`.orgbackup`): `ORGBACKUP1\n` + `PassphraseBox` (Argon2id sulla passphrase,
+  almeno 8 caratteri, **senza** il pepe del portachiavi, altrimenti non si aprirebbe su un
+  computer nuovo; XChaCha20-Poly1305) con dentro chiavi del dispositivo, tutti gli eventi e
+  gli allegati. Il ripristino va solo su un dispositivo vuoto, poi chiede di riaprire l'app
+  (stato `restart`). Il dispositivo ripristinato **è lo stesso** (stessa identità): il
+  vecchio non va più usato, altrimenti due copie firmerebbero con la stessa chiave. Per un
+  computer in più si usa l'invito, non il backup. Nell'app il file si salva con la finestra di
+  sistema (`tauri-plugin-dialog`), nel browser di sviluppo si scarica.

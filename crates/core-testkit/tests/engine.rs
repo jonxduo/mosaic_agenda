@@ -666,3 +666,90 @@ fn convergence_actions_do_real_work() {
         view.state_hash()
     );
 }
+
+/// Club package files with `keeper` (the role, not the `keepers` audience)
+/// renamed, as the configuration editor would produce them.
+fn club_files_renamed() -> std::collections::BTreeMap<String, String> {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../core-config/tests/fixtures/club");
+    let mut files = core_config::source_files(&dir).unwrap();
+    for text in files.values_mut() {
+        let mut out = String::new();
+        let mut rest = text.as_str();
+        while let Some(i) = rest.find("keeper") {
+            let after = rest[i + 6..].chars().next();
+            out.push_str(&rest[..i]);
+            out.push_str(if after == Some('s') {
+                "keeper"
+            } else {
+                "archivist"
+            });
+            rest = &rest[i + 6..];
+        }
+        out.push_str(rest);
+        *text = out;
+    }
+    files
+        .get_mut("package.yaml")
+        .unwrap()
+        .push_str("migrations:\n  - { rename: { from: keeper, to: archivist } }\n");
+    files
+}
+
+/// A new configuration version renames a role: grants follow; a version that
+/// drops a role without a migration is refused (§6.6).
+#[test]
+fn configuration_versions_and_migrations() {
+    let (mut w, team) = club();
+    let lead = w.person("lead").unwrap();
+    let files = club_files_renamed();
+    let pkg = core_config::load_files(&files).unwrap();
+    assert!(
+        core_config::validate(&pkg, None)
+            .iter()
+            .all(|i| i.severity != core_config::Severity::Error)
+    );
+    let v2 = core_config::compile_with_sources(pkg, files.clone())
+        .unwrap()
+        .bytes;
+    w.act(ADMIN, |c| c.publish_config(2, v2.clone())).unwrap();
+    let view = w.view("lead", None).unwrap();
+    assert_eq!(view.active_config, 2);
+    assert!(
+        view.auth
+            .org
+            .role_grants
+            .iter()
+            .any(|g| g.person == lead && g.role.as_str() == "archivist")
+    );
+    assert!(
+        !view
+            .auth
+            .org
+            .role_grants
+            .iter()
+            .any(|g| g.role.as_str() == "keeper")
+    );
+    // The renamed role keeps its permission: lead (archivist) files a batch.
+    for m in ["m1", "m2", "lead"] {
+        let p = w.person(m).unwrap();
+        w.act_with(m, |c| {
+            c.fill_document(&slug("log"), p, nov(), Values::new())
+        })
+        .unwrap();
+    }
+    assert_eq!(view.cfg().unwrap().version, 2);
+    let _ = team;
+
+    // Version 3 drops the role without a migration: refused.
+    let mut files3 = files.clone();
+    let roles = files3.get_mut("roles.yaml").unwrap();
+    let start = roles.find("  - id: archivist").unwrap();
+    roles.truncate(start);
+    let pkg3 = core_config::load_files(&files3).unwrap();
+    let v3 = core_config::compile(pkg3).unwrap().bytes;
+    let refused = w.act(ADMIN, |c| c.publish_config(3, v3)).unwrap_err();
+    assert!(
+        refused.to_string().contains("role `archivist` was removed"),
+        "{refused}"
+    );
+}

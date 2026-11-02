@@ -113,6 +113,50 @@ impl PinWrap {
     }
 }
 
+/// Data encrypted with a passphrase (backups, §9.5): Argon2id without
+/// pepper (the file must open on another computer) + XChaCha20-Poly1305.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PassphraseBox {
+    pub params: PinParams,
+    pub salt: [u8; 16],
+    pub sealed: Sealed,
+}
+
+const BOX_CONTEXT: &[u8] = b"org-app/backup/1";
+
+fn passphrase_key(
+    pass: &str,
+    salt: &[u8; 16],
+    params: PinParams,
+) -> Result<ChannelKey, CryptoError> {
+    let p = Params::new(params.memory_kib, params.iterations, params.lanes, Some(32))
+        .map_err(|_| CryptoError::Malformed("backup parameters"))?;
+    let argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, p);
+    let mut out = Zeroizing::new([0u8; 32]);
+    argon
+        .hash_password_into(pass.as_bytes(), salt, out.as_mut_slice())
+        .map_err(|_| CryptoError::Encrypt)?;
+    Ok(ChannelKey::from_bytes(*out))
+}
+
+impl PassphraseBox {
+    pub fn seal(pass: &str, data: &[u8], params: PinParams) -> Result<Self, CryptoError> {
+        let salt = crate::random_array::<16>()?;
+        let sealed = passphrase_key(pass, &salt, params)?.encrypt(BOX_CONTEXT, data)?;
+        Ok(Self {
+            params,
+            salt,
+            sealed,
+        })
+    }
+
+    /// The data, or [`CryptoError::Decrypt`] for a wrong passphrase.
+    pub fn open(&self, pass: &str) -> Result<Zeroizing<Vec<u8>>, CryptoError> {
+        let key = passphrase_key(pass, &self.salt, self.params)?;
+        key.decrypt(BOX_CONTEXT, &self.sealed).map(Zeroizing::new)
+    }
+}
+
 /// Key pair for the locked inbox, derived from the database key.
 pub struct InboxKey(SecretKey);
 
@@ -169,6 +213,14 @@ mod tests {
     fn default_parameters_are_accepted() {
         let w = PinWrap::seal("123456", &[1; 32], &[2; 32], PinParams::default()).unwrap();
         assert_eq!(*w.open("123456", &[1; 32]).unwrap(), [2; 32]);
+    }
+
+    #[test]
+    fn passphrase_box_round_trip() {
+        let b = PassphraseBox::seal("correct horse", b"backup", PinParams::insecure_for_tests())
+            .unwrap();
+        assert_eq!(b.open("correct horse").unwrap().as_slice(), b"backup");
+        assert_eq!(b.open("wrong").unwrap_err(), CryptoError::Decrypt);
     }
 
     #[test]

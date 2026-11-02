@@ -202,9 +202,16 @@ impl AuthState {
                     c.version > self.config_version,
                     "configuration version must increase",
                 )?;
-                core_config::decode(&c.bundle)
-                    .map(|_| ())
-                    .map_err(|e| Denied(format!("configuration bundle: {e}")))
+                let next = core_config::decode(&c.bundle)
+                    .map_err(|e| Denied(format!("configuration bundle: {e}")))?;
+                // Removed elements must be declared as renamed or retired (§6.6).
+                match core_config::check_migrations(&cfg.compiled.package, &next.package)
+                    .into_iter()
+                    .next()
+                {
+                    Some(issue) => deny(format!("configuration: {}", issue.message)),
+                    None => Ok(()),
+                }
             }
             Op::DeviceInvited(d) => {
                 if d.person != author {
@@ -523,6 +530,23 @@ impl AuthState {
     // ----- apply ------------------------------------------------------------
 
     /// Applies a valid organizational operation from event `id`.
+    fn rename(&mut self, renamed: &BTreeMap<Slug, Slug>) {
+        let map = |s: &mut Slug| {
+            if let Some(to) = renamed.get(s) {
+                *s = to.clone();
+            }
+        };
+        for g in &mut self.org.qualification_grants {
+            map(&mut g.qualification);
+        }
+        for g in &mut self.org.role_grants {
+            map(&mut g.role);
+        }
+        for u in self.org.units.values_mut() {
+            map(&mut u.unit_type);
+        }
+    }
+
     pub fn apply(&mut self, cfg: &Cfg, id: EventHash, op: &Op) {
         match op {
             Op::Genesis(g) => {
@@ -561,7 +585,17 @@ impl AuthState {
                     }
                 }
             }
-            Op::ConfigPublished(c) => self.config_version = c.version,
+            Op::ConfigPublished(c) => {
+                self.config_version = c.version;
+                // Grants keep working under renamed qualifications, roles and
+                // unit types.
+                if let Ok(next) = core_config::decode(&c.bundle) {
+                    let renamed = core_config::renames(&next.package);
+                    if !renamed.is_empty() {
+                        self.rename(&renamed);
+                    }
+                }
+            }
             Op::DeviceAdded(d) => {
                 self.devices.insert(
                     d.device.signing,

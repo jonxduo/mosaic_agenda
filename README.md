@@ -14,7 +14,9 @@ di build. Specifica completa: [`docs/PROGETTO.md`](docs/PROGETTO.md). Decisioni 
 | F4 — Sincronizzazione | fatta: `core-sync` (riconciliazione, ricevute, stato di consegna, abbinamento, allegati, trasporto iroh con gossip), simulatore `cargo xtask simulate` |
 | F5 — Desktop | fatta: `core-api` (facciata e DTO), app Tauri 2 (comandi tipizzati, tray, notifiche locali, portachiavi), UI SvelteKit con le viste generiche, `api-dev-server`, test Playwright a tre dispositivi |
 | F6 — Server | fatta: `server/push-service` e `core-push` (risvegli firmati, limiti, FCM/APNs), deploy con relay, DNS e Caddy in `server/deploy`, [`docs/DEPLOY.md`](docs/DEPLOY.md), app legate al proprio server con `--server` |
-| F7–F10 | da fare |
+| F7 — Mobile | fatta su emulatore e simulatore: app Android e iOS, segreti nel Keystore/Keychain, biometria, QR, sincronizzazione in background; restano credenziali push e prove su telefoni reali ([`docs/MOBILE_CHECKLIST.md`](docs/MOBILE_CHECKLIST.md)) |
+| F8 — Amministrazione | fatta: editor della configurazione (YAML) con validazione, simulazione, migrazioni e pubblicazione; dispositivi archivio; backup cifrato e ripristino. Editor guidati da fare |
+| F9–F10 | da fare |
 
 ## Comandi
 

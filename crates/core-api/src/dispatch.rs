@@ -24,6 +24,14 @@ pub const COMMANDS: &[&str] = &[
     "confirm_pairing",
     "set_pin",
     "unlock",
+    "config_files",
+    "export_backup",
+    "export_backup_to",
+    "restore_backup",
+    "config_app_files",
+    "config_check",
+    "config_simulate",
+    "config_publish",
     "unlock_biometric",
     "set_biometric",
     "lock",
@@ -66,6 +74,7 @@ pub const COMMANDS: &[&str] = &[
     "set_membership",
     "grant_role",
     "revoke_device",
+    "set_archive",
     "units",
     "alerts",
     "sync_status",
@@ -115,6 +124,24 @@ pub async fn dispatch(core: &Arc<Core>, cmd: &str, input: Value) -> ApiResult<Va
         }
         "set_pin" => call!({ pin: Option<String> } => core.set_pin_cmd(pin)?),
         "unlock" => call!({ pin: String } => core.unlock(&pin)?),
+        "config_files" => json(core.config_files()?),
+        "export_backup" => call!({ passphrase: String } => core.export_backup_base64(&passphrase)?),
+        "export_backup_to" => {
+            call!({ path: String, passphrase: String } => core.export_backup_to(&path, &passphrase)?)
+        }
+        "restore_backup" => {
+            call!({ data: String, passphrase: String } => core.restore_backup_base64(&data, &passphrase)?)
+        }
+        "config_app_files" => json(core.config_app_files()?),
+        "config_check" => {
+            call!({ files: Vec<crate::config::ConfigFile> } => core.config_check(files)?)
+        }
+        "config_simulate" => {
+            call!({ files: Vec<crate::config::ConfigFile> } => core.config_simulate(files)?)
+        }
+        "config_publish" => {
+            call!({ files: Vec<crate::config::ConfigFile> } => core.config_publish(files)?)
+        }
         "unlock_biometric" => json(core.unlock_biometric()?),
         "set_biometric" => call!({ on: bool } => core.set_biometric(on)?),
         "lock" => {
@@ -208,6 +235,9 @@ pub async fn dispatch(core: &Arc<Core>, cmd: &str, input: Value) -> ApiResult<Va
             call!({ person: String, role: String, unit: Option<String> } => core.grant_role(person, role, unit)?)
         }
         "revoke_device" => call!({ device: String } => core.revoke_device(device)?),
+        "set_archive" => {
+            call!({ device: String, archive: bool } => core.set_archive(device, archive)?)
+        }
         "units" => json(core.units()?),
         "alerts" => json(core.alerts()?),
         "sync_status" => json(core.sync_status().await?),

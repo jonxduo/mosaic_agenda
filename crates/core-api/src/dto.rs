@@ -18,6 +18,8 @@ pub enum AppState {
     Ready,
     /// Local data erased after too many wrong PINs: restart the app.
     Wiped,
+    /// A backup was restored: restart the app to use it.
+    Restart,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

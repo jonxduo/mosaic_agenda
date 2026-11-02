@@ -52,6 +52,7 @@ fn core_texts(locale: &str) -> &'static [(&'static str, &'static str)] {
                 "{n, plural, one {# evento da inviare} other {# eventi da inviare}}",
             ),
             ("core.total", "Totale"),
+            ("core.menu.config", "Configurazione"),
         ],
         _ => &[
             ("core.month.1", "January"),
@@ -92,6 +93,7 @@ fn core_texts(locale: &str) -> &'static [(&'static str, &'static str)] {
                 "{n, plural, one {# event to send} other {# events to send}}",
             ),
             ("core.total", "Total"),
+            ("core.menu.config", "Configuration"),
         ],
     }
 }

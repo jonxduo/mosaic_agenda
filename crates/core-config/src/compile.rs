@@ -1,11 +1,13 @@
 //! Compilation of a validated package into the binary bundle (PROGETTO.md §6.5).
 
+use std::collections::BTreeMap;
+
 use core_model::config::PackageConfig;
 use core_model::eval::ConfigIndex;
 use serde::{Deserialize, Serialize};
 
 /// Version of the compiled layout; bumped on incompatible changes.
-pub const COMPILED_FORMAT: u32 = 1;
+pub const COMPILED_FORMAT: u32 = 2;
 
 /// What the engine uses at runtime: the validated package (anchors expanded,
 /// texts flattened) plus derived lookup tables.
@@ -18,6 +20,10 @@ pub struct CompiledConfig {
     pub core_version: String,
     pub package: PackageConfig,
     pub index: ConfigIndex,
+    /// The package files as written (comments included), keyed by their path
+    /// in the package: what the configuration editor starts from (§12.4).
+    /// Empty for bundles compiled without them (tests).
+    pub sources: BTreeMap<String, String>,
 }
 
 impl CompiledConfig {
@@ -28,6 +34,7 @@ impl CompiledConfig {
             core_version: core_model::CORE_VERSION.to_owned(),
             package,
             index,
+            sources: BTreeMap::new(),
         }
     }
 }
@@ -55,7 +62,16 @@ pub enum DecodeError {
 
 /// Compiles a package that already passed validation.
 pub fn compile(package: PackageConfig) -> Result<Bundle, postcard::Error> {
-    let compiled = CompiledConfig::new(package);
+    compile_with_sources(package, BTreeMap::new())
+}
+
+/// Like [`compile`], keeping the source files for the configuration editor.
+pub fn compile_with_sources(
+    package: PackageConfig,
+    sources: BTreeMap<String, String>,
+) -> Result<Bundle, postcard::Error> {
+    let mut compiled = CompiledConfig::new(package);
+    compiled.sources = sources;
     let bytes = postcard::to_allocvec(&compiled)?;
     let hash = *blake3::hash(&bytes).as_bytes();
     Ok(Bundle { bytes, hash })

@@ -63,6 +63,14 @@ cmd!(confirm_pairing(code: String, accept: bool) -> () => |c| c.confirm_pairing(
 cmd!(set_pin(pin: Option<String>) -> () => |c| c.set_pin_cmd(pin));
 cmd!(unlock(pin: String) -> bool => |c| c.unlock(&pin));
 cmd!(unlock_biometric() -> bool => |c| c.unlock_biometric());
+cmd!(config_files() -> core_api::config::ConfigVersion => |c| c.config_files());
+cmd!(export_backup(passphrase: String) -> String => |c| c.export_backup_base64(&passphrase));
+cmd!(export_backup_to(path: String, passphrase: String) -> () => |c| c.export_backup_to(&path, &passphrase));
+cmd!(restore_backup(data: String, passphrase: String) -> () => |c| c.restore_backup_base64(&data, &passphrase));
+cmd!(config_app_files() -> Vec<core_api::config::ConfigFile> => |c| c.config_app_files());
+cmd!(config_check(files: Vec<core_api::config::ConfigFile>) -> Vec<core_api::config::ConfigIssue> => |c| c.config_check(files));
+cmd!(config_simulate(files: Vec<core_api::config::ConfigFile>) -> core_api::config::ConfigSimulation => |c| c.config_simulate(files));
+cmd!(config_publish(files: Vec<core_api::config::ConfigFile>) -> u32 => |c| c.config_publish(files));
 cmd!(set_biometric(on: bool) -> () => |c| c.set_biometric(on));
 cmd!(lock() -> () => |c| { c.lock_now(); Ok(()) });
 cmd!(menu() -> Vec<MenuItem> => |c| c.menu());
@@ -104,6 +112,7 @@ cmd!(create_unit(unit_type: String, name: String) -> String => |c| c.create_unit
 cmd!(set_membership(person: String, unit: String, from: Option<String>) -> () => |c| c.set_membership(person, unit, from));
 cmd!(grant_role(person: String, role: String, unit: Option<String>) -> () => |c| c.grant_role(person, role, unit));
 cmd!(revoke_device(device: String) -> () => |c| c.revoke_device(device));
+cmd!(set_archive(device: String, archive: bool) -> () => |c| c.set_archive(device, archive));
 cmd!(units() -> Vec<UnitView> => |c| c.units());
 cmd!(alerts() -> Vec<Alert> => |c| c.alerts());
 cmd!(sync_status() -> SyncStatus => |c| c.sync_status().await);
@@ -126,6 +135,14 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         set_pin,
         unlock,
         unlock_biometric,
+        config_files,
+        export_backup,
+        export_backup_to,
+        restore_backup,
+        config_app_files,
+        config_check,
+        config_simulate,
+        config_publish,
         set_biometric,
         lock,
         menu,
@@ -167,6 +184,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         set_membership,
         grant_role,
         revoke_device,
+        set_archive,
         units,
         alerts,
         sync_status,
@@ -338,7 +356,8 @@ pub fn run() -> Result<(), String> {
     let builder = specta_builder();
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_secret_store::init());
+        .plugin(tauri_plugin_secret_store::init())
+        .plugin(tauri_plugin_dialog::init());
     // Biometrics and QR scanning exist on mobile only.
     #[cfg(mobile)]
     let app = app

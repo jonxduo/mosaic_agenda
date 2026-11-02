@@ -7,6 +7,7 @@ export function installBrowserBridge(): boolean {
   // `?api_port=<port>` (8787-8799) picks another local dev server: several devices in one browser.
   const port = new URLSearchParams(location.search).get('api_port');
   const base = port && /^87(8[7-9]|9\d)$/.test(port) ? `/d/${port}` : '';
+  (window as unknown as { __ORGAPP_BROWSER__: boolean }).__ORGAPP_BROWSER__ = true;
   window.__TAURI_INTERNALS__ = {
     invoke: async (cmd: string, args?: unknown) => {
       const res = await fetch(`${base}/api/${cmd}`, {

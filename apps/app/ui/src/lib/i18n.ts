@@ -30,7 +30,21 @@ const it = {
   err_internal: 'Si è verificato un errore', err_wiped: 'Troppi PIN errati: i dati di questo dispositivo sono stati cancellati',
   wiped_title: 'Dati cancellati', wiped_text: "Dopo troppi PIN errati i dati di questo dispositivo sono stati cancellati, come previsto dall'organizzazione. Chiudi e riapri l'app, poi abbina di nuovo il dispositivo: i dati torneranno dagli altri dispositivi.",
   biometric_unlock: 'Sblocca con impronta o volto', biometric_reason: "Sblocca l'app", biometric_setting: 'Sblocco con impronta o volto',
-  scan_qr: 'Inquadra il codice QR', menu: 'Menu', more: 'Altro', lock_now: 'Blocca ora', copy: 'Copia', copied: 'Copiato'
+  scan_qr: 'Inquadra il codice QR',
+  archive_device: 'Archivio', archive_set: 'Rendi archivio', archive_unset: 'Non più archivio', revoke: 'Revoca', revoke_confirm: 'Revocare questo dispositivo? Non potrà più sincronizzare.',
+  archive_hint: "Un dispositivo archivio è un computer sempre acceso che conserva tutta la storia e tutti gli allegati: gli altri lo contattano per primo.",
+  backup: 'Backup cifrato', backup_hint: "Un file con tutti i dati e l'identità di questo dispositivo, protetto da una passphrase. Serve a ripristinare questo dispositivo su un computer nuovo: dopo il ripristino il vecchio non va più usato. Conserva il file e la passphrase in luoghi diversi.",
+  passphrase: 'Passphrase (almeno 8 caratteri)', passphrase_again: 'Ripeti la passphrase', passphrase_mismatch: 'Le due passphrase non coincidono',
+  backup_export: 'Esporta backup', backup_saved: 'Backup salvato', backup_restore: 'Ripristina da un backup', backup_file: 'File di backup (.orgbackup)',
+  backup_restore_btn: 'Ripristina', restart_title: 'Backup ripristinato', restart_text: "Chiudi e riapri l'app per usare il dispositivo ripristinato.",
+  config: 'Configurazione', config_version: 'Versione', config_package: 'pacchetto', config_files: 'File della configurazione',
+  config_discard: 'Annulla modifiche', config_simulate: 'Simula', config_publish: 'Pubblica versione',
+  config_confirm: 'Pubblicare la versione {n}? Arriverà a tutti i dispositivi. Documenti, lotti e programmi già aperti restano con la loro versione.',
+  config_published: 'Versione {n} pubblicata', config_app_update: "L'app contiene una versione più recente del pacchetto ({v}).",
+  config_load_app: 'Caricala per rivederla', config_modified: 'Modificato', config_error: 'Errore', config_warning: 'Avviso',
+  config_valid: 'Nessun errore', config_simulation: 'Cosa cambierebbe', config_no_changes: 'Nessuna differenza',
+  config_added: 'aggiunto', config_removed: 'ritirato', config_renamed: 'rinominato', config_changed: 'modificato',
+  config_open_docs: '{n} documenti aperti restano con la versione con cui sono nati.', menu: 'Menu', more: 'Altro', lock_now: 'Blocca ora', copy: 'Copia', copied: 'Copiato'
 };
 
 export type Key = keyof typeof it;

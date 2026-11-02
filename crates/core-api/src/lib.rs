@@ -5,7 +5,9 @@
 //! development HTTP bridge (`api-dev-server`) exposes the same ones to the
 //! browser and to the Playwright tests.
 
+pub mod backup;
 pub mod commands;
+pub mod config;
 pub mod dispatch;
 pub mod dto;
 pub mod push;
@@ -189,6 +191,8 @@ pub struct Core {
     cache: Mutex<Option<Arc<View>>>,
     /// Local data erased after too many wrong PINs: restart needed.
     wiped: AtomicBool,
+    /// A backup was restored: the app must be restarted.
+    pub(crate) restart_needed: AtomicBool,
     /// Bumped by every change: a view computed meanwhile is not cached.
     generation: AtomicU64,
     /// Incremental engine and the last store row it has seen.
@@ -224,7 +228,7 @@ const PIN_PEPPER: &str = "app.pin.pepper";
 /// Database key released after a successful biometric check (mobile).
 const DB_KEY_BIOMETRIC: &str = "store.db_key.biometric";
 /// Device secrets removed by a wipe.
-const DEVICE_SECRETS: &[&str] = &["device.signing_key", "device.exchange_key"];
+pub(crate) const DEVICE_SECRETS: &[&str] = &["device.signing_key", "device.exchange_key"];
 
 pub(crate) fn wiped_error() -> ApiError {
     ApiError::new(
@@ -303,6 +307,7 @@ impl Core {
             local: Mutex::new(local),
             locked: AtomicBool::new(with_pin),
             wiped: AtomicBool::new(false),
+            restart_needed: AtomicBool::new(false),
             sync_scheduled: AtomicBool::new(false),
             clock: opts.clock,
         }))
@@ -697,7 +702,27 @@ impl Core {
             .filter(|(_, d)| !d.revoked)
             .map(|(k, _)| *k)
             .collect();
-        lock(&self.state)?.allowed = Some(allowed);
+        // An archive device keeps every attachment (§9.4): it asks its
+        // peers for all of them. Other devices fetch them on demand.
+        let archive = v
+            .proj
+            .auth
+            .devices
+            .get(&self.keys.public())
+            .is_some_and(|d| d.archive && !d.revoked);
+        let wanted = if archive {
+            v.events
+                .iter()
+                .flat_map(|e| e.body.attachments.iter().map(|b| b.0))
+                .collect()
+        } else {
+            Default::default()
+        };
+        {
+            let mut st = lock(&self.state)?;
+            st.allowed = Some(allowed);
+            st.wanted_blobs = wanted;
+        }
         let mut cache = lock(&self.cache)?;
         if self.generation.load(Ordering::SeqCst) == generation {
             *cache = Some(v.clone());

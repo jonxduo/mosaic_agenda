@@ -80,6 +80,17 @@
               <span class="muted">{t('devices')}: {p.devices.length}</span>
               <button class="btn small" onclick={() => doInvite(p.person_id)}>{t('invite')}</button>
             </div>
+            {#each p.devices as d (d.id)}
+              <div class="row device">
+                <code title={d.id}>{d.id.slice(0, 8)}</code>
+                {#if d.label === 'archive'}<span class="badge">{t('archive_device')}</span>{/if}
+                <button class="btn small" onclick={() => act(() => run(api.setArchive(d.id, d.label !== 'archive')))}>
+                  {d.label === 'archive' ? t('archive_unset') : t('archive_set')}
+                </button>
+                <button class="btn small" style="color: var(--danger)" onclick={() => confirm(t('revoke_confirm')) && act(() => run(api.revokeDevice(d.id)))}>{t('revoke')}</button>
+              </div>
+            {/each}
+            <p class="muted">{t('archive_hint')}</p>
             {#if invite}
               <div class="stack invite">
                 <p class="muted">{t('invite_hint')} {invite.expires_at}</p>

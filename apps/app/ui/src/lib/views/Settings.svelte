@@ -4,10 +4,29 @@
   import { t } from '../i18n';
   import { fail, toast } from '../toast.svelte';
   import { isMobile, biometricCheck } from '../mobile';
+  import { exportBackup } from '../backup';
 
   let { hasPin, biometric, onchange }: { hasPin: boolean; biometric: boolean; onchange: () => void } = $props();
   let s = $state<Settings | null>(null);
   let pin = $state('');
+  let pass = $state('');
+  let pass2 = $state('');
+  let exporting = $state(false);
+
+  async function backup() {
+    if (pass !== pass2) return toast(t('passphrase_mismatch'), true);
+    exporting = true;
+    try {
+      if (await exportBackup(pass)) {
+        toast(t('backup_saved'));
+        pass = pass2 = '';
+      }
+    } catch (e) {
+      fail(e);
+    } finally {
+      exporting = false;
+    }
+  }
   run(api.settings()).then((x) => (s = x)).catch(fail);
 
   async function save() {
@@ -73,6 +92,15 @@
       {#if isMobile && hasPin}
         <label class="row"><input type="checkbox" checked={biometric} onchange={(e) => setBiometric(e.currentTarget.checked)} style="width: 20px; min-height: 20px" />{t('biometric_setting')}</label>
       {/if}
+    </section>
+    <section class="card stack">
+      <h2>{t('backup')}</h2>
+      <p class="muted">{t('backup_hint')}</p>
+      <label for="pass">{t('passphrase')}</label>
+      <input id="pass" type="password" autocomplete="new-password" bind:value={pass} style="max-width: 320px" />
+      <label for="pass2">{t('passphrase_again')}</label>
+      <input id="pass2" type="password" autocomplete="new-password" bind:value={pass2} style="max-width: 320px" />
+      <div class="row"><button class="btn" disabled={exporting || pass.length < 8 || !pass2} onclick={backup}>{t('backup_export')}</button></div>
     </section>
   </div>
 {/if}

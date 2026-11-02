@@ -25,6 +25,7 @@
   import Alerts from './views/Alerts.svelte';
   import Sync from './views/Sync.svelte';
   import Settings from './views/Settings.svelte';
+  import Config from './views/Config.svelte';
   import Assignments from './views/Assignments.svelte';
 
   let status = $state<AppStatus | null>(null);
@@ -55,6 +56,8 @@
   let pin = $state('');
   let showMore = $state(false);
   let tick = $state(0);
+  let seen = -1;
+  const EDITING = ['form', 'config', 'program_editor', 'people', 'roles', 'settings', 'resource_detail', 'units'];
 
   applyInsets();
 
@@ -124,7 +127,11 @@
       for (const n of notes) toast(n.text);
       const s = await run(api.status()).catch(() => null);
       if (s) status = s;
-      tick++;
+      // Reload the view only when new events arrived, and never where the
+      // person may be typing (it would lose what they wrote).
+      const events = await run(api.syncStatus()).then((x) => x.events).catch(() => seen);
+      if (events !== seen && !EDITING.includes(route.view)) tick++;
+      seen = events;
     }, 20_000);
     return () => clearInterval(timer);
   });
@@ -151,6 +158,11 @@
   </main>
 {:else if status.state === 'empty' || status.state === 'joining'}
   <Onboarding {status} onchange={refresh} />
+{:else if status.state === 'restart'}
+  <main class="center narrow stack">
+    <h1>{t('restart_title')}</h1>
+    <p>{t('restart_text')}</p>
+  </main>
 {:else if status.state === 'wiped'}
   <main class="center narrow stack">
     <h1>{t('wiped_title')}</h1>
@@ -195,6 +207,7 @@
         {:else if route.view === 'units'}<Units />
         {:else if route.view === 'admin_alerts'}<Alerts />
         {:else if route.view === 'sync_status'}<Sync me={status.me} />
+        {:else if route.view === 'config'}<Config onchange={refresh} />
         {:else if route.view === 'settings'}<Settings hasPin={status.has_pin} biometric={status.biometric} onchange={refresh} />
         {:else}<Home me={status.me} onchange={refresh} />{/if}
       {/key}
