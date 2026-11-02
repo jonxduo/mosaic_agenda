@@ -603,4 +603,3 @@ fn locked_device_receives_into_the_inbox() {
     assert_eq!(ids(&LocalLog::Open(store)).len(), w.events.len());
     assert_eq!(Inbox::open(dir.path()).unwrap().unwrap().pending(), 0);
 }
-

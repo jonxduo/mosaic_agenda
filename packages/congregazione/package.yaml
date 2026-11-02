@@ -7,7 +7,7 @@ branding:
   app_name: app.name
   identifier: it.briccolab.congregazione   # definitivo: non cambiarlo dopo la pubblicazione sugli store
   icon: branding/icon.png
-  primary_color: "#2952CC"               # dal mockup di riferimento (canvas "Mockup app Congregazione")
+  primary_color: "#6A4CE6"               # viola-blu al centro del gradiente del logo (contrasto 5,5:1 con il bianco)
 files:
   - qualifications.yaml
   - units.yaml

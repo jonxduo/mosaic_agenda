@@ -194,6 +194,27 @@ fn schema(check: bool) -> Result<()> {
     Ok(())
 }
 
+/// Optional artwork of a package, by convention in its `branding/` folder,
+/// served to the UI as `/package/<file>` (missing files are simply absent).
+const UI_ASSETS: &[&str] = &["logo.png", "mark.png", "splash.mp4", "splash.webp"];
+
+/// Copies the package artwork into the UI (`apps/app/ui/static/package`,
+/// generated, not versioned).
+fn ui_assets(name: &str) -> Result<()> {
+    let from = package_dir(name)?.join("branding");
+    let to = root().join(UI_DIR).join("static/package");
+    if to.exists() {
+        std::fs::remove_dir_all(&to)?;
+    }
+    std::fs::create_dir_all(&to)?;
+    for f in UI_ASSETS {
+        if from.join(f).is_file() {
+            std::fs::copy(from.join(f), to.join(f))?;
+        }
+    }
+    Ok(())
+}
+
 fn bundle(name: &str) -> Result<PathBuf> {
     let pkg = validate(name)?;
     let bundle = core_config::compile(pkg).context("compiling the package")?;
@@ -203,6 +224,7 @@ fn bundle(name: &str) -> Result<PathBuf> {
     std::fs::write(out.join("bundle.hash"), bundle.hash_hex())?;
     // Round-trip check: what we ship must decode.
     core_config::decode(&bundle.bytes).context("decoding the bundle just written")?;
+    ui_assets(name)?;
     println!(
         "wrote {} ({} bytes, blake3 {})",
         out.join("bundle.bin").display(),

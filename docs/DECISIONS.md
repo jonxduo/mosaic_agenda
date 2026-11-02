@@ -488,3 +488,24 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
 - Strumenti in più per iOS: CocoaPods (`brew install cocoapods`; senza, la CLI prova a
   installarlo con `sudo gem`).
 - Non provati sul simulatore: Face ID, lettura del QR (nessuna fotocamera), push.
+
+## 2026-11-02 — Aspetto: colori del logo, splash, testo formattato
+
+- Colore principale dal logo: `#6A4CE6` (viola-blu al centro del gradiente; contrasto 5,5:1 con
+  il bianco), `#A99BFF` nel tema scuro (7,7:1). Il gradiente del logo (`--brand-gradient`) solo
+  come accento (nome dell'app nella barra laterale). Il colore del pacchetto
+  (`branding.primary_color`) ora vale solo per il tema chiaro: prima sovrascriveva anche il
+  tema scuro.
+- Grafica facoltativa del pacchetto, per convenzione in `branding/`: `logo.png` (barra
+  laterale), `mark.png` (logo monocromatico, sfondo chiarissimo delle schermate vuote),
+  `splash.mp4` + `splash.webp` (avvio). `cargo xtask bundle` li copia in
+  `apps/app/ui/static/package/` (generata, non versionata); l'interfaccia li usa se ci sono.
+- Splash: il video fornito (10 s, 1280×720, 3,3 MB, con audio) diventa un MP4 H.264 quadrato
+  480×480 senza audio da 164 KB, più l'ultimo fotogramma in WebP (7 KB). Niente GIF: con 256
+  colori i gradienti del logo si rovinano e pesa molto di più. Al primo avvio l'animazione
+  si vede intera prima dell'informativa (un tocco la salta); poi solo se l'avvio dura più di
+  250 ms. Con "riduci movimento" solo l'immagine fissa; nei test automatici
+  (`navigator.webdriver`) niente introduzione.
+- Informativa e altri testi del pacchetto in Markdown: convertitore minimo nostro
+  (`markdown.ts`: titoli, paragrafi, citazioni, elenchi, grassetto, corsivo, link web) che
+  prima fa l'escape di tutto, così nessun HTML del testo arriva alla pagina.

@@ -6,6 +6,8 @@
   import { route, go } from './router.svelte';
   import { toasts, toast, fail } from './toast.svelte';
   import { isMobile, biometricCheck, applyInsets } from './mobile';
+  import Splash from './components/Splash.svelte';
+  import { markdown } from './markdown';
   import Onboarding from './views/Onboarding.svelte';
   import Home from './views/Home.svelte';
   import Form from './views/Form.svelte';
@@ -26,6 +28,29 @@
   import Assignments from './views/Assignments.svelte';
 
   let status = $state<AppStatus | null>(null);
+  // Start screen: the whole animation at the very first start (before the
+  // privacy notice); later only when starting takes a while (phones open the
+  // core for a few seconds; desktop is ready at once and shows nothing).
+  let splash = $state<'wait' | 'on' | 'intro' | 'leaving' | 'off'>('wait');
+  setTimeout(() => {
+    if (!status) splash = 'on';
+  }, 250);
+  function endSplash() {
+    if (splash === 'off' || splash === 'leaving') return;
+    splash = 'leaving';
+    setTimeout(() => (splash = 'off'), 400);
+  }
+  $effect(() => {
+    if (!status) return;
+    // Automated tests (navigator.webdriver) skip the intro.
+    if (status.privacy_notice && !navigator.webdriver && (splash === 'wait' || splash === 'on')) {
+      splash = 'intro';
+    } else if (splash === 'wait') {
+      splash = 'off';
+    } else if (splash === 'on') {
+      endSplash();
+    }
+  });
   let menu = $state<MenuItem[]>([]);
   let pin = $state('');
   let showMore = $state(false);
@@ -47,7 +72,7 @@
     }
     try {
       if (status.state === 'ready') menu = await run(api.menu());
-      if (status.branding.primary_color) document.documentElement.style.setProperty('--primary', status.branding.primary_color);
+      if (status.branding.primary_color) document.documentElement.style.setProperty('--package-primary', status.branding.primary_color);
       document.title = status.branding.app_name;
     } catch (e) {
       fail(e);
@@ -115,12 +140,13 @@
   const params = $derived(route.params);
 </script>
 
+{#if splash === 'on' || splash === 'intro' || splash === 'leaving'}<Splash leaving={splash === 'leaving'} intro={splash === 'intro'} onend={endSplash} />{/if}
 {#if !status}
-  <main class="center"><p class="muted">…</p></main>
+  <main class="center"></main>
 {:else if status.privacy_notice}
   <main class="center narrow stack">
     <h1>{t('privacy')}</h1>
-    <div class="card notice">{status.privacy_notice}</div>
+    <div class="card notice prose">{@html markdown(status.privacy_notice)}</div>
     <button class="btn primary" onclick={acceptPrivacy}>{t('privacy_accept')}</button>
   </main>
 {:else if status.state === 'empty' || status.state === 'joining'}
@@ -141,7 +167,7 @@
 {:else}
   <div class="shell">
     <nav class="side" aria-label={t('menu')}>
-      <div class="brand">{status.branding.app_name}</div>
+      <div class="brand"><img src="/package/logo.png" alt="" onerror={(e) => e.currentTarget.remove()} /><span>{status.branding.app_name}</span></div>
       {#each menu as m (m.label)}
         <a href={`#/${m.view}`} class="item" aria-current={isActive(m) ? 'page' : undefined} onclick={(e) => { e.preventDefault(); navigate(m); }}>{m.label}</a>
       {/each}
@@ -197,10 +223,12 @@
 <style>
   .center { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 32px 20px; margin: 0 auto; }
   .narrow { max-width: 460px; }
-  .notice { white-space: pre-wrap; max-height: 55vh; overflow: auto; font-size: 15px; }
+  .notice { max-height: 55vh; overflow: auto; font-size: 15px; }
   .shell { display: flex; min-height: 100vh; }
   .side { flex: 0 0 240px; padding: 28px 16px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
-  .brand { font-weight: 700; font-size: 17px; padding: 0 12px 20px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; padding: 0 12px 20px; }
+  .brand img { width: 30px; height: 30px; }
+  .brand span { background: var(--brand-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .item { display: block; padding: 12px; border-radius: 10px; color: var(--text); text-decoration: none; font-size: 15px; background: none; border: none; text-align: left; font: inherit; cursor: pointer; width: 100%; }
   .item[aria-current='page'] { background: var(--primary-soft); color: var(--primary-strong); font-weight: 600; }
   .sync { padding: 12px; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; text-decoration: none; }

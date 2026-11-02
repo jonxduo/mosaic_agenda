@@ -42,7 +42,12 @@
 
     <section class="stack" aria-labelledby="todo">
       <h2 id="todo">{t('todo')} · {count}</h2>
-      {#if count === 0}<p class="muted">{t('nothing')}</p>{/if}
+      {#if count === 0}
+        <div class="empty">
+          <img src="/package/mark.png" alt="" aria-hidden="true" onerror={(e) => e.currentTarget.remove()} />
+          <p class="muted">{t('nothing')}</p>
+        </div>
+      {/if}
       {#each todo as s, i (i)}
         {#if s.kind === 'documents_due'}
           {#each s.items as d (d.form + d.period)}
@@ -91,6 +96,10 @@
 {/if}
 
 <style>
+  /* Empty day: the logo, very light, behind the message. */
+  .empty { position: relative; display: grid; place-items: center; min-height: 260px; }
+  .empty img { position: absolute; width: min(70%, 280px); opacity: 0.07; pointer-events: none; }
+  .empty p { position: relative; }
   .page { gap: 36px; }
   .head { gap: 6px; }
   .tight { gap: 4px; }

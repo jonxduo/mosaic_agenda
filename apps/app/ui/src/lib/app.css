@@ -1,7 +1,9 @@
 :root {
-  --primary: #2952cc;
-  --primary-strong: #1e3e9e;
-  --primary-soft: #eaf0ff;
+  /* Colours of the logo: the package may set --package-primary (light theme). */
+  --primary: var(--package-primary, #6a4ce6);
+  --primary-strong: #5236c9;
+  --primary-soft: #f0ecff;
+  --brand-gradient: linear-gradient(135deg, #12c8f0 0%, #3d8bf2 28%, #7b61f0 50%, #d63fe0 72%, #ff6b8a 86%, #ff9f40 100%);
   --text: #16181d;
   --muted: #5b6270;
   --border: #e3e6eb;
@@ -16,9 +18,9 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --primary: #7f9cf5;
-    --primary-strong: #a9bcff;
-    --primary-soft: #1d2a52;
+    --primary: #a99bff;
+    --primary-strong: #c7bdff;
+    --primary-soft: #2a2350;
     --text: #eceef2;
     --muted: #a4abb8;
     --border: #2c313a;
@@ -73,3 +75,12 @@ th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--bor
 th { color: var(--muted); font-weight: 600; font-size: 13px; }
 td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+/* Formatted text from the package (privacy notice). */
+.prose h2, .prose h3, .prose h4 { color: var(--text); margin: 18px 0 6px; font-size: 16px; }
+.prose h2:first-child, .prose p:first-child { margin-top: 0; }
+.prose p, .prose ul, .prose ol { margin: 0 0 10px; }
+.prose ul, .prose ol { padding-left: 22px; }
+.prose li { margin: 3px 0; }
+.prose blockquote { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--primary); background: var(--primary-soft); border-radius: 0 8px 8px 0; color: var(--muted); }
+.prose blockquote p { margin: 0; }
