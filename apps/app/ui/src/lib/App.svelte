@@ -59,6 +59,7 @@
   let menu = $state<MenuItem[]>([]);
   let pin = $state('');
   let showMore = $state(false);
+  let showApps = $state(false);
   let tick = $state(0);
   let seen = -1;
   const EDITING = ['form', 'config', 'program_editor', 'people', 'roles', 'settings', 'resource_detail', 'units'];
@@ -187,24 +188,40 @@
   </main>
 {:else}
   <div class="shell">
-    <nav class="side" aria-label={t('menu')}>
-      <div class="brand"><img src="/package/logo.png" alt="" onerror={(e) => e.currentTarget.remove()} /><span>{status.branding.app_name}</span></div>
-      {#each groups as g (g.section)}
-        {#if g.section === 'system'}<div class="grow"></div>{/if}
-        <div class="group" role="group" aria-label={g.section === 'me' ? undefined : t(`nav_${g.section}` as never)}>
-          {#if g.section === 'work' || g.section === 'admin'}<p class="group-title">{t(`nav_${g.section}` as never)}</p>{/if}
-          {#each g.items as m (m.label)}
-            <a href={`#/${m.view}`} class="item" aria-current={isActive(m) ? 'page' : undefined} onclick={(e) => { e.preventDefault(); navigate(m); }}>
-              <Icon name={m.view} /><span>{m.label}</span>
-            </a>
-          {/each}
+    <header class="toolbar">
+      <nav class="tools" aria-label={t('menu')}>
+        <div class="appmenu">
+          <button type="button" class="tool app" aria-haspopup="true" aria-expanded={showApps} aria-label={`${status.branding.app_name} · ${t('menu')}`} title={status.branding.app_name} onclick={() => (showApps = !showApps)}>
+            <img src="/package/logo.png" alt="" onerror={(e) => e.currentTarget.replaceWith(Object.assign(document.createElement('span'), { textContent: status?.branding.app_name.slice(0, 1) ?? '' }))} />
+          </button>
+          {#if showApps}
+            <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+            <div class="backdrop" onclick={() => (showApps = false)}></div>
+            <div class="dropdown" role="menu" tabindex="-1" onkeydown={(e) => e.key === 'Escape' && (showApps = false)}>
+              <p class="app-name">{status.branding.app_name}</p>
+              {#each groups.filter((g) => g.section !== 'me') as g (g.section)}
+                <p class="group-title">{t(`nav_${g.section}` as never)}</p>
+                {#each g.items as m (m.label)}
+                  <a href={`#/${m.view}`} role="menuitem" class="item" aria-current={isActive(m) ? 'page' : undefined} onclick={(e) => { e.preventDefault(); showApps = false; navigate(m); }}>
+                    <Icon name={m.view} /><span>{m.label}</span>
+                  </a>
+                {/each}
+              {/each}
+            </div>
+          {/if}
         </div>
-      {/each}
-      <a class="sync" href="#/sync_status" onclick={(e) => { e.preventDefault(); go('sync_status'); }}>
+        <span class="sep" aria-hidden="true"></span>
+        {#each groups.find((g) => g.section === 'me')?.items ?? [] as m (m.label)}
+          <a href={`#/${m.view}`} class="tool" aria-current={isActive(m) ? 'page' : undefined} aria-label={m.label} title={m.label} onclick={(e) => { e.preventDefault(); showApps = false; navigate(m); }}>
+            <Icon name={m.view} size={22} />
+          </a>
+        {/each}
+      </nav>
+      <a class="sync" href="#/sync_status" title={status.unsynced ? status.unsynced_label : t('synced')} onclick={(e) => { e.preventDefault(); go('sync_status'); }}>
         <span class="dot" style={`background: ${status.unsynced ? 'var(--warn)' : 'var(--ok)'}`}></span>
-        {status.unsynced ? status.unsynced_label : t('synced')}
+        <span class="sync-label">{status.unsynced ? status.unsynced_label : t('synced')}</span>
       </a>
-    </nav>
+    </header>
     <main class="content">
       {#key `${route.view}?${JSON.stringify(route.params)}:${tick}`}
         {#if route.view === 'home'}<Home me={status.me} onchange={refresh} />
@@ -254,28 +271,37 @@
   .center { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 32px 20px; margin: 0 auto; }
   .narrow { max-width: 460px; }
   .notice { max-height: 55vh; overflow: auto; font-size: 15px; }
-  .shell { display: flex; min-height: 100vh; }
-  .side { flex: 0 0 240px; padding: 28px 16px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
-  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; padding: 0 12px 20px; }
-  .brand img { width: 30px; height: 30px; }
-  .brand span { background: var(--brand-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .group { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
-  .group-title { margin: 6px 12px 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
-  .item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; color: var(--text); text-decoration: none; font-size: 15px; background: none; border: none; text-align: left; font: inherit; cursor: pointer; width: 100%; }
+  .shell { min-height: 100vh; }
+  .toolbar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 56px; padding: 0 16px; background: var(--bg); border-bottom: 1px solid var(--border); }
+  .tools { display: flex; align-items: center; gap: 4px; }
+  .tool { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 10px; color: var(--muted); background: none; border: none; cursor: pointer; text-decoration: none; }
+  .tool:hover { background: var(--primary-soft); color: var(--text); }
+  .tool[aria-current='page'] { background: var(--primary-soft); color: var(--primary-strong); }
+  .tool.app img { width: 28px; height: 28px; }
+  .tool.app :global(span) { font-weight: 700; color: var(--primary); }
+  .tool.app[aria-expanded='true'] { background: var(--primary-soft); }
+  .sep { width: 1px; height: 24px; background: var(--border); margin: 0 6px; }
+  .appmenu { position: relative; }
+  .backdrop { position: fixed; inset: 0; z-index: 40; }
+  .dropdown { position: absolute; top: 48px; left: 0; z-index: 41; width: 260px; max-height: calc(100vh - 72px); overflow-y: auto; padding: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 12px 32px rgb(0 0 0 / 0.14); display: flex; flex-direction: column; gap: 2px; }
+  .app-name { margin: 6px 12px 4px; font-weight: 700; background: var(--brand-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; width: fit-content; }
+  .group-title { margin: 10px 12px 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  .item { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: var(--text); text-decoration: none; font-size: 15px; background: none; border: none; text-align: left; font: inherit; cursor: pointer; width: 100%; }
   .item :global(svg) { flex: none; color: var(--muted); }
   .item[aria-current='page'] { background: var(--primary-soft); color: var(--primary-strong); font-weight: 600; }
   .item[aria-current='page'] :global(svg) { color: var(--primary-strong); }
   .item:hover:not([aria-current='page']) { background: var(--primary-soft); }
-  .sync { padding: 12px; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; text-decoration: none; }
-  .content { flex: 1 1 auto; min-width: 0; padding: 48px 48px 96px; }
-  .content :global(> *) { max-width: 780px; }
+  .sync { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; text-decoration: none; padding: 8px 10px; border-radius: 8px; }
+  .sync:hover { background: var(--primary-soft); }
+  .content { min-width: 0; padding: 40px 32px 96px; }
+  .content :global(> *) { max-width: 820px; margin-left: auto; margin-right: auto; }
   .bottom { display: none; }
   .sheet { display: none; }
   .toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }
   .toast { background: var(--text); color: var(--bg); padding: 12px 16px; border-radius: 10px; font-size: 15px; max-width: 360px; box-shadow: 0 4px 16px rgb(0 0 0 / 0.15); }
   .toast.error { background: var(--danger); color: var(--bg); }
   @media (max-width: 760px) {
-    .side { display: none; }
+    .toolbar { display: none; }
     .content { padding: 32px 20px 110px; }
     .bottom { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg); border-top: 1px solid var(--border); padding: 6px 4px calc(10px + var(--inset-bottom, env(safe-area-inset-bottom, 0px))); }
     .bottom { grid-template-columns: repeat(5, minmax(0, 1fr)); }

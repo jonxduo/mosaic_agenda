@@ -203,6 +203,11 @@ const UI_ASSETS: &[&str] = &["logo.png", "mark.png", "splash.mp4", "splash.webp"
 fn ui_assets(name: &str) -> Result<()> {
     let from = package_dir(name)?.join("branding");
     let to = root().join(UI_DIR).join("static/package");
+    // A package without interface graphics (test fixtures) leaves the
+    // current ones.
+    if !UI_ASSETS.iter().any(|f| from.join(f).is_file()) {
+        return Ok(());
+    }
     if to.exists() {
         std::fs::remove_dir_all(&to)?;
     }

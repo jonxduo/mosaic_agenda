@@ -17,7 +17,7 @@ test('three devices: document → batch → aggregate', async ({ browser, reques
   await pa.getByLabel("Nome dell'organizzazione").fill('Club');
   await pa.getByLabel('Il tuo nome').fill('Alice Admin');
   await pa.getByRole('button', { name: 'Crea', exact: true }).click();
-  await expect(pa.getByRole('navigation')).toContainText('Club');
+  await expect(pa.getByRole('button', { name: /Club · Menu/ })).toBeVisible();
 
   // Organization setup (admin actions, through the API to keep the test short).
   const me = (await call<Status>(request, a, 'status')).me!.person_id;
@@ -44,7 +44,7 @@ test('three devices: document → batch → aggregate', async ({ browser, reques
   await open(pa, a, '#/sync_status');
   await expect(pa.getByText(code)).toBeVisible({ timeout: 30_000 });
   await pa.getByRole('button', { name: 'Il codice coincide' }).click();
-  await expect(pb.getByRole('navigation')).toContainText('Club', { timeout: 60_000 });
+  await expect(pb.getByRole('button', { name: /Club · Menu/ })).toBeVisible({ timeout: 60_000 });
 
   // Device C (Carol) joins too, all through the API.
   const inv2 = await call<Invitation>(request, a, 'invite_device', { person: carol });
