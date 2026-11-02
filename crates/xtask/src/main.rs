@@ -467,21 +467,49 @@ fn tauri(name: &str, args: &[&str], server: &ServerArgs) -> Result<()> {
     sh(&mut pnpm(&["install", "--frozen-lockfile"]))?;
     let overlay = branding_overlay(name)?;
     let tauri_dir = root().join(APP_DIR).join("src-tauri");
-    let mobile = mobile_env();
-    if let Some(platform) = args.first().filter(|a| ["android", "ios"].contains(a)) {
+    let platform = args.first().copied().filter(|a| ["android", "ios"].contains(a));
+    let mobile = mobile_env(platform);
+    let mut build_env = server.env();
+    build_env.push(("APP_PACKAGE_BUNDLE", bundle.to_string_lossy().into_owned()));
+    if let Some(platform) = platform {
         ensure_mobile_project(platform, name, &tauri_dir, &overlay, &mobile)?;
+    }
+    if platform == Some("ios") {
+        xcode_shim(&tauri_dir, &build_env)?;
     }
     sh(tauri_cli(&tauri_dir)
         .args(args)
         .arg("--config")
         .arg(&overlay)
-        .env("APP_PACKAGE_BUNDLE", &bundle)
-        .envs(server.env())
+        .envs(build_env)
         .envs(mobile))
 }
 
-/// Android SDK and NDK: from the environment, else the Homebrew location.
-fn mobile_env() -> Vec<(&'static str, String)> {
+/// Xcode's "Build Rust Code" phase runs `node tauri …` from gen/apple, and
+/// Xcode does not pass our environment through: this script sets it (the
+/// package bundle, the server URLs) and then runs the real CLI launcher.
+fn xcode_shim(tauri_dir: &Path, env: &[(&'static str, String)]) -> Result<()> {
+    let mut js = String::from("// Written by `cargo xtask` on every iOS build.\n");
+    for (k, v) in env {
+        js.push_str(&format!("process.env.{k} = {};\n", serde_json::to_string(v)?));
+    }
+    js.push_str("require('../../tauri');\n");
+    std::fs::write(tauri_dir.join("gen/apple/tauri"), js)?;
+    Ok(())
+}
+
+/// Extra environment for the Tauri CLI. Android: SDK and NDK, from the
+/// environment, else the Homebrew location (only for Android: the NDK tools
+/// on PATH would shadow Apple's clang). iOS: the UTF-8 locale CocoaPods wants.
+fn mobile_env(platform: Option<&str>) -> Vec<(&'static str, String)> {
+    match platform {
+        Some("android") => android_env(),
+        Some("ios") => vec![("LANG", "en_US.UTF-8".to_owned())],
+        _ => Vec::new(),
+    }
+}
+
+fn android_env() -> Vec<(&'static str, String)> {
     let sdk = std::env::var("ANDROID_HOME").ok().or_else(|| {
         let p = "/opt/homebrew/share/android-commandlinetools";
         Path::new(p).exists().then(|| p.to_owned())
@@ -534,7 +562,7 @@ fn ndk_shims(ndk: &Path) -> Option<String> {
 
 /// The native project (gen/android, gen/apple) is generated per package
 /// (its identifier is the app id): regenerated when missing or when the
-/// package changes.
+/// package changes (see `ensure_mobile_project`).
 /// `node tauri` from src-tauri (see the comment in that file).
 fn tauri_cli(tauri_dir: &Path) -> std::process::Command {
     let mut c = std::process::Command::new("node");
@@ -549,7 +577,13 @@ fn ensure_mobile_project(
     overlay: &Path,
     env: &[(&'static str, String)],
 ) -> Result<()> {
+    // Regenerated when the package or the base Tauri config changes (some
+    // settings, like `bundle.iOS.frameworks`, are applied by `init` only).
     let identifier = validate(name)?.manifest.branding.identifier;
+    let stamp_text = format!(
+        "{identifier}\n{}",
+        std::fs::read_to_string(tauri_dir.join("tauri.conf.json"))?
+    );
     let dir = root()
         .join(APP_DIR)
         .join("src-tauri/gen")
@@ -559,17 +593,16 @@ fn ensure_mobile_project(
             "apple"
         });
     let stamp = dir.join(".package-identifier");
-    if std::fs::read_to_string(&stamp).ok().as_deref() == Some(identifier.as_str()) {
-        return Ok(());
+    if std::fs::read_to_string(&stamp).ok().as_deref() != Some(stamp_text.as_str()) {
+        if dir.exists() {
+            std::fs::remove_dir_all(&dir)?;
+        }
+        sh(tauri_cli(tauri_dir)
+            .args([platform, "init", "--ci", "--config"])
+            .arg(overlay)
+            .envs(env.iter().cloned()))?;
+        std::fs::write(&stamp, &stamp_text)?;
     }
-    if dir.exists() {
-        std::fs::remove_dir_all(&dir)?;
-    }
-    sh(tauri_cli(tauri_dir)
-        .args([platform, "init", "--ci", "--config"])
-        .arg(overlay)
-        .envs(env.iter().cloned()))?;
-    std::fs::write(&stamp, &identifier)?;
     Ok(())
 }
 

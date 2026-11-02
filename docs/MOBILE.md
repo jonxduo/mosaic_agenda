@@ -12,7 +12,7 @@ Le parti native nostre stanno nei plugin in `apps/app/src-tauri/plugins/`.
 | Rust per mobile | `rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios` |
 | Android SDK e NDK | `brew install --cask android-commandlinetools`, poi `sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "ndk;29.0.14206865"` (Java 17+) |
 | Emulatore (facoltativo) | `sdkmanager "emulator" "system-images;android-36;google_apis;arm64-v8a"` e `avdmanager create avd -n orgapp-test -k "system-images;android-36;google_apis;arm64-v8a" -d pixel_7` |
-| iOS | Xcode completo (App Store), licenza accettata (`sudo xcodebuild -license accept`), `xcode-select -s /Applications/Xcode.app` |
+| iOS | Xcode completo (App Store), licenza accettata (`sudo xcodebuild -license accept`), `xcode-select -s /Applications/Xcode.app`, runtime del simulatore (`xcodebuild -downloadPlatform iOS`), `brew install xcodegen cocoapods` |
 
 `cargo xtask` trova da solo l'SDK Android in `/opt/homebrew/share/android-commandlinetools`
 (oppure `ANDROID_HOME` / `NDK_HOME`).
@@ -25,9 +25,16 @@ cargo xtask build --package congregazione --target android [--server <dominio>]
 # installazione sul telefono collegato via USB (debug USB attivo) o sull'emulatore
 adb install -r apps/app/src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk
 
-# iOS: simulatore (debug) — serve Xcode
-cargo xtask build --package congregazione --target ios
+# iOS: simulatore Apple Silicon (debug) — serve Xcode
+cargo xtask build --package congregazione --target ios [--server <dominio>]
+# installazione e avvio sul simulatore acceso
+xcrun simctl install booted apps/app/src-tauri/gen/apple/build/arm64-sim/Congregazione.app
+xcrun simctl launch booted it.briccolab.congregazione
 ```
+
+Le voci aggiunte al plist iOS (descrizioni d'uso di fotocamera e Face ID) stanno in
+`apps/app/src-tauri/Info.ios.plist`; i framework di sistema in `tauri.conf.json`
+(`bundle.iOS.frameworks`). Cambiando `tauri.conf.json` il progetto nativo si rigenera.
 
 Per lo store: `--release` produce l'AAB (Android) o l'archivio per App Store Connect (iOS);
 servono le chiavi di firma (sotto).
