@@ -1,0 +1,22 @@
+[package]
+name = "tauri-plugin-secret-store"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Device secrets on mobile: Android Keystore, iOS Keychain (PROGETTO.md §8.1)."
+links = "tauri-plugin-secret-store"
+
+[dependencies]
+tauri.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+data-encoding.workspace = true
+
+[build-dependencies]
+tauri-plugin = { version = "2.7", features = ["build"] }
+
+[lints]
+workspace = true

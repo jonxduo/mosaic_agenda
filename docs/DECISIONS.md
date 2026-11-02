@@ -433,3 +433,30 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   relay e servizio push con `docker compose` e fa girare il flusso a tre dispositivi sul relay
   proprio. In locale lo stesso flusso è passato con il binario ufficiale `iroh-relay --dev`
   (metriche del relay: client collegati).
+
+## 2026-11-02 — Fase F7 (mobile), prima parte
+
+- CI su GitHub solo a mano (`workflow_dispatch`) o sui tag `v*`: i controlli quotidiani girano in
+  locale; la CI completa si usa per le release.
+- Progetti nativi (`gen/android`, `gen/apple`) generati da `cargo xtask build --target
+  android|ios` per il pacchetto scelto (l'identificativo dell'app è nel progetto nativo) e non
+  versionati; un file `.package-identifier` dice per quale pacchetto sono stati generati. Le
+  parti native nostre stanno in plugin Tauri (`apps/app/src-tauri/plugins/`).
+- `SecretStore` mobile: plugin `secret-store`. Android: valori cifrati AES-GCM con una chiave
+  del Keystore non esportabile, salvati nelle preferenze private dell'app. iOS: Keychain,
+  `AfterFirstUnlockThisDeviceOnly` (leggibile in background dopo il primo sblocco, mai in
+  backup o su altri dispositivi). Lo stesso plugin nasconde il contenuto nel selettore delle
+  app (Android 13+: `setRecentsScreenshotEnabled(false)`, prima `FLAG_SECURE`; iOS: sfocatura).
+- Biometria: plugin ufficiale `biometric` (solo verifica dell'identità). Attivandola, una copia
+  della chiave del database va nel `SecretStore` e viene usata dopo una verifica riuscita. Non è
+  una chiave legata alla biometria dal sistema (il plugin non lo permette): protegge dall'uso
+  dell'app sbloccata da parte di altri, non da chi esegue codice come l'app. Disattivata se si
+  toglie il PIN.
+- Cancellazione dopo N PIN errati (§8.6): il limite viene dalla genesi (`SecurityParams`) e si
+  copia nelle impostazioni locali a ogni sblocco, perché da bloccata la genesi non è leggibile.
+  Alla soglia si cancellano database, posta in arrivo, allegati, impostazioni e segreti
+  (anche le chiavi del dispositivo); l'app mostra "Dati cancellati" e va riaperta; i dati
+  tornano riabbinando il dispositivo. Il limite per una nuova organizzazione si passa con
+  `CoreOptions::security`.
+- QR: plugin ufficiale `barcode-scanner` per leggere l'invito al primo avvio.
+- Versioni dei plugin JS allineate a quelle Rust (il CLI di Tauri rifiuta major/minor diversi).

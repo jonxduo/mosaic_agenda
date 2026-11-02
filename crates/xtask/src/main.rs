@@ -466,14 +466,111 @@ fn tauri(name: &str, args: &[&str], server: &ServerArgs) -> Result<()> {
     // The Tauri CLI (used for the icons too) comes from the UI dependencies.
     sh(&mut pnpm(&["install", "--frozen-lockfile"]))?;
     let overlay = branding_overlay(name)?;
-    let tauri_bin = root().join(UI_DIR).join("node_modules/.bin/tauri");
-    sh(std::process::Command::new(tauri_bin)
-        .current_dir(root().join(APP_DIR))
+    let tauri_dir = root().join(APP_DIR).join("src-tauri");
+    let mobile = mobile_env();
+    if let Some(platform) = args.first().filter(|a| ["android", "ios"].contains(a)) {
+        ensure_mobile_project(platform, name, &tauri_dir, &overlay, &mobile)?;
+    }
+    sh(tauri_cli(&tauri_dir)
         .args(args)
         .arg("--config")
         .arg(&overlay)
         .env("APP_PACKAGE_BUNDLE", &bundle)
-        .envs(server.env()))
+        .envs(server.env())
+        .envs(mobile))
+}
+
+/// Android SDK and NDK: from the environment, else the Homebrew location.
+fn mobile_env() -> Vec<(&'static str, String)> {
+    let sdk = std::env::var("ANDROID_HOME").ok().or_else(|| {
+        let p = "/opt/homebrew/share/android-commandlinetools";
+        Path::new(p).exists().then(|| p.to_owned())
+    });
+    let Some(sdk) = sdk else { return Vec::new() };
+    let ndk = std::env::var("NDK_HOME").ok().or_else(|| {
+        let mut versions: Vec<PathBuf> = std::fs::read_dir(Path::new(&sdk).join("ndk"))
+            .ok()?
+            .filter_map(|e| e.ok().map(|e| e.path()))
+            .collect();
+        versions.sort();
+        versions.pop().map(|p| p.to_string_lossy().into_owned())
+    });
+    let mut env = vec![("ANDROID_HOME", sdk)];
+    if let Some(ndk) = ndk {
+        // OpenSSL (vendored, for SQLCipher) calls `<triple>-ranlib` and
+        // `<triple>-ar`; recent NDKs only ship the llvm tools.
+        if let Some(path) = ndk_shims(Path::new(&ndk)) {
+            env.push(("PATH", path));
+        }
+        env.push(("NDK_HOME", ndk));
+    }
+    env
+}
+
+fn ndk_shims(ndk: &Path) -> Option<String> {
+    let bin = std::fs::read_dir(ndk.join("toolchains/llvm/prebuilt"))
+        .ok()?
+        .filter_map(|e| e.ok().map(|e| e.path().join("bin")))
+        .find(|p| p.join("llvm-ranlib").exists())?;
+    let shims = root().join("target/tools/ndk-shims");
+    std::fs::create_dir_all(&shims).ok()?;
+    for triple in [
+        "aarch64-linux-android",
+        "armv7a-linux-androideabi",
+        "arm-linux-androideabi",
+        "i686-linux-android",
+        "x86_64-linux-android",
+    ] {
+        for tool in ["ranlib", "ar"] {
+            let link = shims.join(format!("{triple}-{tool}"));
+            let _ = std::fs::remove_file(&link);
+            #[cfg(unix)]
+            std::os::unix::fs::symlink(bin.join(format!("llvm-{tool}")), &link).ok()?;
+        }
+    }
+    let path = std::env::var("PATH").unwrap_or_default();
+    Some(format!("{}:{}:{path}", shims.display(), bin.display()))
+}
+
+/// The native project (gen/android, gen/apple) is generated per package
+/// (its identifier is the app id): regenerated when missing or when the
+/// package changes.
+/// `node tauri` from src-tauri (see the comment in that file).
+fn tauri_cli(tauri_dir: &Path) -> std::process::Command {
+    let mut c = std::process::Command::new("node");
+    c.current_dir(tauri_dir).arg("tauri");
+    c
+}
+
+fn ensure_mobile_project(
+    platform: &str,
+    name: &str,
+    tauri_dir: &Path,
+    overlay: &Path,
+    env: &[(&'static str, String)],
+) -> Result<()> {
+    let identifier = validate(name)?.manifest.branding.identifier;
+    let dir = root()
+        .join(APP_DIR)
+        .join("src-tauri/gen")
+        .join(if platform == "android" {
+            "android"
+        } else {
+            "apple"
+        });
+    let stamp = dir.join(".package-identifier");
+    if std::fs::read_to_string(&stamp).ok().as_deref() == Some(identifier.as_str()) {
+        return Ok(());
+    }
+    if dir.exists() {
+        std::fs::remove_dir_all(&dir)?;
+    }
+    sh(tauri_cli(tauri_dir)
+        .args([platform, "init", "--ci", "--config"])
+        .arg(overlay)
+        .envs(env.iter().cloned()))?;
+    std::fs::write(&stamp, &identifier)?;
+    Ok(())
 }
 
 fn dev(name: &str, server: &ServerArgs) -> Result<()> {
@@ -484,14 +581,28 @@ fn build(name: &str, target: &str, release: bool, server: &ServerArgs) -> Result
     match target {
         "desktop" if release => tauri(name, &["build"], server),
         "desktop" => tauri(name, &["build", "--debug"], server),
-        "android" => not_yet("build --target android", "F7"),
-        "ios" => not_yet("build --target ios", "F8"),
+        // Debug builds: arm64 phones and emulators. Store builds need signing
+        // keys (docs/MOBILE.md).
+        "android" if release => tauri(name, &["android", "build", "--aab"], server),
+        "android" => tauri(
+            name,
+            &[
+                "android", "build", "--debug", "--apk", "--target", "aarch64",
+            ],
+            server,
+        ),
+        "ios" if release => tauri(
+            name,
+            &["ios", "build", "--export-method", "app-store-connect"],
+            server,
+        ),
+        "ios" => tauri(
+            name,
+            &["ios", "build", "--debug", "--target", "aarch64-sim"],
+            server,
+        ),
         other => bail!("unknown target `{other}` (desktop, android, ios)"),
     }
-}
-
-fn not_yet(what: &str, phase: &str) -> Result<()> {
-    bail!("`{what}` is not available yet: it arrives in phase {phase} (PROGETTO.md §16)")
 }
 
 fn run() -> Result<()> {

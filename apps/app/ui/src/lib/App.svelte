@@ -1,10 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { AppStatus_Serialize as AppStatus, MenuItem } from './bindings';
-  import { api, run } from './api';
+  import { api, run, Failure } from './api';
   import { t } from './i18n';
   import { route, go } from './router.svelte';
   import { toasts, toast, fail } from './toast.svelte';
+  import { isMobile, biometricCheck, applyInsets } from './mobile';
   import Onboarding from './views/Onboarding.svelte';
   import Home from './views/Home.svelte';
   import Form from './views/Form.svelte';
@@ -30,9 +31,21 @@
   let showMore = $state(false);
   let tick = $state(0);
 
+  applyInsets();
+
   async function refresh() {
     try {
       status = await run(api.status());
+    } catch (e) {
+      // Mobile: the core opens in the background right after launch.
+      if (e instanceof Failure && e.kind === 'starting') {
+        setTimeout(refresh, 300);
+        return;
+      }
+      fail(e);
+      return;
+    }
+    try {
       if (status.state === 'ready') menu = await run(api.menu());
       if (status.branding.primary_color) document.documentElement.style.setProperty('--primary', status.branding.primary_color);
       document.title = status.branding.app_name;
@@ -49,6 +62,17 @@
       } else toast(t('wrong_pin'), true);
     } catch (e) {
       fail(e);
+      await refresh();
+    }
+  }
+
+  async function unlockBiometric() {
+    try {
+      await biometricCheck(t('biometric_reason'));
+      if (await run(api.unlockBiometric())) await refresh();
+    } catch (e) {
+      fail(e);
+      await refresh();
     }
   }
 
@@ -101,12 +125,18 @@
   </main>
 {:else if status.state === 'empty' || status.state === 'joining'}
   <Onboarding {status} onchange={refresh} />
+{:else if status.state === 'wiped'}
+  <main class="center narrow stack">
+    <h1>{t('wiped_title')}</h1>
+    <p>{t('wiped_text')}</p>
+  </main>
 {:else if status.state === 'locked'}
   <main class="center narrow stack">
     <h1>{t('locked')}</h1>
     <label for="pin">{t('pin')}</label>
     <input id="pin" type="password" inputmode="numeric" autocomplete="off" bind:value={pin} onkeydown={(e) => e.key === 'Enter' && unlock()} />
     <button class="btn primary" onclick={unlock}>{t('unlock')}</button>
+    {#if isMobile && status.biometric}<button class="btn" onclick={unlockBiometric}>{t('biometric_unlock')}</button>{/if}
   </main>
 {:else}
   <div class="shell">
@@ -139,7 +169,7 @@
         {:else if route.view === 'units'}<Units />
         {:else if route.view === 'admin_alerts'}<Alerts />
         {:else if route.view === 'sync_status'}<Sync me={status.me} />
-        {:else if route.view === 'settings'}<Settings hasPin={status.has_pin} onchange={refresh} />
+        {:else if route.view === 'settings'}<Settings hasPin={status.has_pin} biometric={status.biometric} onchange={refresh} />
         {:else}<Home me={status.me} onchange={refresh} />{/if}
       {/key}
     </main>
@@ -184,7 +214,7 @@
   @media (max-width: 760px) {
     .side { display: none; }
     .content { padding: 32px 20px 110px; }
-    .bottom { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg); border-top: 1px solid var(--border); padding: 6px 4px calc(10px + env(safe-area-inset-bottom)); }
+    .bottom { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg); border-top: 1px solid var(--border); padding: 6px 4px calc(10px + var(--inset-bottom, env(safe-area-inset-bottom, 0px))); }
     .bottom a, .bottom button { min-height: 52px; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--muted); text-decoration: none; font: inherit; font-size: 12px; background: none; border: none; }
     .bottom a[aria-current='page'] { color: var(--primary); font-weight: 600; }
     .sheet { display: flex; flex-direction: column; position: fixed; left: 0; right: 0; bottom: 70px; background: var(--bg); border-top: 1px solid var(--border); padding: 8px 12px; max-height: 60vh; overflow-y: auto; box-shadow: 0 -8px 24px rgb(0 0 0 / 0.1); }

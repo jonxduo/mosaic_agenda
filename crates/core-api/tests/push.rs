@@ -48,6 +48,7 @@ fn open(dir: &Path, name: &str, push_url: &str) -> Arc<Core> {
             dns_url: None,
             push_url: Some(push_url.to_owned()),
         }),
+        security: None,
     })
     .unwrap()
 }

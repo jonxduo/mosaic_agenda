@@ -27,7 +27,10 @@ const it = {
   pin_hint: "Con il PIN i dati su questo dispositivo sono cifrati e si aprono solo con il PIN. Mentre l'app è bloccata continua a ricevere gli aggiornamenti, che vedrai dopo lo sblocco. Se dimentichi il PIN, abbina di nuovo il dispositivo: i dati tornano dagli altri dispositivi.", mobile_photos: 'Scarica foto anche su rete mobile', muted: 'Notifiche silenziate',
   error: 'Errore', err_denied: 'Operazione non consentita in questo momento', err_not_found: 'Elemento non trovato',
   err_invalid: 'Dati non validi', err_locked: "L'app è bloccata", err_network: 'Problema di rete, riprova più tardi',
-  err_internal: 'Si è verificato un errore', menu: 'Menu', more: 'Altro', lock_now: 'Blocca ora', copy: 'Copia', copied: 'Copiato'
+  err_internal: 'Si è verificato un errore', err_wiped: 'Troppi PIN errati: i dati di questo dispositivo sono stati cancellati',
+  wiped_title: 'Dati cancellati', wiped_text: "Dopo troppi PIN errati i dati di questo dispositivo sono stati cancellati, come previsto dall'organizzazione. Chiudi e riapri l'app, poi abbina di nuovo il dispositivo: i dati torneranno dagli altri dispositivi.",
+  biometric_unlock: 'Sblocca con impronta o volto', biometric_reason: "Sblocca l'app", biometric_setting: 'Sblocco con impronta o volto',
+  scan_qr: 'Inquadra il codice QR', menu: 'Menu', more: 'Altro', lock_now: 'Blocca ora', copy: 'Copia', copied: 'Copiato'
 };
 
 export type Key = keyof typeof it;

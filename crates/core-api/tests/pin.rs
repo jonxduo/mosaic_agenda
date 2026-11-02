@@ -25,6 +25,7 @@ fn open(dir: &Path, secrets: Arc<MemorySecretStore>) -> Arc<Core> {
         clock: None,
         pin_params: Some(PinParams::insecure_for_tests()),
         server: None,
+        security: None,
     })
     .unwrap()
 }
@@ -98,6 +99,7 @@ fn open_net(dir: &Path, name: &str) -> Arc<Core> {
         clock: None,
         pin_params: Some(PinParams::insecure_for_tests()),
         server: None,
+        security: None,
     })
     .unwrap()
 }
@@ -154,4 +156,65 @@ async fn locked_device_keeps_receiving() {
         .map(|p| p.name)
         .collect();
     assert!(names.contains(&"Carol".to_owned()), "{names:?}");
+}
+
+/// With a limit in the genesis, too many wrong PINs erase the local copy;
+/// biometric unlock opens the same data without the PIN.
+#[tokio::test]
+async fn wipe_after_wrong_pins_and_biometric_unlock() {
+    let dir = tempfile::tempdir().unwrap();
+    let secrets = Arc::new(MemorySecretStore::default());
+    let open_with = |secrets: Arc<MemorySecretStore>| {
+        Core::open(CoreOptions {
+            data_dir: dir.path().to_path_buf(),
+            bundle: club_bundle(),
+            secrets,
+            network: None,
+            clock: None,
+            pin_params: Some(PinParams::insecure_for_tests()),
+            server: None,
+            security: Some(core_events::payloads::SecurityParams {
+                auto_lock_minutes: 5,
+                wipe_after_failed_pins: Some(3),
+            }),
+        })
+        .unwrap()
+    };
+    let core = open_with(secrets.clone());
+    core.create_org("Club".into(), "Alice".into())
+        .await
+        .unwrap();
+    core.set_biometric(true).unwrap_err(); // needs a PIN first
+    core.set_pin(Some("2468".into())).unwrap();
+    core.set_biometric(true).unwrap();
+    assert!(core.status().unwrap().biometric);
+
+    core.lock_now();
+    assert!(core.unlock_biometric().unwrap());
+    assert_eq!(core.status().unwrap().state, AppState::Ready);
+
+    // Two wrong PINs, then a right one: the counter starts again.
+    core.lock_now();
+    assert!(!core.unlock("0000").unwrap());
+    assert!(!core.unlock("1111").unwrap());
+    assert!(core.unlock("2468").unwrap());
+    core.lock_now();
+    assert!(!core.unlock("0000").unwrap());
+    assert!(!core.unlock("1111").unwrap());
+    // Third wrong one in a row: wiped.
+    assert_eq!(core.unlock("2222").unwrap_err().kind, "wiped");
+    assert_eq!(core.status().unwrap().state, AppState::Wiped);
+    assert_eq!(core.unlock("2468").unwrap_err().kind, "wiped");
+    assert!(secrets.get("store.db_key.pin").unwrap().is_none());
+    assert!(secrets.get("device.signing_key").unwrap().is_none());
+    assert_eq!(
+        std::fs::read_dir(dir.path()).unwrap().count(),
+        0,
+        "data folder emptied"
+    );
+
+    // After a restart the device starts from scratch.
+    drop(core);
+    let core = open_with(secrets);
+    assert_eq!(core.status().unwrap().state, AppState::Empty);
 }

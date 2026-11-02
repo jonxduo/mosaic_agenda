@@ -24,6 +24,8 @@ pub const COMMANDS: &[&str] = &[
     "confirm_pairing",
     "set_pin",
     "unlock",
+    "unlock_biometric",
+    "set_biometric",
     "lock",
     "menu",
     "home",
@@ -113,6 +115,8 @@ pub async fn dispatch(core: &Arc<Core>, cmd: &str, input: Value) -> ApiResult<Va
         }
         "set_pin" => call!({ pin: Option<String> } => core.set_pin_cmd(pin)?),
         "unlock" => call!({ pin: String } => core.unlock(&pin)?),
+        "unlock_biometric" => json(core.unlock_biometric()?),
+        "set_biometric" => call!({ on: bool } => core.set_biometric(on)?),
         "lock" => {
             core.lock_now();
             json(())

@@ -10,7 +10,7 @@ export function toast(text: string, error = false) {
     if (i >= 0) toasts.splice(i, 1);
   }, error ? 6000 : 3000);
 }
-const known = ['denied', 'not_found', 'invalid', 'locked', 'network', 'internal'];
+const known = ['denied', 'not_found', 'invalid', 'locked', 'network', 'internal', 'wiped'];
 
 /** Shows a localized error; the technical detail only goes to the console. */
 export function fail(e: unknown) {

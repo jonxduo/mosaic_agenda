@@ -29,6 +29,7 @@ cargo run --release -p xtask -- simulate --package <nome> --devices 120 --days 6
 cargo xtask bindings [--check]              # binding TypeScript dei comandi
 cargo xtask dev --package <nome>            # app desktop in sviluppo
 cargo xtask build --package <nome> --target desktop [--release]
+cargo xtask build --package <nome> --target android|ios [--release]   # vedi docs/MOBILE.md
 ```
 
 Interfaccia nel browser contro un core vero (senza Tauri):

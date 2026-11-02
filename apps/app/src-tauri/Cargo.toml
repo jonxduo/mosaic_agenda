@@ -5,7 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "Desktop (and later mobile) shell: Tauri around core-api."
+description = "Desktop and mobile shell: Tauri around core-api."
 
 [lib]
 name = "app_lib"
@@ -36,7 +36,27 @@ tauri-plugin-notification.workspace = true
 tauri-specta.workspace = true
 specta.workspace = true
 specta-typescript.workspace = true
+tauri-plugin-secret-store.workspace = true
+
+# Mobile: biometric unlock and QR scanning (PROGETTO.md §8.6, §9.5).
+[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+tauri-plugin-biometric.workspace = true
+tauri-plugin-barcode-scanner.workspace = true
+
+# Android background sync (WorkManager → JNI).
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.21"
+
+# Desktop keyring (macOS Keychain, Windows Credential Manager, Secret Service).
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 keyring.workspace = true
 
-[lints]
-workspace = true
+# Same as the workspace, except `unsafe_code` is `deny` instead of `forbid`:
+# the Android JNI entry point (src/background.rs) needs `#[unsafe(no_mangle)]`
+# and allows it there only.
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"

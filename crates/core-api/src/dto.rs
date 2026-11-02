@@ -16,6 +16,8 @@ pub enum AppState {
     /// Joined, waiting for the inviter to add this device.
     Joining,
     Ready,
+    /// Local data erased after too many wrong PINs: restart the app.
+    Wiped,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -43,6 +45,8 @@ pub struct AppStatus {
     pub unsynced: u32,
     pub unsynced_label: String,
     pub has_pin: bool,
+    /// Biometric unlock enabled on this device.
+    pub biometric: bool,
     /// Privacy notice (Markdown) to accept at first start.
     pub privacy_notice: Option<String>,
 }

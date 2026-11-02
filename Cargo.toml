@@ -13,6 +13,7 @@ members = [
     "crates/core-testkit",
     "crates/xtask",
     "apps/app/src-tauri",
+    "apps/app/src-tauri/plugins/secret-store",
 ]
 
 [workspace.package]
@@ -31,6 +32,7 @@ core-engine = { path = "crates/core-engine" }
 core-testkit = { path = "crates/core-testkit" }
 core-push = { path = "crates/core-push" }
 push-service = { path = "server/push-service" }
+tauri-plugin-secret-store = { path = "apps/app/src-tauri/plugins/secret-store" }
 core-sync = { path = "crates/core-sync" }
 core-api = { path = "crates/core-api" }
 
@@ -76,6 +78,8 @@ tauri-specta = { version = "=2.0.0-rc.26", features = ["derive", "typescript"] }
 tauri = { version = "2.12", features = ["tray-icon"] }
 tauri-build = { version = "2.7", features = [] }
 tauri-plugin-notification = "2.8"
+tauri-plugin-biometric = "2"
+tauri-plugin-barcode-scanner = "2"
 keyring = "4.2"
 axum = "0.8"
 qrcode = { version = "0.14", default-features = false, features = ["svg"] }

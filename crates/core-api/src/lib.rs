@@ -99,6 +99,9 @@ pub struct CoreOptions {
     /// Server written in the genesis of an organization created here
     /// (relays, discovery, push); `None` = development defaults.
     pub server: Option<core_events::payloads::NetworkParams>,
+    /// Security parameters written in the genesis of an organization created
+    /// here (`None` = defaults: 5-minute auto-lock, no wipe).
+    pub security: Option<core_events::payloads::SecurityParams>,
 }
 
 /// A decoded view of the local events, rebuilt when they change.
@@ -162,6 +165,16 @@ pub struct LocalSettings {
     /// Fingerprint of the membership last sent to the push service.
     #[serde(default)]
     pub push_published: Option<String>,
+    /// Wrong PINs since the last unlock.
+    #[serde(default)]
+    pub failed_pins: u32,
+    /// Copied from the genesis while unlocked (§8.6): the genesis cannot be
+    /// read while locked.
+    #[serde(default)]
+    pub wipe_after_failed_pins: Option<u8>,
+    /// Unlock with the platform biometrics (mobile).
+    #[serde(default)]
+    pub biometric: bool,
 }
 
 pub struct Core {
@@ -174,6 +187,8 @@ pub struct Core {
     node: tokio::sync::Mutex<Option<Arc<Node>>>,
     network: Option<Network>,
     cache: Mutex<Option<Arc<View>>>,
+    /// Local data erased after too many wrong PINs: restart needed.
+    wiped: AtomicBool,
     /// Bumped by every change: a view computed meanwhile is not cached.
     generation: AtomicU64,
     /// Incremental engine and the last store row it has seen.
@@ -184,6 +199,7 @@ pub struct Core {
     inbox_public: Mutex<Option<InboxPublicKey>>,
     pin_params: PinParams,
     pub(crate) server: Option<core_events::payloads::NetworkParams>,
+    pub(crate) security: Option<core_events::payloads::SecurityParams>,
     /// Push service client, by URL.
     push: Mutex<Option<(String, core_push::PushClient)>>,
     /// Last wake-up request per device (client-side coalescing).
@@ -205,6 +221,17 @@ pub(crate) fn lock<T>(m: &Mutex<T>) -> ApiResult<std::sync::MutexGuard<'_, T>> {
 const DB_KEY_PIN: &str = "store.db_key.pin";
 /// Random pepper of the PIN key derivation, kept in the system keychain.
 const PIN_PEPPER: &str = "app.pin.pepper";
+/// Database key released after a successful biometric check (mobile).
+const DB_KEY_BIOMETRIC: &str = "store.db_key.biometric";
+/// Device secrets removed by a wipe.
+const DEVICE_SECRETS: &[&str] = &["device.signing_key", "device.exchange_key"];
+
+pub(crate) fn wiped_error() -> ApiError {
+    ApiError::new(
+        "wiped",
+        "local data erased after too many wrong PINs: restart the app",
+    )
+}
 
 pub(crate) fn locked_error() -> ApiError {
     ApiError::new("locked", "the app is locked")
@@ -268,12 +295,14 @@ impl Core {
             inbox_public: Mutex::new(inbox_public),
             pin_params: opts.pin_params.unwrap_or_default(),
             server: opts.server,
+            security: opts.security,
             peers_cache: Mutex::new(Vec::new()),
             push: Mutex::new(None),
             woken: Mutex::new(BTreeMap::new()),
             pairings: Arc::new(Mutex::new(Pairings::default())),
             local: Mutex::new(local),
             locked: AtomicBool::new(with_pin),
+            wiped: AtomicBool::new(false),
             sync_scheduled: AtomicBool::new(false),
             clock: opts.clock,
         }))
@@ -368,6 +397,10 @@ impl Core {
                     let store = st.store.store().ok_or_else(locked_error)?;
                     Inbox::create(&self.inbox_dir(), store, public).map_err(ApiError::internal)?;
                 }
+                let wipe = self
+                    .genesis_security()
+                    .and_then(|s| s.wipe_after_failed_pins);
+                self.update_local(|l| l.wipe_after_failed_pins = wipe)?;
                 // Wrapped key first, then the plain one goes.
                 self.secrets
                     .put(DB_KEY_PIN, &wrap.to_bytes().map_err(ApiError::internal)?)
@@ -387,14 +420,22 @@ impl Core {
                 self.secrets
                     .delete(PIN_PEPPER)
                     .map_err(ApiError::internal)?;
+                self.secrets
+                    .delete(DB_KEY_BIOMETRIC)
+                    .map_err(ApiError::internal)?;
+                self.update_local(|l| l.biometric = false)?;
                 core_sync::local::discard(&self.inbox_dir()).map_err(ApiError::internal)
             }
         }
     }
 
     /// Opens the database with the PIN and moves in what arrived while locked.
-    /// `Ok(false)` for a wrong PIN.
+    /// `Ok(false)` for a wrong PIN; after too many (if the organization set
+    /// a limit) the local data is erased and the error kind is `wiped`.
     pub fn unlock(&self, pin: &str) -> ApiResult<bool> {
+        if self.is_wiped() {
+            return Err(wiped_error());
+        }
         if !self.is_locked() {
             return Ok(true);
         }
@@ -411,10 +452,73 @@ impl Core {
         let wrap = PinWrap::from_bytes(&wrapped).map_err(ApiError::internal)?;
         let secret = match wrap.open(pin, &pepper) {
             Ok(s) => s,
-            Err(CryptoError::Decrypt) => return Ok(false),
+            Err(CryptoError::Decrypt) => {
+                let mut failed = 0;
+                self.update_local(|l| {
+                    l.failed_pins += 1;
+                    failed = l.failed_pins;
+                })?;
+                let limit = self.local()?.wipe_after_failed_pins;
+                if limit.is_some_and(|n| failed >= u32::from(n)) {
+                    self.wipe_local_data()?;
+                    return Err(wiped_error());
+                }
+                return Ok(false);
+            }
             Err(e) => return Err(ApiError::internal(e)),
         };
-        let key = DbKey::from_bytes(*secret);
+        self.open_with_key(DbKey::from_bytes(*secret))?;
+        Ok(true)
+    }
+
+    /// Unlock after the platform's biometric check succeeded (mobile UI).
+    pub fn unlock_biometric(&self) -> ApiResult<bool> {
+        if self.is_wiped() {
+            return Err(wiped_error());
+        }
+        if !self.is_locked() {
+            return Ok(true);
+        }
+        let Some(bytes) = self
+            .secrets
+            .get(DB_KEY_BIOMETRIC)
+            .map_err(ApiError::internal)?
+        else {
+            return Ok(false);
+        };
+        let key: [u8; 32] = bytes
+            .as_slice()
+            .try_into()
+            .map_err(|_| ApiError::internal("biometric key length"))?;
+        self.open_with_key(DbKey::from_bytes(key))?;
+        Ok(true)
+    }
+
+    /// Turns biometric unlock on or off (needs the PIN set, app unlocked).
+    pub fn set_biometric(&self, on: bool) -> ApiResult<()> {
+        self.ensure_unlocked()?;
+        if on {
+            if !self.has_pin() {
+                return Err(ApiError::invalid("set a PIN first"));
+            }
+            let key = zeroize::Zeroizing::new(
+                *lock(&self.db_key)?
+                    .as_ref()
+                    .ok_or_else(locked_error)?
+                    .as_bytes(),
+            );
+            self.secrets
+                .put(DB_KEY_BIOMETRIC, key.as_slice())
+                .map_err(ApiError::internal)?;
+        } else {
+            self.secrets
+                .delete(DB_KEY_BIOMETRIC)
+                .map_err(ApiError::internal)?;
+        }
+        self.update_local(|l| l.biometric = on)
+    }
+
+    fn open_with_key(&self, key: DbKey) -> ApiResult<()> {
         let store =
             EventStore::open(&self.data_dir.join("events.db"), &key).map_err(ApiError::internal)?;
         let inbox_key = InboxKey::derive(key.as_bytes());
@@ -434,7 +538,55 @@ impl Core {
         *lock(&self.inbox_public)? = Some(inbox_key.public());
         self.invalidate();
         self.locked.store(false, Ordering::SeqCst);
-        Ok(true)
+        let wipe = self
+            .genesis_security()
+            .and_then(|s| s.wipe_after_failed_pins);
+        self.update_local(|l| {
+            l.failed_pins = 0;
+            l.wipe_after_failed_pins = wipe;
+        })
+    }
+
+    /// Security parameters of the organization (genesis).
+    pub fn genesis_security(&self) -> Option<core_events::payloads::SecurityParams> {
+        let st = self.state.lock().ok()?;
+        let store = st.store.store()?;
+        let org = store.org()?;
+        let genesis = store.get(&core_events::EventHash(org.0)).ok()??;
+        genesis
+            .public_content::<core_events::payloads::GenesisPayload>()
+            .ok()
+            .map(|g| g.security)
+    }
+
+    pub fn is_wiped(&self) -> bool {
+        self.wiped.load(Ordering::SeqCst)
+    }
+
+    /// Erases this device's copy (§8.6): database, inbox, attachments,
+    /// settings and secrets, device keys included. The other devices still
+    /// have the data: pairing again brings it back. Needs a restart.
+    fn wipe_local_data(&self) -> ApiResult<()> {
+        self.wiped.store(true, Ordering::SeqCst);
+        self.locked.store(true, Ordering::SeqCst);
+        *lock(&self.db_key)? = None;
+        *lock(&self.cache)? = None;
+        *lock(&self.engine)? = None;
+        for name in [DB_KEY_PIN, PIN_PEPPER, DB_KEY_BIOMETRIC, DbKey::SECRET]
+            .into_iter()
+            .chain(DEVICE_SECRETS.iter().copied())
+        {
+            let _ = self.secrets.delete(name);
+        }
+        for entry in std::fs::read_dir(&self.data_dir).map_err(ApiError::internal)? {
+            let path = entry.map_err(ApiError::internal)?.path();
+            let _ = if path.is_dir() {
+                std::fs::remove_dir_all(&path)
+            } else {
+                std::fs::remove_file(&path)
+            };
+        }
+        Ok(())
     }
 
     /// Locks now if a PIN is set: closes the database and forgets the key

@@ -1,0 +1,4 @@
+// Runs the Tauri CLI installed with the UI dependencies. `cargo xtask` calls
+// it as `node tauri …` from this folder, and the generated Android
+// project repeats that same command when Gradle builds the Rust library.
+require('../ui/node_modules/@tauri-apps/cli/tauri.js');

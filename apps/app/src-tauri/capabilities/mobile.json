@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "mobile",
+  "description": "Biometric unlock, QR scanning for pairing and system bar sizes (phones only).",
+  "platforms": ["android", "iOS"],
+  "windows": ["main"],
+  "permissions": ["biometric:default", "barcode-scanner:default", "secret-store:default"]
+}

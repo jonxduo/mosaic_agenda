@@ -31,6 +31,7 @@ fn core(dir: &Path, name: &str, network: Network) -> Arc<Core> {
         clock: None,
         pin_params: Some(core_crypto::pin::PinParams::insecure_for_tests()),
         server: None,
+        security: None,
     })
     .unwrap()
 }

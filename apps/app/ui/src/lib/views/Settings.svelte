@@ -3,8 +3,9 @@
   import { api, run } from '../api';
   import { t } from '../i18n';
   import { fail, toast } from '../toast.svelte';
+  import { isMobile, biometricCheck } from '../mobile';
 
-  let { hasPin, onchange }: { hasPin: boolean; onchange: () => void } = $props();
+  let { hasPin, biometric, onchange }: { hasPin: boolean; biometric: boolean; onchange: () => void } = $props();
   let s = $state<Settings | null>(null);
   let pin = $state('');
   run(api.settings()).then((x) => (s = x)).catch(fail);
@@ -26,6 +27,17 @@
       onchange();
     } catch (e) {
       fail(e);
+    }
+  }
+  async function setBiometric(on: boolean) {
+    try {
+      if (on) await biometricCheck(t('biometric_reason'));
+      await run(api.setBiometric(on));
+      toast(t('saved'));
+      onchange();
+    } catch (e) {
+      fail(e);
+      onchange();
     }
   }
   function toggle(id: string, on: boolean) {
@@ -58,6 +70,9 @@
         {#if hasPin}<button class="btn" onclick={() => setPin(null)}>{t('remove_pin')}</button>
         <button class="btn" onclick={() => run(api.lock()).then(onchange)}>{t('lock_now')}</button>{/if}
       </div>
+      {#if isMobile && hasPin}
+        <label class="row"><input type="checkbox" checked={biometric} onchange={(e) => setBiometric(e.currentTarget.checked)} style="width: 20px; min-height: 20px" />{t('biometric_setting')}</label>
+      {/if}
     </section>
   </div>
 {/if}

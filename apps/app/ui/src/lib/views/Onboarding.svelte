@@ -3,6 +3,7 @@
   import { api, run } from '../api';
   import { t } from '../i18n';
   import { fail } from '../toast.svelte';
+  import { isMobile, scanQr } from '../mobile';
 
   let { status, onchange }: { status: AppStatus; onchange: () => void } = $props();
   let orgName = $state('');
@@ -20,6 +21,15 @@
       fail(e);
     } finally {
       busy = false;
+    }
+  }
+
+  async function scanAndJoin() {
+    try {
+      ticket = await scanQr();
+      await join();
+    } catch (e) {
+      fail(e);
     }
   }
 
@@ -64,6 +74,7 @@
       <label for="ticket">{t('ticket')}</label>
       <textarea id="ticket" bind:value={ticket}></textarea>
       <button class="btn" disabled={busy || !ticket.trim()} onclick={join}>{t('join')}</button>
+      {#if isMobile}<button class="btn primary" disabled={busy} onclick={scanAndJoin}>{t('scan_qr')}</button>{/if}
     </section>
   {/if}
 </main>

@@ -1,6 +1,8 @@
 //! Tauri shell: typed commands over `core-api`, system tray, background
 //! sync and local notifications. Nothing here knows the domain.
 
+#[cfg(target_os = "android")]
+mod background;
 mod secrets;
 
 use std::collections::BTreeMap;
@@ -8,7 +10,9 @@ use std::sync::Arc;
 
 use core_api::{ApiError, Core, CoreOptions, dto::*};
 use core_sync::net::Network;
+#[cfg(desktop)]
 use tauri::menu::{Menu, MenuItem as TrayItem};
+#[cfg(desktop)]
 use tauri::tray::TrayIconBuilder;
 use tauri::{Manager, State};
 use tauri_plugin_notification::NotificationExt;
@@ -18,6 +22,21 @@ use tauri_specta::{Builder, collect_commands};
 const BUNDLE: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/bundle.bin"));
 
 type R<T> = Result<T, ApiError>;
+
+/// The core, once opened. On mobile it opens off the main thread (the
+/// secret store plugin needs that thread), so the first calls may find it
+/// still empty and answer `starting`; the UI retries.
+#[derive(Default)]
+pub struct CoreSlot(std::sync::OnceLock<Arc<Core>>);
+
+impl CoreSlot {
+    fn get(&self) -> R<Arc<Core>> {
+        self.0
+            .get()
+            .cloned()
+            .ok_or_else(|| ApiError::new("starting", "the app is starting"))
+    }
+}
 type Map = JsonMap;
 
 macro_rules! cmd {
@@ -26,8 +45,8 @@ macro_rules! cmd {
         #[allow(clippy::too_many_arguments)]
         #[tauri::command]
         #[specta::specta]
-        async fn $name(state: State<'_, Arc<Core>>, $($arg: $ty),*) -> R<$ret> {
-            let $core = state.inner().clone();
+        async fn $name(state: State<'_, CoreSlot>, $($arg: $ty),*) -> R<$ret> {
+            let $core = state.get()?;
             $body
         }
     };
@@ -43,6 +62,8 @@ cmd!(pairings() -> Vec<Pairing> => |c| c.pairings());
 cmd!(confirm_pairing(code: String, accept: bool) -> () => |c| c.confirm_pairing(code, accept).await);
 cmd!(set_pin(pin: Option<String>) -> () => |c| c.set_pin_cmd(pin));
 cmd!(unlock(pin: String) -> bool => |c| c.unlock(&pin));
+cmd!(unlock_biometric() -> bool => |c| c.unlock_biometric());
+cmd!(set_biometric(on: bool) -> () => |c| c.set_biometric(on));
 cmd!(lock() -> () => |c| { c.lock_now(); Ok(()) });
 cmd!(menu() -> Vec<MenuItem> => |c| c.menu());
 cmd!(home() -> Home => |c| c.home());
@@ -104,6 +125,8 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         confirm_pairing,
         set_pin,
         unlock,
+        unlock_biometric,
+        set_biometric,
         lock,
         menu,
         home,
@@ -235,6 +258,7 @@ async fn background(app: tauri::AppHandle, core: Arc<Core>) {
     }
 }
 
+#[cfg(desktop)]
 fn tray(app: &tauri::App, core: &Arc<Core>) -> tauri::Result<()> {
     let title = core
         .status()
@@ -271,6 +295,39 @@ fn tray(app: &tauri::App, core: &Arc<Core>) -> tauri::Result<()> {
     Ok(())
 }
 
+fn open_core(
+    data_dir: std::path::PathBuf,
+    secrets: Arc<dyn core_crypto::SecretStore>,
+) -> Result<Arc<Core>, Box<dyn std::error::Error>> {
+    Core::open(CoreOptions {
+        data_dir,
+        bundle: BUNDLE.to_vec(),
+        secrets,
+        network: Some(network()),
+        clock: None,
+        pin_params: None,
+        server: server(),
+        security: None,
+    })
+    .map_err(|e| Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error>)
+}
+
+/// Makes the core available to the commands and starts the background loop.
+fn started(app: &tauri::AppHandle, core: Arc<Core>) {
+    let _ = app.state::<CoreSlot>().0.set(core.clone());
+    #[cfg(target_os = "android")]
+    let _ = background::RUNNING.set(core.clone());
+    tauri::async_runtime::spawn(background(app.clone(), core));
+}
+
+/// Entry point on Android and iOS.
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn start() {
+    if let Err(e) = run() {
+        eprintln!("{e}");
+    }
+}
+
 pub fn run() -> Result<(), String> {
     if BUNDLE.is_empty() {
         return Err(
@@ -279,29 +336,37 @@ pub fn run() -> Result<(), String> {
         );
     }
     let builder = specta_builder();
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
-        .invoke_handler(builder.invoke_handler())
+        .plugin(tauri_plugin_secret_store::init());
+    // Biometrics and QR scanning exist on mobile only.
+    #[cfg(mobile)]
+    let app = app
+        .plugin(tauri_plugin_biometric::init())
+        .plugin(tauri_plugin_barcode_scanner::init());
+    app.invoke_handler(builder.invoke_handler())
+        .manage(CoreSlot::default())
         .setup(move |app| {
             builder.mount_events(app);
             let data_dir = app.path().app_data_dir()?;
-            let identifier = app.config().identifier.clone();
-            let secrets = Arc::new(secrets::KeyringSecretStore::new(&identifier));
-            let core = Core::open(CoreOptions {
-                data_dir,
-                bundle: BUNDLE.to_vec(),
-                secrets,
-                network: Some(network()),
-                clock: None,
-                pin_params: None,
-                server: server(),
-            })
-            .map_err(|e| {
-                Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error>
-            })?;
-            app.manage(core.clone());
-            tray(app, &core)?;
-            tauri::async_runtime::spawn(background(app.handle().clone(), core));
+            #[cfg(desktop)]
+            {
+                let secrets = Arc::new(secrets::KeyringSecretStore::new(&app.config().identifier));
+                let core = open_core(data_dir, secrets)?;
+                started(app.handle(), core.clone());
+                tray(app, &core)?;
+            }
+            #[cfg(mobile)]
+            {
+                let handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    let secrets = Arc::new(secrets::PluginSecretStore(handle.clone()));
+                    match open_core(data_dir, secrets) {
+                        Ok(core) => started(&handle, core),
+                        Err(e) => eprintln!("cannot open the core: {e}"),
+                    }
+                });
+            }
             Ok(())
         })
         .run(tauri::generate_context!())

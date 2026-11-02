@@ -169,19 +169,25 @@ impl Core {
                 unsynced: 0,
                 unsynced_label: String::new(),
                 has_pin: self.has_pin(),
+                biometric: self.local().is_ok_and(|l| l.biometric),
                 privacy_notice: privacy,
             });
         }
         // Locked: the database is closed, nothing else can be shown.
         if self.is_locked() {
             return Ok(AppStatus {
-                state: AppState::Locked,
+                state: if self.is_wiped() {
+                    AppState::Wiped
+                } else {
+                    AppState::Locked
+                },
                 branding,
                 org_name: None,
                 me: None,
                 unsynced: 0,
                 unsynced_label: String::new(),
                 has_pin: true,
+                biometric: self.local().is_ok_and(|l| l.biometric),
                 privacy_notice: None,
             });
         }
@@ -209,6 +215,7 @@ impl Core {
                     unsynced: outbox,
                     unsynced_label,
                     has_pin: self.has_pin(),
+                    biometric: self.local().is_ok_and(|l| l.biometric),
                     privacy_notice: privacy,
                 });
             }
@@ -250,6 +257,7 @@ impl Core {
             unsynced: outbox,
             unsynced_label,
             has_pin: self.has_pin(),
+            biometric: self.local().is_ok_and(|l| l.biometric),
             privacy_notice: privacy,
         })
     }

@@ -63,6 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         clock: None,
         pin_params: None,
         server: None,
+        security: None,
     })?;
     if core.has_org() {
         core.start_network().await?;

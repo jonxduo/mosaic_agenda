@@ -7,7 +7,7 @@ use std::sync::Arc;
 use core_engine::ops::{Assignee, AssignmentSpec, Response, SlotKey, Values};
 use core_engine::time::{PeriodKey, date_of, parse_date};
 use core_events::genesis::{NewOrganization, create_genesis};
-use core_events::payloads::{NetworkParams, RootAdmin, SecurityParams};
+use core_events::payloads::{NetworkParams, RootAdmin};
 use core_model::{Id, PersonId, Scalar, Slug, UnitId};
 
 use crate::dto::*;
@@ -82,7 +82,7 @@ impl Core {
                 dns_url: None,
                 push_url: None,
             }),
-            security: SecurityParams::default(),
+            security: self.security.clone().unwrap_or_default(),
         };
         let (_, genesis) =
             create_genesis(org, &self.keys, self.now()).map_err(ApiError::internal)?;

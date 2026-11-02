@@ -4,8 +4,8 @@
   "identifier": "org.example.orgapp",
   "version": "0.1.0",
   "build": {
-    "beforeDevCommand": "npx -y pnpm@10.34.9 dev",
-    "beforeBuildCommand": "npx -y pnpm@10.34.9 build",
+    "beforeDevCommand": "npx -y pnpm@10.34.9 --filter orgapp-ui dev",
+    "beforeBuildCommand": "npx -y pnpm@10.34.9 --filter orgapp-ui build",
     "frontendDist": "../ui/build",
     "devUrl": "http://localhost:5173"
   },

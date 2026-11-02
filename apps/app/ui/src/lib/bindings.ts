@@ -16,6 +16,8 @@ export const commands = {
 	confirmPairing: (code: string, accept: boolean) => typedError<null, ApiError>(__TAURI_INVOKE("confirm_pairing", { code, accept })),
 	setPin: (pin: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("set_pin", { pin })),
 	unlock: (pin: string) => typedError<boolean, ApiError>(__TAURI_INVOKE("unlock", { pin })),
+	unlockBiometric: () => typedError<boolean, ApiError>(__TAURI_INVOKE("unlock_biometric")),
+	setBiometric: (on: boolean) => typedError<null, ApiError>(__TAURI_INVOKE("set_biometric", { on })),
 	lock: () => typedError<null, ApiError>(__TAURI_INVOKE("lock")),
 	menu: () => typedError<MenuItem[], ApiError>(__TAURI_INVOKE("menu")),
 	home: () => typedError<Home_Serialize, ApiError>(__TAURI_INVOKE("home")),
@@ -125,7 +127,9 @@ export type AppState =
 /**  The app is locked (PIN). */
 "locked" | 
 /**  Joined, waiting for the inviter to add this device. */
-"joining" | "ready";
+"joining" | "ready" | 
+/**  Local data erased after too many wrong PINs: restart the app. */
+"wiped";
 
 export type AppStatus = AppStatus_Serialize | AppStatus_Deserialize;
 
@@ -138,6 +142,8 @@ export type AppStatus_Deserialize = {
 	unsynced: number,
 	unsynced_label: string,
 	has_pin: boolean,
+	/**  Biometric unlock enabled on this device. */
+	biometric: boolean,
 	/**  Privacy notice (Markdown) to accept at first start. */
 	privacy_notice?: string | null,
 };
@@ -151,6 +157,8 @@ export type AppStatus_Serialize = {
 	unsynced: number,
 	unsynced_label: string,
 	has_pin: boolean,
+	/**  Biometric unlock enabled on this device. */
+	biometric: boolean,
 	/**  Privacy notice (Markdown) to accept at first start. */
 	privacy_notice: string | null,
 };
