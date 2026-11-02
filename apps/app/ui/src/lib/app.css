@@ -10,8 +10,10 @@
   --muted: #5b6270;
   --border: #e3e6eb;
   --line: #c9ced6;
-  --surface: #f6f7f9;
+  --surface: #f4f2ee;
   --bg: #ffffff;
+  /* Page background: a very light warm grey; cards and bars stay on --bg. */
+  --page: #f6f4f1;
   --warn: #a35200;
   --ok: #1e7a46;
   --danger: #b42318;
@@ -30,6 +32,7 @@
     --line: #3b4250;
     --surface: #181b21;
     --bg: #111317;
+    --page: #0c0d10;
     --warn: #f0a35e;
     --ok: #5fcf8e;
     --danger: #ff8a80;
@@ -37,7 +40,7 @@
   }
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; background: var(--bg); color: var(--text); }
+html, body { margin: 0; background: var(--page); color: var(--text); }
 /* Phones: keep clear of the status bar (Android sets --inset-top, iOS uses env()). */
 body { padding-top: var(--inset-top, env(safe-area-inset-top, 0px)); }
 body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 16px; line-height: 1.45; -webkit-font-smoothing: antialiased; }

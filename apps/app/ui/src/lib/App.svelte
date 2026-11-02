@@ -217,9 +217,9 @@
           </a>
         {/each}
       </nav>
-      <a class="sync" href="#/sync_status" title={status.unsynced ? status.unsynced_label : t('synced')} onclick={(e) => { e.preventDefault(); go('sync_status'); }}>
+      <span class="sep" aria-hidden="true"></span>
+      <a class="sync tool" href="#/sync_status" aria-label={status.unsynced ? status.unsynced_label : t('synced')} title={status.unsynced ? status.unsynced_label : t('synced')} onclick={(e) => { e.preventDefault(); go('sync_status'); }}>
         <span class="dot" style={`background: ${status.unsynced ? 'var(--warn)' : 'var(--ok)'}`}></span>
-        <span class="sync-label">{status.unsynced ? status.unsynced_label : t('synced')}</span>
       </a>
     </header>
     <main class="content">
@@ -272,7 +272,8 @@
   .narrow { max-width: 460px; }
   .notice { max-height: 55vh; overflow: auto; font-size: 15px; }
   .shell { min-height: 100vh; }
-  .toolbar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 56px; padding: 0 16px; background: var(--bg); border-bottom: 1px solid var(--border); }
+  /* Floating toolbar: centred, rounded, a little below the top edge. */
+  .toolbar { position: sticky; top: 12px; z-index: 30; display: flex; align-items: center; gap: 4px; width: fit-content; margin: 12px auto 0; height: 56px; padding: 0 7px; background: var(--bg); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 6px 20px rgb(60 45 20 / 0.08); }
   .tools { display: flex; align-items: center; gap: 4px; }
   .tool { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 10px; color: var(--muted); background: none; border: none; cursor: pointer; text-decoration: none; }
   .tool:hover { background: var(--primary-soft); color: var(--text); }
@@ -291,8 +292,7 @@
   .item[aria-current='page'] { background: var(--primary-soft); color: var(--primary-strong); font-weight: 600; }
   .item[aria-current='page'] :global(svg) { color: var(--primary-strong); }
   .item:hover:not([aria-current='page']) { background: var(--primary-soft); }
-  .sync { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; text-decoration: none; padding: 8px 10px; border-radius: 8px; }
-  .sync:hover { background: var(--primary-soft); }
+  .sync .dot { width: 10px; height: 10px; }
   .content { min-width: 0; padding: 40px 32px 96px; }
   .content :global(> *) { max-width: 820px; margin-left: auto; margin-right: auto; }
   .bottom { display: none; }
