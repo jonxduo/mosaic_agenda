@@ -8,7 +8,7 @@
   import { isMobile, biometricCheck, applyInsets } from './mobile';
   import Splash from './components/Splash.svelte';
   import Icon from './components/Icon.svelte';
-  import { grouped, primary } from './nav';
+  import { grouped, primary, sectionOf } from './nav';
   import { markdown } from './markdown';
   import PrintExport from './components/PrintExport.svelte';
   import { printing } from './privacy.svelte';
@@ -155,6 +155,10 @@
   const groups = $derived(grouped(menu));
   const bottom = $derived(primary(menu, 4));
   const rest = $derived(menu.filter((m) => !bottom.includes(m)));
+  const work = $derived(menu.filter((m) => sectionOf(m) === 'work'));
+  const admin = $derived(menu.filter((m) => sectionOf(m) === 'admin'));
+  const settings = $derived(menu.find((m) => m.view === 'settings'));
+  const inAdmin = $derived(admin.some((m) => m.view === route.view));
 </script>
 
 {#if splash === 'on' || splash === 'intro' || splash === 'leaving'}<Splash leaving={splash === 'leaving'} intro={splash === 'intro'} onend={endSplash} />{/if}
@@ -198,15 +202,23 @@
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <div class="backdrop" onclick={() => (showApps = false)}></div>
             <div class="dropdown" role="menu" tabindex="-1" onkeydown={(e) => e.key === 'Escape' && (showApps = false)}>
-              <p class="app-name">{status.branding.app_name}</p>
-              {#each groups.filter((g) => g.section !== 'me') as g (g.section)}
-                <p class="group-title">{t(`nav_${g.section}` as never)}</p>
-                {#each g.items as m (m.label)}
-                  <a href={`#/${m.view}`} role="menuitem" class="item" aria-current={isActive(m) ? 'page' : undefined} onclick={(e) => { e.preventDefault(); showApps = false; navigate(m); }}>
-                    <Icon name={m.view} /><span>{m.label}</span>
-                  </a>
-                {/each}
+              {#each work as m (m.label)}
+                <a href={`#/${m.view}`} role="menuitem" class="item" aria-current={isActive(m) ? 'page' : undefined} onclick={(e) => { e.preventDefault(); showApps = false; navigate(m); }}>
+                  <Icon name={m.view} /><span>{m.label}</span>
+                </a>
               {/each}
+              {#if work.length && (admin.length || settings)}<hr />{/if}
+              {#if admin.length}
+                <a href={`#/${admin[0].view}`} role="menuitem" class="item" aria-current={inAdmin ? 'page' : undefined} onclick={(e) => { e.preventDefault(); showApps = false; navigate(admin[0]); }}>
+                  <Icon name="admin" /><span>{t('nav_admin')}</span>
+                </a>
+              {/if}
+              {#if settings}
+                {@const st = settings}
+                <a href={`#/${st.view}`} role="menuitem" class="item" aria-current={isActive(st) ? 'page' : undefined} onclick={(e) => { e.preventDefault(); showApps = false; navigate(st); }}>
+                  <Icon name={st.view} /><span>{st.label}</span>
+                </a>
+              {/if}
             </div>
           {/if}
         </div>
@@ -218,11 +230,19 @@
         {/each}
       </nav>
       <span class="sep" aria-hidden="true"></span>
-      <a class="sync tool" href="#/sync_status" aria-label={status.unsynced ? status.unsynced_label : t('synced')} title={status.unsynced ? status.unsynced_label : t('synced')} onclick={(e) => { e.preventDefault(); go('sync_status'); }}>
+      <a class="sync tool" href="#/sync_status" aria-current={route.view === 'sync_status' ? 'page' : undefined} aria-label={status.unsynced ? status.unsynced_label : t('synced')} title={status.unsynced ? status.unsynced_label : t('synced')} onclick={(e) => { e.preventDefault(); showApps = false; go('sync_status'); }}>
+        <Icon name="sync_status" size={22} />
         <span class="dot" style={`background: ${status.unsynced ? 'var(--warn)' : 'var(--ok)'}`}></span>
       </a>
     </header>
     <main class="content">
+      {#if inAdmin && admin.length > 1}
+        <nav class="subnav" aria-label={t('nav_admin')}>
+          {#each admin as m (m.label)}
+            <a href={`#/${m.view}`} aria-current={isActive(m) ? 'page' : undefined} onclick={(e) => { e.preventDefault(); navigate(m); }}><Icon name={m.view} size={18} /><span>{m.label}</span></a>
+          {/each}
+        </nav>
+      {/if}
       {#key `${route.view}?${JSON.stringify(route.params)}:${tick}`}
         {#if route.view === 'home'}<Home me={status.me} onchange={refresh} />
         {:else if route.view === 'form'}<Form form={params.form} subject={params.subject} period={params.period} onchange={refresh} />
@@ -285,14 +305,18 @@
   .appmenu { position: relative; }
   .backdrop { position: fixed; inset: 0; z-index: 40; }
   .dropdown { position: absolute; top: 48px; left: 0; z-index: 41; width: 260px; max-height: calc(100vh - 72px); overflow-y: auto; padding: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 12px 32px rgb(0 0 0 / 0.14); display: flex; flex-direction: column; gap: 2px; }
-  .app-name { margin: 6px 12px 4px; font-weight: 700; background: var(--brand-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; width: fit-content; }
-  .group-title { margin: 10px 12px 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
   .item { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 8px; color: var(--text); text-decoration: none; font-size: 15px; background: none; border: none; text-align: left; font: inherit; cursor: pointer; width: 100%; }
   .item :global(svg) { flex: none; color: var(--muted); }
   .item[aria-current='page'] { background: var(--primary-soft); color: var(--primary-strong); font-weight: 600; }
   .item[aria-current='page'] :global(svg) { color: var(--primary-strong); }
   .item:hover:not([aria-current='page']) { background: var(--primary-soft); }
-  .sync .dot { width: 10px; height: 10px; }
+  .sync { position: relative; }
+  .sync .dot { position: absolute; top: 9px; right: 8px; width: 9px; height: 9px; border: 2px solid var(--bg); box-sizing: content-box; }
+  .dropdown hr { border: none; border-top: 1px solid var(--border); margin: 6px 4px; }
+  .subnav { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; margin-bottom: 24px; background: var(--bg); border: 1px solid var(--border); border-radius: 14px; width: fit-content; }
+  .subnav a { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 10px; color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; }
+  .subnav a:hover { background: var(--primary-soft); color: var(--text); }
+  .subnav a[aria-current='page'] { background: var(--primary-soft); color: var(--primary-strong); font-weight: 600; }
   .content { min-width: 0; padding: 40px 32px 96px; }
   .content :global(> *) { max-width: 820px; margin-left: auto; margin-right: auto; }
   .bottom { display: none; }
