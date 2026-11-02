@@ -333,7 +333,7 @@
   .content { min-width: 0; padding: 40px 32px 96px; }
   .content :global(> *) { max-width: 820px; margin-left: auto; margin-right: auto; }
   .bottom { display: none; }
-  .sheet { display: none; }
+  .sheet, .sheet-backdrop { display: none; }
   .toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }
   .toast { background: var(--text); color: var(--bg); padding: 12px 16px; border-radius: 10px; font-size: 15px; max-width: 360px; box-shadow: 0 4px 16px rgb(0 0 0 / 0.15); }
   .toast.error { background: var(--danger); color: var(--bg); }
@@ -347,7 +347,7 @@
     .bottom .app img { width: 24px; height: 24px; }
     .bottom .label { font-size: 11px; line-height: 1.15; max-width: 100%; padding: 0 2px; text-align: center; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; }
     .bottom .sync .dot { top: 6px; right: calc(50% - 16px); }
-    .sheet-backdrop { z-index: 29; }
+    .sheet-backdrop { display: block; z-index: 29; }
     .sheet { display: flex; flex-direction: column; gap: 2px; position: fixed; left: 12px; right: 12px; bottom: calc(88px + var(--inset-bottom, env(safe-area-inset-bottom, 0px))); z-index: 31; background: var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 8px; max-height: 65vh; overflow-y: auto; box-shadow: 0 12px 32px rgb(0 0 0 / 0.16); }
     .sheet hr { border: none; border-top: 1px solid var(--border); margin: 6px 4px; }
     .subnav { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
