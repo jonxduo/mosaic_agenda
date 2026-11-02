@@ -1,8 +1,12 @@
 name: ci
 
+# Not on every push (GitHub minutes): run it by hand from the Actions tab
+# (or `gh workflow run ci`) when needed, and on release tags. Day to day the
+# same checks run locally (README, "Comandi").
 on:
+  workflow_dispatch:
   push:
-  pull_request:
+    tags: ["v*"]
 
 env:
   CARGO_TERM_COLOR: always
