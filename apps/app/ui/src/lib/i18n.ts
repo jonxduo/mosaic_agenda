@@ -3,7 +3,7 @@
 const it = {
   save: 'Salva bozza', saved: 'Salvato', cancel: 'Annulla', confirm: 'Conferma', back: 'Indietro', close: 'Chiudi',
   yes: 'Sì', no: 'No', fill: 'Compila', fill_on_behalf: 'Compila per conto', respond: 'Rispondi', accept: 'Accetto',
-  decline: 'Non posso', open: 'Apri', todo: 'Da fare', work_for_others: 'Da seguire', nav_work: 'Attività', nav_admin: 'Amministrazione', nav_system: 'Dispositivo', nothing_mine: 'Niente da fare per te in prima persona', board_news: 'Novità in bacheca', nothing: 'Niente da fare per ora',
+  decline: 'Non posso', open: 'Apri', todo: 'Da fare', work_for_others: 'Da seguire', nav_work: 'Attività', sync_short: 'Sincro', nav_admin: 'Amministrazione', nav_system: 'Dispositivo', nothing_mine: 'Niente da fare per te in prima persona', board_news: 'Novità in bacheca', nothing: 'Niente da fare per ora',
   missing: 'Mancano', received: 'Ricevuti', done: 'Già avanzati', note: 'Nota', note_required: 'Scrivi una nota',
   create_org: 'Crea una nuova organizzazione', org_name: "Nome dell'organizzazione", your_name: 'Il tuo nome',
   join_org: 'Unisciti con un invito', ticket: "Incolla il codice d'invito", join: 'Unisciti', create: 'Crea',

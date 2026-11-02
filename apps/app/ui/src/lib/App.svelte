@@ -212,7 +212,7 @@
     <header class="toolbar">
       <nav class="tools" aria-label={t('menu')}>
         <div class="appmenu">
-          <button type="button" class="tool app" aria-haspopup="true" aria-expanded={showApps} aria-label={`${status.branding.app_name} · ${t('menu')}`} title={status.branding.app_name} onclick={() => (showApps = !showApps)}>
+          <button type="button" class="tool app" aria-haspopup="true" aria-expanded={showApps} aria-label={`${status.branding.app_name} · ${t('menu')}`} data-tip={showApps ? null : t('menu')} onclick={() => (showApps = !showApps)}>
             <img src="/package/logo.png" alt="" onerror={(e) => e.currentTarget.replaceWith(Object.assign(document.createElement('span'), { textContent: status?.branding.app_name.slice(0, 1) ?? '' }))} />
           </button>
           {#if showApps}
@@ -225,13 +225,13 @@
         </div>
         <span class="sep" aria-hidden="true"></span>
         {#each groups.find((g) => g.section === 'me')?.items ?? [] as m (m.label)}
-          <a href={`#/${m.view}`} class="tool" aria-current={isActive(m) ? 'page' : undefined} aria-label={m.label} title={m.label} onclick={(e) => { e.preventDefault(); showApps = false; navigate(m); }}>
+          <a href={`#/${m.view}`} class="tool" aria-current={isActive(m) ? 'page' : undefined} aria-label={m.label} data-tip={m.label} onclick={(e) => { e.preventDefault(); showApps = false; navigate(m); }}>
             <Icon name={m.view} size={22} />
           </a>
         {/each}
       </nav>
       <span class="sep" aria-hidden="true"></span>
-      <a class="sync tool" href="#/sync_status" aria-current={route.view === 'sync_status' ? 'page' : undefined} aria-label={status.unsynced ? status.unsynced_label : t('synced')} title={status.unsynced ? status.unsynced_label : t('synced')} onclick={(e) => { e.preventDefault(); showApps = false; go('sync_status'); }}>
+      <a class="sync tool" href="#/sync_status" aria-current={route.view === 'sync_status' ? 'page' : undefined} aria-label={status.unsynced ? status.unsynced_label : t('synced')} data-tip={status.unsynced ? status.unsynced_label : t('synced')} onclick={(e) => { e.preventDefault(); showApps = false; go('sync_status'); }}>
         <Icon name="sync_status" size={22} />
         <span class="dot" style={`background: ${status.unsynced ? 'var(--warn)' : 'var(--ok)'}`}></span>
       </a>
@@ -268,14 +268,16 @@
     </main>
     <nav class="bottom" aria-label={t('menu')}>
       {#each mine as m (m.label)}
-        <a href={`#/${m.view}`} aria-current={isActive(m) ? 'page' : undefined} aria-label={m.label} title={m.label} onclick={(e) => { e.preventDefault(); showApps = false; navigate(m); }}><Icon name={m.view} size={24} /></a>
+        <a href={`#/${m.view}`} aria-current={isActive(m) ? 'page' : undefined} onclick={(e) => { e.preventDefault(); showApps = false; navigate(m); }}><Icon name={m.view} size={22} /><span class="label">{m.label}</span></a>
       {/each}
       <a class="sync" href="#/sync_status" aria-current={route.view === 'sync_status' ? 'page' : undefined} aria-label={status.unsynced ? status.unsynced_label : t('synced')} onclick={(e) => { e.preventDefault(); showApps = false; go('sync_status'); }}>
-        <Icon name="sync_status" size={24} />
+        <Icon name="sync_status" size={22} />
+        <span class="label" aria-hidden="true">{t('sync_short')}</span>
         <span class="dot" style={`background: ${status.unsynced ? 'var(--warn)' : 'var(--ok)'}`}></span>
       </a>
       <button type="button" class="app" aria-haspopup="true" aria-expanded={showApps} aria-label={`${status.branding.app_name} · ${t('menu')}`} onclick={() => (showApps = !showApps)}>
         <img src="/package/logo.png" alt="" />
+        <span class="label" aria-hidden="true">{t('menu')}</span>
       </button>
     </nav>
     {#if showApps}
@@ -308,6 +310,10 @@
   .tool.app img { width: 28px; height: 28px; }
   .tool.app :global(span) { font-weight: 700; color: var(--primary); }
   .tool.app[aria-expanded='true'] { background: var(--primary-soft); }
+  /* Tooltip under the toolbar icons. */
+  .tool[data-tip] { position: relative; }
+  .tool[data-tip]::after { content: attr(data-tip); position: absolute; top: calc(100% + 10px); left: 50%; transform: translate(-50%, -4px); padding: 5px 10px; border-radius: 8px; background: var(--text); color: var(--bg); font-size: 13px; font-weight: 500; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.12s ease 0.25s, transform 0.12s ease 0.25s; z-index: 50; }
+  .tool[data-tip]:hover::after, .tool[data-tip]:focus-visible::after { opacity: 1; transform: translate(-50%, 0); }
   .sep { width: 1px; height: 24px; background: var(--border); margin: 0 6px; }
   .appmenu { position: relative; }
   .backdrop { position: fixed; inset: 0; z-index: 40; }
@@ -333,14 +339,16 @@
   .toast.error { background: var(--danger); color: var(--bg); }
   @media (max-width: 760px) {
     .toolbar { display: none; }
-    .content { padding: 32px 20px 110px; }
+    .content { padding: 32px 20px 120px; }
     /* Phone: the same toolbar, floating at the bottom, icons only. */
-    .bottom { display: flex; justify-content: space-around; align-items: center; position: fixed; left: 12px; right: 12px; bottom: calc(10px + var(--inset-bottom, env(safe-area-inset-bottom, 0px))); z-index: 30; height: 60px; padding: 0 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 6px 20px rgb(60 45 20 / 0.12); }
-    .bottom a, .bottom button { position: relative; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; color: var(--muted); text-decoration: none; background: none; border: none; padding: 0; cursor: pointer; }
+    .bottom { display: flex; justify-content: space-around; align-items: center; position: fixed; left: 12px; right: 12px; bottom: calc(10px + var(--inset-bottom, env(safe-area-inset-bottom, 0px))); z-index: 30; height: 72px; padding: 0 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 6px 20px rgb(60 45 20 / 0.12); }
+    .bottom a, .bottom button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; flex: 1 1 0; min-width: 0; height: 62px; border-radius: 14px; color: var(--muted); text-decoration: none; background: none; border: none; padding: 0; cursor: pointer; }
     .bottom a[aria-current='page'], .bottom button[aria-expanded='true'] { background: var(--primary-soft); color: var(--primary-strong); }
-    .bottom .app img { width: 30px; height: 30px; }
+    .bottom .app img { width: 24px; height: 24px; }
+    .bottom .label { font-size: 11px; line-height: 1.15; max-width: 100%; padding: 0 2px; text-align: center; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; }
+    .bottom .sync .dot { top: 6px; right: calc(50% - 16px); }
     .sheet-backdrop { z-index: 29; }
-    .sheet { display: flex; flex-direction: column; gap: 2px; position: fixed; left: 12px; right: 12px; bottom: calc(80px + var(--inset-bottom, env(safe-area-inset-bottom, 0px))); z-index: 31; background: var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 8px; max-height: 65vh; overflow-y: auto; box-shadow: 0 12px 32px rgb(0 0 0 / 0.16); }
+    .sheet { display: flex; flex-direction: column; gap: 2px; position: fixed; left: 12px; right: 12px; bottom: calc(88px + var(--inset-bottom, env(safe-area-inset-bottom, 0px))); z-index: 31; background: var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 8px; max-height: 65vh; overflow-y: auto; box-shadow: 0 12px 32px rgb(0 0 0 / 0.16); }
     .sheet hr { border: none; border-top: 1px solid var(--border); margin: 6px 4px; }
     .subnav { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
     .subnav a { white-space: nowrap; }
