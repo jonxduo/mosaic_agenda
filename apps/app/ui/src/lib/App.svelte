@@ -8,7 +8,7 @@
   import { isMobile, biometricCheck, applyInsets } from './mobile';
   import Splash from './components/Splash.svelte';
   import Icon from './components/Icon.svelte';
-  import { grouped, primary, sectionOf } from './nav';
+  import { grouped, sectionOf } from './nav';
   import { markdown } from './markdown';
   import PrintExport from './components/PrintExport.svelte';
   import { printing } from './privacy.svelte';
@@ -58,7 +58,6 @@
   });
   let menu = $state<MenuItem[]>([]);
   let pin = $state('');
-  let showMore = $state(false);
   let showApps = $state(false);
   let tick = $state(0);
   let seen = -1;
@@ -144,7 +143,6 @@
   });
 
   function navigate(m: MenuItem) {
-    showMore = false;
     go(m.view, m.params);
   }
   const isActive = (m: MenuItem) =>
@@ -153,13 +151,32 @@
     Object.entries(m.params).every(([k, v]) => route.params[k] === v);
   const params = $derived(route.params);
   const groups = $derived(grouped(menu));
-  const bottom = $derived(primary(menu, 4));
-  const rest = $derived(menu.filter((m) => !bottom.includes(m)));
+  const mine = $derived(menu.filter((m) => sectionOf(m) === 'me').slice(0, 4));
   const work = $derived(menu.filter((m) => sectionOf(m) === 'work'));
   const admin = $derived(menu.filter((m) => sectionOf(m) === 'admin'));
   const settings = $derived(menu.find((m) => m.view === 'settings'));
   const inAdmin = $derived(admin.some((m) => m.view === route.view));
 </script>
+
+{#snippet appEntries()}
+              {#each work as m (m.label)}
+                <a href={`#/${m.view}`} role="menuitem" class="item" aria-current={isActive(m) ? 'page' : undefined} onclick={(e) => { e.preventDefault(); showApps = false; navigate(m); }}>
+                  <Icon name={m.view} /><span>{m.label}</span>
+                </a>
+              {/each}
+              {#if work.length && (admin.length || settings)}<hr />{/if}
+              {#if admin.length}
+                <a href={`#/${admin[0].view}`} role="menuitem" class="item" aria-current={inAdmin ? 'page' : undefined} onclick={(e) => { e.preventDefault(); showApps = false; navigate(admin[0]); }}>
+                  <Icon name="admin" /><span>{t('nav_admin')}</span>
+                </a>
+              {/if}
+              {#if settings}
+                {@const st = settings}
+                <a href={`#/${st.view}`} role="menuitem" class="item" aria-current={isActive(st) ? 'page' : undefined} onclick={(e) => { e.preventDefault(); showApps = false; navigate(st); }}>
+                  <Icon name={st.view} /><span>{st.label}</span>
+                </a>
+              {/if}
+{/snippet}
 
 {#if splash === 'on' || splash === 'intro' || splash === 'leaving'}<Splash leaving={splash === 'leaving'} intro={splash === 'intro'} onend={endSplash} />{/if}
 {#if !status}
@@ -202,23 +219,7 @@
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <div class="backdrop" onclick={() => (showApps = false)}></div>
             <div class="dropdown" role="menu" tabindex="-1" onkeydown={(e) => e.key === 'Escape' && (showApps = false)}>
-              {#each work as m (m.label)}
-                <a href={`#/${m.view}`} role="menuitem" class="item" aria-current={isActive(m) ? 'page' : undefined} onclick={(e) => { e.preventDefault(); showApps = false; navigate(m); }}>
-                  <Icon name={m.view} /><span>{m.label}</span>
-                </a>
-              {/each}
-              {#if work.length && (admin.length || settings)}<hr />{/if}
-              {#if admin.length}
-                <a href={`#/${admin[0].view}`} role="menuitem" class="item" aria-current={inAdmin ? 'page' : undefined} onclick={(e) => { e.preventDefault(); showApps = false; navigate(admin[0]); }}>
-                  <Icon name="admin" /><span>{t('nav_admin')}</span>
-                </a>
-              {/if}
-              {#if settings}
-                {@const st = settings}
-                <a href={`#/${st.view}`} role="menuitem" class="item" aria-current={isActive(st) ? 'page' : undefined} onclick={(e) => { e.preventDefault(); showApps = false; navigate(st); }}>
-                  <Icon name={st.view} /><span>{st.label}</span>
-                </a>
-              {/if}
+              {@render appEntries()}
             </div>
           {/if}
         </div>
@@ -266,16 +267,22 @@
       {/key}
     </main>
     <nav class="bottom" aria-label={t('menu')}>
-      {#each bottom as m (m.label)}
-        <a href={`#/${m.view}`} aria-current={isActive(m) ? 'page' : undefined} onclick={(e) => { e.preventDefault(); navigate(m); }}><Icon name={m.view} size={22} /><span>{m.label}</span></a>
+      {#each mine as m (m.label)}
+        <a href={`#/${m.view}`} aria-current={isActive(m) ? 'page' : undefined} aria-label={m.label} title={m.label} onclick={(e) => { e.preventDefault(); showApps = false; navigate(m); }}><Icon name={m.view} size={24} /></a>
       {/each}
-      <button type="button" aria-expanded={showMore} onclick={() => (showMore = !showMore)}><Icon name="more" size={22} /><span>{t('more')}</span></button>
+      <a class="sync" href="#/sync_status" aria-current={route.view === 'sync_status' ? 'page' : undefined} aria-label={status.unsynced ? status.unsynced_label : t('synced')} onclick={(e) => { e.preventDefault(); showApps = false; go('sync_status'); }}>
+        <Icon name="sync_status" size={24} />
+        <span class="dot" style={`background: ${status.unsynced ? 'var(--warn)' : 'var(--ok)'}`}></span>
+      </a>
+      <button type="button" class="app" aria-haspopup="true" aria-expanded={showApps} aria-label={`${status.branding.app_name} · ${t('menu')}`} onclick={() => (showApps = !showApps)}>
+        <img src="/package/logo.png" alt="" />
+      </button>
     </nav>
-    {#if showMore}
-      <div class="sheet" role="dialog" aria-label={t('menu')}>
-        {#each rest as m (m.label)}
-          <button type="button" class="item" aria-current={isActive(m) ? 'page' : undefined} onclick={() => navigate(m)}><Icon name={m.view} /><span>{m.label}</span></button>
-        {/each}
+    {#if showApps}
+      <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+      <div class="backdrop sheet-backdrop" onclick={() => (showApps = false)}></div>
+      <div class="sheet" role="menu" tabindex="-1" onkeydown={(e) => e.key === 'Escape' && (showApps = false)}>
+        {@render appEntries()}
       </div>
     {/if}
   </div>
@@ -327,12 +334,16 @@
   @media (max-width: 760px) {
     .toolbar { display: none; }
     .content { padding: 32px 20px 110px; }
-    .bottom { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg); border-top: 1px solid var(--border); padding: 6px 4px calc(10px + var(--inset-bottom, env(safe-area-inset-bottom, 0px))); }
-    .bottom { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-    .bottom a, .bottom button { min-height: 56px; display: flex; flex-direction: column; gap: 3px; align-items: center; justify-content: center; text-align: center; color: var(--muted); text-decoration: none; font: inherit; font-size: 11px; line-height: 1.2; background: none; border: none; padding: 4px 2px; }
-    .bottom span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .bottom a[aria-current='page'] { color: var(--primary); font-weight: 600; }
-    .sheet { display: flex; flex-direction: column; position: fixed; left: 0; right: 0; bottom: 70px; background: var(--bg); border-top: 1px solid var(--border); padding: 8px 12px; max-height: 60vh; overflow-y: auto; box-shadow: 0 -8px 24px rgb(0 0 0 / 0.1); }
+    /* Phone: the same toolbar, floating at the bottom, icons only. */
+    .bottom { display: flex; justify-content: space-around; align-items: center; position: fixed; left: 12px; right: 12px; bottom: calc(10px + var(--inset-bottom, env(safe-area-inset-bottom, 0px))); z-index: 30; height: 60px; padding: 0 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 6px 20px rgb(60 45 20 / 0.12); }
+    .bottom a, .bottom button { position: relative; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; color: var(--muted); text-decoration: none; background: none; border: none; padding: 0; cursor: pointer; }
+    .bottom a[aria-current='page'], .bottom button[aria-expanded='true'] { background: var(--primary-soft); color: var(--primary-strong); }
+    .bottom .app img { width: 30px; height: 30px; }
+    .sheet-backdrop { z-index: 29; }
+    .sheet { display: flex; flex-direction: column; gap: 2px; position: fixed; left: 12px; right: 12px; bottom: calc(80px + var(--inset-bottom, env(safe-area-inset-bottom, 0px))); z-index: 31; background: var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 8px; max-height: 65vh; overflow-y: auto; box-shadow: 0 12px 32px rgb(0 0 0 / 0.16); }
+    .sheet hr { border: none; border-top: 1px solid var(--border); margin: 6px 4px; }
+    .subnav { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
+    .subnav a { white-space: nowrap; }
     .toasts { bottom: 90px; left: 16px; }
   }
 </style>
