@@ -534,14 +534,17 @@ impl Core {
                 continue;
             }
             let def = cfg.program_type(program_type);
-            let rotation = def.map(|d| d.rotation).unwrap_or_default();
+            let rotation_of = |slot: &Slug| {
+                def.map(|d| crate::schedule::slot_rotation(d, slot))
+                    .unwrap_or_default()
+            };
             let answer =
                 |key: &core_engine::ops::SlotKey| v.proj.responses.get(&(*program, key.clone()));
             // Items of a rotation are shown once per group (week or month).
             let mut groups: Vec<(Option<PeriodKey>, &core_engine::ops::NoticeItem)> = Vec::new();
             let mut members: BTreeMap<usize, Vec<&core_engine::ops::NoticeItem>> = BTreeMap::new();
             for it in items.iter().filter(|it| it.date >= now) {
-                let g = crate::schedule::rotation_key(rotation, it.date);
+                let g = crate::schedule::rotation_key(rotation_of(&it.key.slot), it.date);
                 let pos = groups.iter().position(|(k, first)| {
                     g.is_some()
                         && *k == g
@@ -681,14 +684,18 @@ impl Core {
                 PBoardItem::Program(s) => {
                     let def = cfg.program_type(&s.program_type);
                     let first = s.occurrences.first().copied().unwrap_or(now);
-                    let rotation = def.map(|d| d.rotation).unwrap_or_default();
+                    let rotation_of = |slot: &Slug| {
+                        def.map(|d| crate::schedule::slot_rotation(d, slot))
+                            .unwrap_or_default()
+                    };
                     let mut seen = BTreeSet::new();
                     let lines = s
                         .assignments
                         .iter()
                         .filter(|a| {
                             // One line per person and group of a rotation.
-                            let group = crate::schedule::rotation_key(rotation, a.date);
+                            let group =
+                                crate::schedule::rotation_key(rotation_of(&a.key.slot), a.date);
                             group.is_none()
                                 || seen.insert((
                                     group,
@@ -704,7 +711,7 @@ impl Core {
                                     || a.key.slot.to_string(),
                                     |x| t.get(x.label.as_str()),
                                 );
-                            let when = match rotation {
+                            let when = match rotation_of(&a.key.slot) {
                                 _ if s.occurrences.len() < 2 => String::new(),
                                 Rotation::Occurrence => format!(" ({})", t.day_month(a.date)),
                                 Rotation::Week => {
@@ -1546,14 +1553,17 @@ impl Core {
                     None,
                     now,
                 ));
-        let groups = crate::schedule::groups(def, &occurrences);
+        let groups = crate::schedule::groups(def.rotation, &occurrences);
         let mut cells = Vec::new();
-        for group in &groups {
-            let occ = group.first().copied().unwrap_or_default();
-            let Some(date) = occurrences.get(occ) else {
-                continue;
-            };
-            for slot in def.slots.iter().filter(|s| s.enabled) {
+        // Slots that change at every event get one cell per event.
+        for slot in def.slots.iter().filter(|s| s.enabled) {
+            let rotation = crate::schedule::slot_rotation(def, &slot.id);
+            let per_event = rotation != def.rotation;
+            for group in &crate::schedule::groups(rotation, &occurrences) {
+                let occ = group.first().copied().unwrap_or_default();
+                let Some(date) = occurrences.get(occ) else {
+                    continue;
+                };
                 let reps = match slot.repeat {
                     Some(core_model::config::Repeat::Count(n)) => n,
                     _ => 1,
@@ -1641,6 +1651,7 @@ impl Core {
                         assignee_name: current.map(|(_, n)| n.clone()),
                         response: response.into(),
                         candidates,
+                        per_event,
                     });
                 }
             }
@@ -1693,6 +1704,15 @@ impl Core {
                         occurrence: first as u32,
                         label: capitalize(&label),
                         detail,
+                        days: g
+                            .iter()
+                            .filter_map(|o| {
+                                Some(ProgramDay {
+                                    occurrence: *o as u32,
+                                    label: capitalize(&t.long_date(*occurrences.get(*o)?)),
+                                })
+                            })
+                            .collect(),
                     })
                 })
                 .collect(),

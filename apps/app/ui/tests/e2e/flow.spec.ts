@@ -128,8 +128,8 @@ test('guided configuration editor publishes a new version', async ({ browser, re
   await expect(page.getByText(/host → .*chair/)).toBeVisible();
   await expect(page.locator('li', { hasText: 'role lead' })).toBeVisible();
 
-  page.on('dialog', (d) => d.accept());
   await page.getByRole('button', { name: /Pubblica versione/ }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Pubblica versione' }).click();
   await expect(page.getByText('Versione 2 pubblicata')).toBeVisible();
   const files = await call<{ files: { path: string; text: string }[] }>(request, a, 'config_files');
   expect(files.files.find((f) => f.path === 'package.yaml')!.text).toContain('rename: { from: host, to: chair }');

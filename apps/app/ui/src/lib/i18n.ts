@@ -68,6 +68,10 @@ const it = {
   rot_occurrence: 'Cambiano a ogni evento', rot_week: 'Per tutta la settimana', rot_month: 'Per tutto il mese', sch_slots: 'Incarichi da assegnare',
   sch_count: 'Persone', sch_save: 'Salva e pubblica', sch_saved: 'Impostazioni salvate (versione {n})', sch_none: 'Seleziona almeno un incarico',
   sch_readonly: 'Solo chi può pubblicare la configurazione modifica queste impostazioni.',
+  sch_active: 'Da assegnare', sch_name: "Nome dell'incarico", sch_each: 'Cambia a ogni evento', sch_each_hint: 'Per questo incarico si sceglie una persona diversa a ogni evento, anche se le altre restano le stesse per la settimana o il mese',
+  sch_new_slot: 'Nuovo incarico', sch_remove_confirm: "Eliminare l'incarico «{name}»? Le assegnazioni già fatte restano nello storico.", sch_no_days: 'Scegli almeno un giorno per ogni evento',
+  sch_no_name: 'Ogni incarico deve avere un nome', sch_stale: 'Nel frattempo è stata pubblicata la versione {n}: la pagina è stata ricaricata, ripeti le modifiche',
+  sch_syntax: 'I file della configurazione hanno errori di sintassi: correggili in Configurazione', sch_issues: 'Non si può pubblicare:',
   wd_MO: 'Lun', wd_TU: 'Mar', wd_WE: 'Mer', wd_TH: 'Gio', wd_FR: 'Ven', wd_SA: 'Sab', wd_SU: 'Dom', lock_now: 'Blocca ora', copy: 'Copia', copied: 'Copiato'
 };
 

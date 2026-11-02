@@ -324,6 +324,8 @@ pub struct SlotCell {
     pub assignee_name: Option<String>,
     pub response: String,
     pub candidates: Vec<Choice>,
+    /// The slot changes at every event inside a group (see `ProgramGroup::days`).
+    pub per_event: bool,
 }
 
 /// Events sharing the same persons (one event unless the program rotates
@@ -334,6 +336,14 @@ pub struct ProgramGroup {
     pub label: String,
     /// The dates of the group when it has more than one.
     pub detail: Option<String>,
+    /// Its events, for the slots that change at every event.
+    pub days: Vec<ProgramDay>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct ProgramDay {
+    pub occurrence: u32,
+    pub label: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

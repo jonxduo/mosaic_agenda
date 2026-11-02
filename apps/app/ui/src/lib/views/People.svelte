@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { ask } from '../ask.svelte';
   import type { People_Serialize as PeopleData, Me, Invitation } from '../bindings';
   import { api, run } from '../api';
   import { t } from '../i18n';
@@ -67,7 +68,7 @@
     adding = false;
   }
   async function erase(person: string, name: string) {
-    if (!confirm(t('erase_confirm').replace('{name}', name))) return;
+    if (!(await ask(t('erase_confirm').replace('{name}', name), t('erase_data'), true))) return;
     await act(() => run(api.requestErasure(person)));
   }
   async function guard(f: () => Promise<unknown>) {
@@ -173,7 +174,7 @@
                 <button class="btn small" onclick={() => act(() => run(api.setArchive(d.id, d.label !== 'archive')))}>
                   {d.label === 'archive' ? t('archive_unset') : t('archive_set')}
                 </button>
-                <button class="btn small" style="color: var(--danger)" onclick={() => confirm(t('revoke_confirm')) && act(() => run(api.revokeDevice(d.id)))}>{t('revoke')}</button>
+                <button class="btn small" style="color: var(--danger)" onclick={async () => (await ask(t('revoke_confirm'), t('revoke'), true)) && act(() => run(api.revokeDevice(d.id)))}>{t('revoke')}</button>
               </div>
             {/each}
             <p class="muted">{t('archive_hint')}</p>

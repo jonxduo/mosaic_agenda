@@ -78,6 +78,12 @@ async fn monthly_rotation_assigns_the_whole_month() {
         "{ id: helper, label: s.helper, repeat: { count: 2 } }",
         "{ id: helper, label: s.helper, repeat: { count: 2 }, enabled: false }",
     );
+    edit(
+        &mut files,
+        "programs.yaml",
+        "{ id: host, label: s.host, requires: *senior }",
+        "{ id: host, label: s.host, requires: *senior, each_event: true }",
+    );
     // A monthly rotation in a weekly program is refused.
     let mut bad = files.clone();
     edit(

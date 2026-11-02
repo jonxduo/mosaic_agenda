@@ -642,3 +642,13 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   (date prima, poi le scelte senza etichetta) e `marks`; `values` riempie il modulo di modifica
   con i valori attuali. Congregazione: nascita, battesimo, sesso, speranza
   (`birth_date`, `hope`, nuovi attributi per anziani e amministratori), nomine e servizi.
+- **`SlotDef.each_event`**: uno slot può cambiare persona a ogni evento anche quando il
+  programma ruota per settimana o mese; l'editor lo mostra sotto ogni data del gruppo
+  (`SlotCell.per_event`, `ProgramGroup.days`). In "Calendario e turni" gli incarichi si
+  aggiungono (id dal nome, testo `s.<id>` nella lingua predefinita, requisiti del primo slot del
+  programma), si rinominano (solo il testo) e si eliminano (`retire` se l'id sparisce dal
+  pacchetto).
+- **Conferme nell'app** (`ask.svelte.ts`): `window.confirm` non viene mostrato dalla webview e
+  risponde "no" in silenzio; ogni conferma è ora un dialogo dell'app. "Calendario e turni"
+  controlla prima di pubblicare che la versione non sia cambiata nel frattempo ed elenca gli
+  errori di `config_check` invece di un generico "Dati non validi".

@@ -43,28 +43,36 @@ pub(crate) fn rotation_key(rotation: Rotation, d: Date) -> Option<PeriodKey> {
     }
 }
 
+/// The rotation of a slot: the program's, unless the slot changes at every event.
+pub(crate) fn slot_rotation(def: &ProgramTypeDef, slot: &core_model::Slug) -> Rotation {
+    match def.slots.iter().find(|s| &s.id == slot) {
+        Some(s) if s.each_event => Rotation::Occurrence,
+        _ => def.rotation,
+    }
+}
+
 /// Occurrences sharing the persons of occurrence `occ` (itself included).
-pub(crate) fn group_of(def: &ProgramTypeDef, occurrences: &[Date], occ: usize) -> Vec<usize> {
+pub(crate) fn group_of(rotation: Rotation, occurrences: &[Date], occ: usize) -> Vec<usize> {
     let Some(d) = occurrences.get(occ) else {
         return Vec::new();
     };
-    match rotation_key(def.rotation, *d) {
+    match rotation_key(rotation, *d) {
         None => vec![occ],
         Some(k) => occurrences
             .iter()
             .enumerate()
-            .filter(|(_, x)| rotation_key(def.rotation, **x) == Some(k))
+            .filter(|(_, x)| rotation_key(rotation, **x) == Some(k))
             .map(|(i, _)| i)
             .collect(),
     }
 }
 
 /// The groups of a program, each as the list of its occurrences.
-pub(crate) fn groups(def: &ProgramTypeDef, occurrences: &[Date]) -> Vec<Vec<usize>> {
+pub(crate) fn groups(rotation: Rotation, occurrences: &[Date]) -> Vec<Vec<usize>> {
     let mut out: Vec<Vec<usize>> = Vec::new();
     for i in 0..occurrences.len() {
         if !out.iter().any(|g| g.contains(&i)) {
-            out.push(group_of(def, occurrences, i));
+            out.push(group_of(rotation, occurrences, i));
         }
     }
     out
@@ -178,12 +186,15 @@ mod tests {
             date!(2026 - 11 - 08),
             date!(2026 - 11 - 12),
         ];
-        assert_eq!(groups(&def(Rotation::Occurrence), &occ).len(), 4);
+        assert_eq!(groups(def(Rotation::Occurrence).rotation, &occ).len(), 4);
         // Sunday 1 is in the week of Monday 26 October.
         assert_eq!(
-            groups(&def(Rotation::Week), &occ),
+            groups(def(Rotation::Week).rotation, &occ),
             vec![vec![0], vec![1, 2], vec![3]]
         );
-        assert_eq!(groups(&def(Rotation::Month), &occ), vec![vec![0, 1, 2, 3]]);
+        assert_eq!(
+            groups(def(Rotation::Month).rotation, &occ),
+            vec![vec![0, 1, 2, 3]]
+        );
     }
 }

@@ -720,6 +720,11 @@ export type ProgramDates = {
 	exists: boolean,
 };
 
+export type ProgramDay = {
+	occurrence: number,
+	label: string,
+};
+
 export type ProgramEditor = ProgramEditor_Serialize | ProgramEditor_Deserialize;
 
 export type ProgramEditor_Deserialize = {
@@ -765,6 +770,8 @@ export type ProgramGroup_Deserialize = {
 	label: string,
 	/**  The dates of the group when it has more than one. */
 	detail?: string | null,
+	/**  Its events, for the slots that change at every event. */
+	days: ProgramDay[],
 };
 
 /**
@@ -776,6 +783,8 @@ export type ProgramGroup_Serialize = {
 	label: string,
 	/**  The dates of the group when it has more than one. */
 	detail: string | null,
+	/**  Its events, for the slots that change at every event. */
+	days: ProgramDay[],
 };
 
 export type ProgramList = {
@@ -878,6 +887,8 @@ export type SlotCell_Deserialize = {
 	assignee_name?: string | null,
 	response: string,
 	candidates: Choice[],
+	/**  The slot changes at every event inside a group (see `ProgramGroup::days`). */
+	per_event: boolean,
 };
 
 export type SlotCell_Serialize = {
@@ -889,6 +900,8 @@ export type SlotCell_Serialize = {
 	assignee_name: string | null,
 	response: string,
 	candidates: Choice[],
+	/**  The slot changes at every event inside a group (see `ProgramGroup::days`). */
+	per_event: boolean,
 };
 
 export type SyncStatus = SyncStatus_Serialize | SyncStatus_Deserialize;

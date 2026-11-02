@@ -753,6 +753,9 @@ pub struct SlotDef {
     /// Disabled slots stay in the package but are not assigned.
     #[serde(default = "yes")]
     pub enabled: bool,
+    /// A new person at every event, whatever the program's `rotation`.
+    #[serde(default)]
+    pub each_event: bool,
 }
 
 // ---------------------------------------------------------------------------

@@ -2499,6 +2499,11 @@
           "minimum": 0,
           "type": "integer"
         },
+        "each_event": {
+          "default": false,
+          "description": "A new person at every event, whatever the program's `rotation`.",
+          "type": "boolean"
+        },
         "enabled": {
           "default": true,
           "description": "Disabled slots stay in the package but are not assigned.",

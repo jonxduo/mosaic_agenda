@@ -309,7 +309,13 @@ impl Core {
         };
         let group = cfg(&v)?
             .program_type(&program_type)
-            .map(|d| crate::schedule::group_of(d, &occurrences, occ))
+            .map(|d| {
+                crate::schedule::group_of(
+                    crate::schedule::slot_rotation(d, slot),
+                    &occurrences,
+                    occ,
+                )
+            })
             .filter(|g| !g.is_empty())
             .unwrap_or_else(|| vec![occ]);
         group
@@ -368,7 +374,7 @@ impl Core {
                 Assignee::Person(p) => {
                     let rotation = cfg(&v)?
                         .program_type(&t)
-                        .map(|d| d.rotation)
+                        .map(|d| crate::schedule::slot_rotation(d, &slot))
                         .unwrap_or_default();
                     let items = v
                         .proj

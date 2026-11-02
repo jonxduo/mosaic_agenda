@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { ask } from '../ask.svelte';
   // Configuration editor (§12.4): the package files of the active version,
   // checked while typing, simulated on a copy of the data, then published as
   // a new version. Desktop view.
@@ -66,7 +67,7 @@
   }
 
   async function publish() {
-    if (!current || !confirm(t('config_confirm').replace('{n}', String(current.version + 1)))) return;
+    if (!current || !(await ask(t('config_confirm').replace('{n}', String(current.version + 1)), t('config_publish')))) return;
     busy = true;
     try {
       const v = await run(api.configPublish(files));

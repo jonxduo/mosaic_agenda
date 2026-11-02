@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ProgramEditor_Serialize as Editor } from '../bindings';
+  import type { ProgramEditor_Serialize as Editor, SlotCell_Serialize as Cell } from '../bindings';
   import { api, run } from '../api';
   import { t } from '../i18n';
   import { fail, toast } from '../toast.svelte';
@@ -35,6 +35,19 @@
   }
 </script>
 
+{#snippet cell(c: Cell)}
+  <div class="list-row">
+    <span class="grow">{c.label}</span>
+    {#if p?.can_edit}
+      <select aria-label={c.label} value={c.assignee ?? ''} onchange={(e) => assign(c.occurrence, c.slot, c.index, e.currentTarget.value)} style="max-width: 260px">
+        <option value="">{t('unassigned')}</option>
+        {#each c.candidates as o (o.id)}<option value={o.id}>{o.label}</option>{/each}
+      </select>
+    {:else}<span>{c.assignee_name ?? '—'}</span>{/if}
+    {#if c.assignee}<span class="badge" class:ok={c.response === 'accepted'}>{t(`response_${c.response}` as never)}</span>{/if}
+  </div>
+{/snippet}
+
 {#if p}
   <div class="stack page">
     <div class="spread">
@@ -48,18 +61,17 @@
           <h3>{g.label}</h3>
           {#if g.detail}<span class="muted">{g.detail}</span>{/if}
         </div>
-        {#each p.cells.filter((c) => c.occurrence === g.occurrence) as c (c.slot + c.index)}
-          <div class="list-row">
-            <span class="grow">{c.label}</span>
-            {#if p.can_edit}
-              <select aria-label={c.label} value={c.assignee ?? ''} onchange={(e) => assign(c.occurrence, c.slot, c.index, e.currentTarget.value)} style="max-width: 260px">
-                <option value="">{t('unassigned')}</option>
-                {#each c.candidates as o (o.id)}<option value={o.id}>{o.label}</option>{/each}
-              </select>
-            {:else}<span>{c.assignee_name ?? '—'}</span>{/if}
-            {#if c.assignee}<span class="badge" class:ok={c.response === 'accepted'}>{t(`response_${c.response}` as never)}</span>{/if}
-          </div>
+        {#each p.cells.filter((c) => c.occurrence === g.occurrence && !c.per_event) as c (c.slot + c.index)}
+          {@render cell(c)}
         {/each}
+        {#if p.cells.some((c) => c.per_event && g.days.some((d) => d.occurrence === c.occurrence))}
+          {#each g.days as d (d.occurrence)}
+            <h4 class="day">{d.label}</h4>
+            {#each p.cells.filter((c) => c.per_event && c.occurrence === d.occurrence) as c (c.slot + c.index)}
+              {@render cell(c)}
+            {/each}
+          {/each}
+        {/if}
       </section>
     {/each}
     <div class="row">
@@ -78,4 +90,5 @@
 <style>
   .page { gap: 16px; }
   .tight { gap: 2px; }
+  .day { margin-top: 10px; font-size: 14px; color: var(--muted); font-weight: 600; }
 </style>

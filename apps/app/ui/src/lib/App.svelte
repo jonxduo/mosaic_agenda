@@ -5,6 +5,7 @@
   import { t } from './i18n';
   import { route, go } from './router.svelte';
   import { toasts, toast, fail } from './toast.svelte';
+  import { question, answer } from './ask.svelte';
   import { isMobile, biometricCheck, applyInsets } from './mobile';
   import Splash from './components/Splash.svelte';
   import Icon from './components/Icon.svelte';
@@ -294,6 +295,19 @@
 
 {#if printing.data}<PrintExport data={printing.data} />{/if}
 
+{#if question.current}
+  <div class="ask-backdrop" role="presentation" onclick={() => answer(false)}></div>
+  <div class="ask card stack" role="alertdialog" aria-modal="true" aria-labelledby="ask-text" tabindex="-1"
+    onkeydown={(e) => e.key === 'Escape' && answer(false)}>
+    <p id="ask-text">{question.current.text}</p>
+    <div class="row ask-actions">
+      <button class="btn" onclick={() => answer(false)}>{t('cancel')}</button>
+      <!-- svelte-ignore a11y_autofocus -->
+      <button class="btn primary" class:danger={question.current.danger} autofocus onclick={() => answer(true)}>{question.current.ok}</button>
+    </div>
+  </div>
+{/if}
+
 <div class="toasts" aria-live="polite">
   {#each toasts as x (x.id)}<div class="toast" class:error={x.error}>{x.text}</div>{/each}
 </div>
@@ -336,6 +350,10 @@
   .content :global(> *) { max-width: 820px; margin-left: auto; margin-right: auto; }
   .bottom { display: none; }
   .sheet, .sheet-backdrop { display: none; }
+  .ask-backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / 0.35); z-index: 60; }
+  .ask { position: fixed; z-index: 61; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(440px, calc(100vw - 32px)); box-shadow: 0 12px 40px rgb(0 0 0 / 0.2); }
+  .ask-actions { justify-content: flex-end; }
+  .ask .danger { background: var(--danger); border-color: var(--danger); }
   .toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }
   .toast { background: var(--text); color: var(--bg); padding: 12px 16px; border-radius: 10px; font-size: 15px; max-width: 360px; box-shadow: 0 4px 16px rgb(0 0 0 / 0.15); }
   .toast.error { background: var(--danger); color: var(--bg); }

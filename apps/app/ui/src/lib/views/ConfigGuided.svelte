@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { ask } from '../ask.svelte';
   // Guided editors of the configuration (§12.4): roles and their
   // requirements, audiences, form fields, program slots, reminders and texts.
   // They write the same YAML files as the text view: conditions and lists are
@@ -223,8 +224,8 @@
     openItem = `${s.id}:${g.title}:${to}`;
   }
 
-  function remove(s: Section, g: Group, i: number, id: string) {
-    if (!confirm(t('g_remove_confirm').replace('{id}', id))) return;
+  async function remove(s: Section, g: Group, i: number, id: string) {
+    if (!(await ask(t('g_remove_confirm').replace('{id}', id), t('g_remove'), true))) return;
     if (!edit(s.file, (d) => d.deleteIn([...g.list, i]))) return;
     if (needsMigration(s, id)) edit('package.yaml', (d) => addRetire(d, id));
   }
