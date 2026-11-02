@@ -140,9 +140,11 @@ pub fn diff(old: &PackageConfig, new: &PackageConfig) -> Vec<Change> {
                 renamed_to: None,
             }),
             None => {
-                let to = Slug::new(id)
+                // Slots are listed as `program.slot`: the rename is on the slot id.
+                let (prefix, local) = split_local(id);
+                let to = Slug::new(local)
                     .ok()
-                    .and_then(|s| renamed.get(&s).map(|t| t.to_string()));
+                    .and_then(|s| renamed.get(&s).map(|t| format!("{prefix}{t}")));
                 let what = if to.is_some() { "renamed" } else { "removed" };
                 out.push(Change {
                     kind: kind.clone(),
@@ -155,7 +157,7 @@ pub fn diff(old: &PackageConfig, new: &PackageConfig) -> Vec<Change> {
     }
     let renamed_to: BTreeSet<String> = renamed.values().map(|s| s.to_string()).collect();
     for (kind, id) in b.keys() {
-        if !a.contains_key(&(kind.clone(), id.clone())) && !renamed_to.contains(id) {
+        if !a.contains_key(&(kind.clone(), id.clone())) && !renamed_to.contains(split_local(id).1) {
             out.push(Change {
                 kind: kind.clone(),
                 id: id.clone(),
@@ -165,6 +167,14 @@ pub fn diff(old: &PackageConfig, new: &PackageConfig) -> Vec<Change> {
         }
     }
     out
+}
+
+/// `("program.", "slot")` for `program.slot`, `("", id)` otherwise.
+fn split_local(id: &str) -> (&str, &str) {
+    match id.rfind('.') {
+        Some(i) => id.split_at(i + 1),
+        None => ("", id),
+    }
 }
 
 /// Renames declared by a version: old id → new id.
@@ -288,6 +298,24 @@ mod tests {
                 .any(|c| c.kind.starts_with("text") && c.id == "x.new" && c.what == "added")
         );
         assert!(diff(&old, &old).is_empty());
+
+        let mut renamed = old.clone();
+        let program = renamed.programs.program_types[0].id.to_string();
+        let slot = &mut renamed.programs.program_types[0].slots[0];
+        let from = slot.id.clone();
+        slot.id = slug("renamed_slot");
+        renamed.manifest.migrations.push(Migration::Rename {
+            from: from.clone(),
+            to: slug("renamed_slot"),
+        });
+        let d = diff(&old, &renamed);
+        assert_eq!(d.len(), 1, "{d:?}");
+        assert_eq!(d[0].what, "renamed");
+        assert_eq!(d[0].id, format!("{program}.{from}"));
+        assert_eq!(
+            d[0].renamed_to.as_deref(),
+            Some(format!("{program}.renamed_slot").as_str())
+        );
     }
 
     #[test]

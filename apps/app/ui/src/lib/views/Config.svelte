@@ -6,6 +6,7 @@
   import { api, run } from '../api';
   import { t } from '../i18n';
   import { fail, toast } from '../toast.svelte';
+  import ConfigGuided from './ConfigGuided.svelte';
 
   let { onchange }: { onchange: () => void } = $props();
   let current = $state<ConfigVersion | null>(null);
@@ -14,6 +15,7 @@
   let issues = $state<ConfigIssue[]>([]);
   let sim = $state<ConfigSimulation | null>(null);
   let busy = $state(false);
+  let mode = $state<'guided' | 'yaml'>('guided');
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   const original = (path: string) => current?.files.find((f) => f.path === path)?.text;
@@ -34,8 +36,8 @@
   }
   load();
 
-  function edited(text: string) {
-    const f = files.find((x) => x.path === selected);
+  function edited(text: string, path = selected) {
+    const f = files.find((x) => x.path === path);
     if (!f) return;
     f.text = text;
     sim = null;
@@ -121,6 +123,27 @@
       </div>
     {/if}
 
+    <div class="row modes" role="radiogroup" aria-label={t('g_mode')}>
+      <button class="btn small" role="radio" aria-checked={mode === 'guided'} class:primary={mode === 'guided'} onclick={() => (mode = 'guided')}>{t('g_guided')}</button>
+      <button class="btn small" role="radio" aria-checked={mode === 'yaml'} class:primary={mode === 'yaml'} onclick={() => (mode = 'yaml')}>YAML</button>
+      {#if changed.length}<span class="muted">{t('config_modified')}: {changed.join(', ')}</span>{/if}
+    </div>
+
+    {#if mode === 'guided'}
+      <ConfigGuided {files} {original} readonly={!current.can_publish} onedit={(path, text) => edited(text, path)} />
+      {#if issues.length}
+        <section class="card stack issues" aria-live="polite">
+          {#each issues as i, n (n)}
+            <button class="issue" onclick={() => { selected = i.file; mode = 'yaml'; }}>
+              <span class="badge" class:err={i.severity === 'error'}>{i.severity === 'error' ? t('config_error') : t('config_warning')}</span>
+              <span class="grow"><strong>{i.file}</strong>{i.path ? ` · ${i.path}` : ''} — {i.message}</span>
+            </button>
+          {/each}
+        </section>
+      {:else if changed.length}
+        <p class="muted">{t('config_valid')}</p>
+      {/if}
+    {:else}
     <div class="editor">
       <nav class="files" aria-label={t('config_files')}>
         {#each files as f (f.path)}
@@ -156,6 +179,8 @@
         {/if}
       </div>
     </div>
+
+    {/if}
 
     {#if sim && !errors.length}
       <section class="card stack">
@@ -194,6 +219,7 @@
   .warn { color: var(--warn); margin: 0; }
   .ok { color: var(--ok); margin: 0; }
   .notice-update { background: var(--primary-soft); }
+  .modes { gap: 8px; align-items: center; }
   ul { margin: 0; padding-left: 20px; }
   @media (max-width: 900px) { .editor { grid-template-columns: 1fr; } .files { position: static; flex-direction: row; flex-wrap: wrap; } }
 </style>

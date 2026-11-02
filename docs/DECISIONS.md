@@ -530,10 +530,21 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
 - La pubblicazione numera la versione `max + 1` e richiede `config.publish` (o il ruolo
   radice). Se la nuova versione chiede una versione del nucleo più recente, l'editor lo
   segnala: servirà un aggiornamento dell'app.
-- **Editor**: per ora solo la vista testuale YAML con validazione in tempo reale (600 ms dopo
-  l'ultima battuta), errori per file, simulazione e pubblicazione. Gli editor guidati di §12.4
-  (incarichi, pubblici, campi, slot, testi, promemoria) **restano da fare**: producono gli
-  stessi file, quindi si aggiungono sopra senza cambiare il resto.
+- **Editor**: due viste sugli stessi file. *YAML*: testo con validazione in tempo reale (600 ms
+  dopo l'ultima battuta) ed errori per file. *Guidato* (§12.4): incarichi (ambito, requisiti,
+  titolari, permessi, sostituzioni…), pubblici, campi dei moduli (per variante), slot dei
+  programmi, promemoria e testi (per lingua, con ricerca). Le etichette mostrano la chiave e il
+  testo, modificabili insieme. Condizioni e liste (requisiti, permessi, `select`, campi
+  aggiuntivi) si scrivono come una riga di YAML: un editor visuale delle condizioni è un
+  miglioramento futuro.
+  - Le modifiche passano dalla libreria `yaml` (eemeli/yaml 2.8.3) che conserva commenti,
+    ancore (`&`/`*`) e il resto del file; un valore modificato viene riscritto in stile
+    inline e un valore che era un alias diventa una copia.
+  - Cambiare o eliminare l'id di un elemento che c'era nella versione attiva aggiunge da solo
+    la migrazione in package.yaml (`rename`, che segue rinomine precedenti, o `retire`). I
+    riferimenti negli altri file **non** vengono aggiornati: la validazione li segnala.
+  - Nel confronto tra versioni gli slot rinominati appaiono come "rinominato
+    `programma.vecchio → programma.nuovo`".
 - L'aggiornamento periodico della UI (20 s) rimontava la vista e cancellava le modifiche non
   salvate: ora non tocca le viste di modifica (`EDITING` in App.svelte) e solo se sono
   arrivati eventi.

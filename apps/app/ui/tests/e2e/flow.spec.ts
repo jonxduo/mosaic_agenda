@@ -103,3 +103,34 @@ test('three devices: document → batch → aggregate', async ({ browser, reques
   await open(pb, b, `#/aggregate?aggregate=log_summary&period=${period}`);
   await expect(pb.getByText('Nessun dato visibile')).toBeVisible();
 });
+
+// F8: the guided configuration editor changes a role and renames a slot,
+// adds the migration by itself, simulates and publishes a new version.
+test('guided configuration editor publishes a new version', async ({ browser, request }) => {
+  const { a } = DEVICES;
+  const page = await device(browser, a);
+  await open(page, a, '#/config');
+  await expect(page.getByRole('heading', { name: 'Configurazione' })).toBeVisible();
+
+  const lead = page.locator('details.item', { has: page.locator('summary code', { hasText: /^lead$/ }) });
+  await lead.locator('summary').click();
+  await lead.getByLabel('Titolari massimi').fill('3');
+  await lead.getByLabel('Titolari massimi').blur();
+
+  // Slots tab: the host slot becomes the chair.
+  await page.getByRole('tab', { name: 'Slot dei programmi' }).click();
+  const host = page.locator('details.item', { has: page.locator('summary code', { hasText: /^host$/ }) });
+  await host.locator('summary').click();
+  await host.getByLabel('Identificativo').fill('chair');
+  await host.getByLabel('Identificativo').blur();
+
+  await page.getByRole('button', { name: 'Simula' }).click();
+  await expect(page.getByText(/host → .*chair/)).toBeVisible();
+  await expect(page.locator('li', { hasText: 'role lead' })).toBeVisible();
+
+  page.on('dialog', (d) => d.accept());
+  await page.getByRole('button', { name: /Pubblica versione/ }).click();
+  await expect(page.getByText('Versione 2 pubblicata')).toBeVisible();
+  const files = await call<{ files: { path: string; text: string }[] }>(request, a, 'config_files');
+  expect(files.files.find((f) => f.path === 'package.yaml')!.text).toContain('rename: { from: host, to: chair }');
+});
