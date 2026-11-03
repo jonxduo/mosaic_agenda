@@ -68,5 +68,14 @@ export const ICONS: Record<string, string> = {
   sync_status: 'M21 12a9 9 0 0 1-15.5 6.2L3 16 M3 12a9 9 0 0 1 15.5-6.2L21 8 M21 3v5h-5 M3 21v-5h5',
   settings: 'M4 21v-7 M4 10V3 M12 21v-9 M12 8V3 M20 21v-5 M20 12V3 M1 14h6 M9 8h6 M17 16h6',
   admin: 'M12 3 4 6v6c0 5 3.4 8.3 8 9 4.6-.7 8-4 8-9V6z M9 12l2 2 4-4',
-  more: 'M5 12h.01 M12 12h.01 M19 12h.01'
+  more: 'M5 12h.01 M12 12h.01 M19 12h.01',
+  // Icons the packages can give their program types (`icon`).
+  book: 'M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z',
+  lectern: 'M5 8h14l-2 5H7z M12 13v8 M8 21h8 M9 8V6a3 3 0 0 1 6 0v2',
+  mic: 'M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3 M19 10v2a7 7 0 0 1-14 0v-2 M12 19v3',
+  door: 'M13 4h3a2 2 0 0 1 2 2v14 M2 20h20 M13 20V3.5a1 1 0 0 0-1.2-1L5.8 4A1 1 0 0 0 5 5v15 M10 12v.01',
+  route: 'M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4 M18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4 M8 17h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7',
+  speaker: 'M4 4h16v16H4z M12 14a2 2 0 1 0 0-4 M8 8h.01',
+  notice: 'M4 4h16v12H5.2L4 17.2z M8 9h8 M8 12h5',
+  plus: 'M12 5v14 M5 12h14'
 };

@@ -116,6 +116,8 @@ pub struct BoardItem {
     pub id: String,
     pub title: String,
     pub subtitle: String,
+    /// The program type's icon; none for a notice.
+    pub icon: Option<String>,
     pub body: Vec<BoardLine>,
 }
 
@@ -302,6 +304,8 @@ pub struct AggregateView {
 pub struct ProgramRow {
     pub program_id: String,
     pub program_type: String,
+    /// The program type's icon.
+    pub icon: Option<String>,
     pub title: String,
     pub subtitle: String,
     pub status: String,

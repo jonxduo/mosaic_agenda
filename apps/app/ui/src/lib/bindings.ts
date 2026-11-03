@@ -38,7 +38,7 @@ export const commands = {
 	aggregate: (aggregate: string, period: string | null) => typedError<AggregateView_Serialize, ApiError>(__TAURI_INVOKE("aggregate", { aggregate, period })),
 	generateAggregate: (aggregate: string, period: string, note: string | null) => typedError<AggregateView_Serialize, ApiError>(__TAURI_INVOKE("generate_aggregate", { aggregate, period, note })),
 	distributeAggregate: (aggregate: string, period: string) => typedError<AggregateView_Serialize, ApiError>(__TAURI_INVOKE("distribute_aggregate", { aggregate, period })),
-	programs: (types: string | null) => typedError<ProgramList, ApiError>(__TAURI_INVOKE("programs", { types })),
+	programs: (types: string | null) => typedError<ProgramList_Serialize, ApiError>(__TAURI_INVOKE("programs", { types })),
 	program: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("program", { program })),
 	programDates: (programType: string, period: string | null) => typedError<ProgramDates, ApiError>(__TAURI_INVOKE("program_dates", { programType, period })),
 	draftProgram: (programType: string, dates: string[]) => typedError<string, ApiError>(__TAURI_INVOKE("draft_program", { programType, dates })),
@@ -50,7 +50,7 @@ export const commands = {
 	respond: (program: string, programType: string, occurrence: number, slot: string, index: number, accept: boolean, note: string | null, assignee: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("respond", { program, programType, occurrence, slot, index, accept, note, assignee })),
 	addExternal: (name: string) => typedError<string, ApiError>(__TAURI_INVOKE("add_external", { name })),
 	myAssignments: () => typedError<AssignmentItem[], ApiError>(__TAURI_INVOKE("my_assignments")),
-	board: () => typedError<BoardItem[], ApiError>(__TAURI_INVOKE("board")),
+	board: () => typedError<BoardItem_Serialize[], ApiError>(__TAURI_INVOKE("board")),
 	resources: (resourceType: string) => typedError<ResourceList_Serialize, ApiError>(__TAURI_INVOKE("resources", { resourceType })),
 	resource: (resource: string) => typedError<ResourceDetail_Serialize, ApiError>(__TAURI_INVOKE("resource", { resource })),
 	myResources: (resourceType: string | null) => typedError<HeldResource_Serialize[], ApiError>(__TAURI_INVOKE("my_resources", { resourceType })),
@@ -234,10 +234,23 @@ export type BatchView_Serialize = {
 	can_fill_on_behalf: boolean,
 };
 
-export type BoardItem = {
+export type BoardItem = BoardItem_Serialize | BoardItem_Deserialize;
+
+export type BoardItem_Deserialize = {
 	id: string,
 	title: string,
 	subtitle: string,
+	/**  The program type's icon; none for a notice. */
+	icon?: string | null,
+	body: BoardLine[],
+};
+
+export type BoardItem_Serialize = {
+	id: string,
+	title: string,
+	subtitle: string,
+	/**  The program type's icon; none for a notice. */
+	icon: string | null,
 	body: BoardLine[],
 };
 
@@ -546,11 +559,11 @@ export type Home = Home_Serialize | Home_Deserialize;
 
 export type HomeSection = HomeSection_Serialize | HomeSection_Deserialize;
 
-export type HomeSection_Deserialize = { kind: "documents_due"; title: string; items: DueDocument[] } | { kind: "assignments"; title: string; items: AssignmentItem[] } | { kind: "resources"; title: string; items: HeldResource_Deserialize[] } | { kind: "board"; title: string; items: BoardItem[] } | 
+export type HomeSection_Deserialize = { kind: "documents_due"; title: string; items: DueDocument[] } | { kind: "assignments"; title: string; items: AssignmentItem[] } | { kind: "resources"; title: string; items: HeldResource_Deserialize[] } | { kind: "board"; title: string; items: BoardItem_Deserialize[] } | 
 /**  Work waiting for this user in the views they can reach (core). */
 { kind: "work"; title: string; items: WorkItem[] };
 
-export type HomeSection_Serialize = { kind: "documents_due"; title: string; items: DueDocument[] } | { kind: "assignments"; title: string; items: AssignmentItem[] } | { kind: "resources"; title: string; items: HeldResource_Serialize[] } | { kind: "board"; title: string; items: BoardItem[] } | 
+export type HomeSection_Serialize = { kind: "documents_due"; title: string; items: DueDocument[] } | { kind: "assignments"; title: string; items: AssignmentItem[] } | { kind: "resources"; title: string; items: HeldResource_Serialize[] } | { kind: "board"; title: string; items: BoardItem_Serialize[] } | 
 /**  Work waiting for this user in the views they can reach (core). */
 { kind: "work"; title: string; items: WorkItem[] };
 
@@ -962,15 +975,37 @@ export type ProgramGroup_Serialize = {
 	days: ProgramDay[],
 };
 
-export type ProgramList = {
+export type ProgramList = ProgramList_Serialize | ProgramList_Deserialize;
+
+export type ProgramList_Deserialize = {
 	types: Choice[],
 	can_draft: string[],
-	programs: ProgramRow[],
+	programs: ProgramRow_Deserialize[],
 };
 
-export type ProgramRow = {
+export type ProgramList_Serialize = {
+	types: Choice[],
+	can_draft: string[],
+	programs: ProgramRow_Serialize[],
+};
+
+export type ProgramRow = ProgramRow_Serialize | ProgramRow_Deserialize;
+
+export type ProgramRow_Deserialize = {
 	program_id: string,
 	program_type: string,
+	/**  The program type's icon. */
+	icon?: string | null,
+	title: string,
+	subtitle: string,
+	status: string,
+};
+
+export type ProgramRow_Serialize = {
+	program_id: string,
+	program_type: string,
+	/**  The program type's icon. */
+	icon: string | null,
 	title: string,
 	subtitle: string,
 	status: string,

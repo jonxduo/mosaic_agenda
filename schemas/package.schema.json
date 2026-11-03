@@ -1731,6 +1731,18 @@
         "event_type": {
           "$ref": "#/$defs/OneOrMany_Slug"
         },
+        "icon": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Slug"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Name of an icon of the app (e.g. `book`, `mic`), shown on its tiles."
+        },
         "id": {
           "$ref": "#/$defs/Slug"
         },

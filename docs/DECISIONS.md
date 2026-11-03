@@ -829,3 +829,12 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   aggiunge allo slot che ha lo stesso id in un altro tipo (presidente, preghiere), dove il nome
   da solo sarebbe ambiguo. Un tocco su un riquadro, al telefono, apre lo stesso elenco del
   computer per la settimana di quello slot, limitato a chi può svolgerlo.
+
+## 2026-11-03 — Programmi e bacheca a riquadri
+
+- Tipo di programma, `icon`: il nome di un'icona dell'app (`book`, `lectern`, `mic`, `door`,
+  `route`…), sui riquadri. Congregazione: Vita e ministero libro, Adunanza pubblica leggio,
+  Audio/video microfono, Uscieri porta, Servizio di campo percorso.
+- "Programmi" e "Bacheca" mostrano un riquadro per voce (icona grande, nome, mese e anno), quanti
+  ne stanno in una riga. Un clic apre il programma (in bacheca, il suo contenuto in una finestra).
+  In "Programmi" il riquadro "+" apre "Nuovo programma" in una finestra.

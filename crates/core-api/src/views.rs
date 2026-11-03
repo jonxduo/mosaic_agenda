@@ -903,6 +903,7 @@ impl Core {
             match &post.item {
                 PBoardItem::Notice { title, body } => out.push(BoardItem {
                     id: id.to_string(),
+                    icon: None,
                     title: title.clone(),
                     subtitle: String::new(),
                     body: vec![BoardLine {
@@ -956,6 +957,7 @@ impl Core {
                         .collect();
                     out.push(BoardItem {
                         id: id.to_string(),
+                        icon: def.and_then(|d| d.icon.as_ref()).map(ToString::to_string),
                         title: def.map_or_else(String::new, |d| t.get(d.label.as_str())),
                         subtitle: def.map_or_else(
                             || t.period(&PeriodKey::week_of(first)),
@@ -1627,6 +1629,11 @@ impl Core {
                 programs.push(ProgramRow {
                     program_id: id.to_string(),
                     program_type: p.program_type.to_string(),
+                    icon: defs
+                        .iter()
+                        .find(|d| d.id == p.program_type)
+                        .and_then(|d| d.icon.as_ref())
+                        .map(ToString::to_string),
                     title: defs
                         .iter()
                         .find(|d| d.id == p.program_type)
@@ -1650,6 +1657,11 @@ impl Core {
                 programs.push(ProgramRow {
                     program_id: id.to_string(),
                     program_type: s.program_type.to_string(),
+                    icon: defs
+                        .iter()
+                        .find(|d| d.id == s.program_type)
+                        .and_then(|d| d.icon.as_ref())
+                        .map(ToString::to_string),
                     title: defs
                         .iter()
                         .find(|d| d.id == s.program_type)

@@ -788,6 +788,9 @@ pub struct ProgramTypeDef {
     /// another program type, where the name alone is ambiguous.
     #[serde(default)]
     pub short: Option<TextKey>,
+    /// Name of an icon of the app (e.g. `book`, `mic`), shown on its tiles.
+    #[serde(default)]
+    pub icon: Option<Slug>,
     pub event_type: OneOrMany<Slug>,
     pub period: ProgramPeriod,
     /// Assignments shared by the events of the same week or month.

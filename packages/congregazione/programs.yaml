@@ -8,6 +8,7 @@ x-requirements:
 program_types:
   - id: midweek
     label: p.midweek
+    icon: book
     short: p.midweek_short
     event_type: midweek_meeting
     period: month                        # un programma al mese, una sezione per adunanza
@@ -72,6 +73,7 @@ program_types:
       - { id: closing_prayer, label: s.closing_prayer, section: living, requires: { has_qualification: can_prayer } }
   - id: weekend
     label: p.weekend
+    icon: lectern
     short: p.weekend_short
     event_type: weekend_meeting
     period: month
@@ -101,6 +103,7 @@ program_types:
       - { id: closing_prayer, label: s.closing_prayer, requires: { has_qualification: can_prayer } }
   - id: av
     label: p.av
+    icon: mic
     event_type: [midweek_meeting, weekend_meeting]
     period: month
     rotation: occurrence                 # ⚙ occurrence | week | month (Calendario e turni)
@@ -120,6 +123,7 @@ program_types:
       - { id: stage, label: s.stage, count: 1, requires: { has_qualification: can_av }, enabled: false }
   - id: attendants
     label: p.attendants
+    icon: door
     event_type: [midweek_meeting, weekend_meeting]
     period: month
     rotation: occurrence                 # ⚙
@@ -137,6 +141,7 @@ program_types:
       - { id: parking, label: s.parking, count: 1, requires: { has_qualification: can_attendant }, enabled: false }
   - id: field_service
     label: p.field_service
+    icon: route
     event_type: field_service_meeting
     period: week
     owner_role: field_service_organizer
