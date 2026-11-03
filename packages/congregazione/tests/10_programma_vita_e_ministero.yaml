@@ -1,4 +1,4 @@
-name: programma Vita e ministero, requisiti, rifiuto, pubblicazione in bacheca e visibilità
+name: programma Vita e ministero, requisiti, avvisi solo alla pubblicazione in bacheca, rifiuto e visibilità
 given:
   date: 2026-11-01
   people:
@@ -17,14 +17,15 @@ when:
   - { as: lmm, do: program.assign, program: w45, slot: chairman, person: giulio, expect: denied, reason: "requirements" }
   - { check: { cannot_read: { who: paolo, program: w45 } } }
   - { as: lmm, do: program.send, program: w45 }
+  # Gli incaricati non sanno ancora nulla: il programma è nelle mani del responsabile della bacheca.
+  - { check: { notified: { who: giulio, text: n.assignment_new, is: false } } }
+  - { as: paolo, do: program.publish, program: w45, expect: denied }
+  - { as: bm, do: program.publish, program: w45 }
   - { check: { notified: { who: giulio, text: n.assignment_new } } }
   - { as: anna, do: assignment.respond, program: w45, type: midweek, slot: student_part, index: 0, response: declined, note: "Sono fuori città" }
   - { check: { notified: { who: lmm, text: n.assignment_declined } } }
   - { as: giulio, do: assignment.respond, program: w45, type: midweek, slot: bible_reading, response: accepted }
   - { as: paolo, do: assignment.respond, program: w45, type: midweek, slot: bible_reading, assignee: giulio, response: declined, expect: denied }
-  - { check: { cannot_read: { who: paolo, program: w45 } } }
-  - { as: paolo, do: program.publish, program: w45, expect: denied }
-  - { as: bm, do: program.publish, program: w45 }
 then:
   - { can_read: { who: paolo, program: w45 } }
   - { on_board: { who: paolo, program: w45 } }

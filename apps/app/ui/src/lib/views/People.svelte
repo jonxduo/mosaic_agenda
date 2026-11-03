@@ -144,25 +144,34 @@
           <span class="unit muted">{p.unit ?? ''}</span>
           <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
         </button>
-        {#if open === p.person_id && data.can_manage}
+        {#if open === p.person_id && (data.can_manage || data.can_qualify || data.can_grant_roles)}
           <div class="stack edit">
+            {#if data.can_manage}
             {#each data.attributes as f (f.id)}<FieldInput field={f} bind:value={editAttrs[f.id]} />{/each}
             <button class="btn small" onclick={() => act(() => run(api.updatePerson(p.person_id, null, editAttrs)))}>{t('save')}</button>
+            {/if}
+            {#if data.can_qualify}
             <div class="row">
               <select aria-label={t('qualification')} bind:value={q}><option value=""></option>{#each data.qualifications as x (x.id)}<option value={x.id}>{x.label}</option>{/each}</select>
               <input type="date" aria-label={t('from')} bind:value={qFrom} style="max-width: 170px" />
               <button class="btn small" disabled={!q} onclick={() => act(() => run(api.grantQualification(p.person_id, q, qFrom || null, null)))}>{t('grant')}</button>
             </div>
+            {/if}
+            {#if data.can_manage}
             <div class="row">
               <select aria-label={t('unit')} bind:value={unit}><option value=""></option>{#each data.units as x (x.id)}<option value={x.id}>{x.label}</option>{/each}</select>
               <input type="date" aria-label={t('from')} bind:value={unitFrom} style="max-width: 170px" />
               <button class="btn small" disabled={!unit} onclick={() => act(() => run(api.setMembership(p.person_id, unit, unitFrom || null)))}>{t('set_unit')}</button>
             </div>
+            {/if}
+            {#if data.can_grant_roles}
             <div class="row">
               <select aria-label={t('role')} bind:value={role}><option value=""></option>{#each data.roles as x (x.id)}<option value={x.id}>{x.label}</option>{/each}</select>
               <select aria-label={t('unit')} bind:value={roleUnit}><option value="">—</option>{#each data.units as x (x.id)}<option value={x.id}>{x.label}</option>{/each}</select>
               <button class="btn small" disabled={!role} onclick={() => act(() => run(api.grantRole(p.person_id, role, roleUnit || null)))}>{t('grant')}</button>
             </div>
+            {/if}
+            {#if data.can_manage}
             <div class="row">
               <span class="muted">{t('devices')}: {p.devices.length}</span>
               <button class="btn small" onclick={() => doInvite(p.person_id)}>{t('invite')}</button>
@@ -183,6 +192,7 @@
               <button class="btn small" onclick={() => guard(() => printExport(p.person_id))}>{t('export_print')}</button>
               <button class="btn small" style="color: var(--danger)" onclick={() => erase(p.person_id, p.name)}>{t('erase_data')}</button>
             </div>
+            {/if}
             {#if invite}
               <div class="stack invite">
                 <p class="muted">{t('invite_hint')} {invite.expires_at}</p>

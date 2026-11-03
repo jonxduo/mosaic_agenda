@@ -365,6 +365,8 @@ pub struct ProgramEditor {
     pub groups: Vec<ProgramGroup>,
     pub cells: Vec<SlotCell>,
     pub can_edit: bool,
+    /// The draft differs from what was last sent.
+    pub unsent: bool,
     pub can_send: bool,
     pub can_publish: bool,
     pub warnings: Vec<String>,
@@ -433,7 +435,12 @@ pub struct PersonView {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct People {
+    /// Attributes, units, devices and privacy rights.
     pub can_manage: bool,
+    /// Granting and ending qualifications.
+    pub can_qualify: bool,
+    /// Granting roles.
+    pub can_grant_roles: bool,
     pub persons: Vec<PersonView>,
     pub qualifications: Vec<Choice>,
     pub roles: Vec<Choice>,

@@ -22,12 +22,14 @@
     else pending[k] = { occurrence: c.occurrence, slot: c.slot, index: c.index, person };
   }
   async function save(quiet = false) {
-    if (!changed) return true;
+    if (!changed && !p?.unsent) return true;
     busy = true;
     try {
+      // For programs notified at publication, saving also hands the program
+      // to who publishes it on the board.
       p = await run(api.assignSlots(program, Object.values(pending)));
       pending = {};
-      if (!quiet) toast(t('draft_saved'));
+      if (!quiet) toast(p?.can_send ? t('draft_saved') : t('saved'));
       return true;
     } catch (e) {
       fail(e);
@@ -97,7 +99,7 @@
     {/each}
     <div class="row actions">
       {#if p.can_edit}
-        <button class="btn" disabled={busy || !changed} onclick={() => save()}>{t('save')}</button>
+        <button class="btn" class:primary={!p.can_send} disabled={busy || (!changed && !p.unsent)} onclick={() => save()}>{t(p.can_send ? 'save' : 'save_plain')}</button>
       {/if}
       {#if p.can_send}<button class="btn primary" disabled={busy} onclick={() => act('send')}>{t('send')}</button>{/if}
       {#if p.can_publish}<button class="btn" disabled={busy} onclick={() => act('publish')}>{t('publish')}</button>{/if}

@@ -54,6 +54,10 @@ roles:
       - { permission: aggregate.generate, on: aggregate:monthly_summary, target: organization }
       - { permission: document.distribute, on: aggregate:monthly_summary, target: organization }
       - { permission: document.fill_on_behalf, on: form:service_report, target: organization }
+      - { permission: qualifications.manage }   # matrice incarichi e nomine
+  - { id: secretary_assistant, label: r.secretary_assistant, scope: organization, requires: { any: [ { has_qualification: elder }, { has_qualification: ministerial_servant } ] },
+      holders: { min: 0, max: null }, assistant_of: secretary,
+      permissions: [ { permission: qualifications.manage } ] }
   - { id: lmm_overseer, label: r.lmm_overseer, scope: organization, requires: { has_qualification: elder }, holders: { min: 1, max: 1 },
       permissions: [ { permission: program.draft, on: program:midweek }, { permission: program.assign, on: program:midweek },
                      { permission: assignment.respond_on_behalf, on: program:midweek } ] }
@@ -78,5 +82,5 @@ roles:
   - { id: board_manager, label: r.board_manager, scope: organization, requires: *elder_or_ms, holders: { min: 1, max: null },   # ⚙
       permissions: [ { permission: board.publish }, { permission: board.withdraw }, { permission: program.publish } ] }
   - { id: app_admin, label: r.app_admin, scope: organization, requires: { has_qualification: elder }, holders: { min: 2, max: null },   # ⚙
-      permissions: [ { permission: people.manage }, { permission: qualifications.manage }, { permission: units.manage },
+      permissions: [ { permission: people.manage }, { permission: units.manage },
                      { permission: roles.grant }, { permission: devices.manage }, { permission: calendar.manage }, { permission: config.publish } ] }

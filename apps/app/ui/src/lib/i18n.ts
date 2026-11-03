@@ -1,7 +1,7 @@
 // Generic interface words of the core. Everything domain-specific comes
 // from the package through the commands (labels already resolved).
 const it = {
-  save: 'Salva bozza', saved: 'Salvato', cancel: 'Annulla', confirm: 'Conferma', back: 'Indietro', close: 'Chiudi',
+  save: 'Salva bozza', save_plain: 'Salva', saved: 'Salvato', cancel: 'Annulla', confirm: 'Conferma', back: 'Indietro', close: 'Chiudi',
   yes: 'Sì', no: 'No', fill: 'Compila', fill_on_behalf: 'Compila per conto', respond: 'Rispondi', accept: 'Accetto',
   decline: 'Non posso', open: 'Apri', todo: 'Da fare', work_for_others: 'Da seguire', nav_work: 'Attività', sync_short: 'Sincro', nav_admin: 'Amministrazione', nav_system: 'Dispositivo', nothing_mine: 'Niente da fare per te in prima persona', board_news: 'Novità in bacheca', nothing: 'Niente da fare per ora',
   missing: 'Mancano', received: 'Ricevuti', done: 'Già avanzati', note: 'Nota', note_required: 'Scrivi una nota',
@@ -16,7 +16,7 @@ const it = {
   generate: 'Genera', distribute: 'Distribuisci', version: 'Versione', distributed: 'Distribuito', not_distributed: 'Non ancora distribuito',
   registered: 'Documenti registrati', period: 'Periodo', none_visible: 'Nessun dato visibile',
   new_program: 'Nuovo programma', dates: 'Date', previous: 'Precedente', next: 'Successivo', program_exists: 'Esiste già un programma per questo periodo', no_dates: 'Nessuna data: imposta i giorni in Calendario e turni', send: 'Invia le assegnazioni', draft_saved: 'Bozza salvata', unsaved_changes: '{n} modifiche da salvare', publish: 'Pubblica in bacheca',
-  status_draft: 'Bozza', status_assigned: 'Assegnato', status_published: 'Pubblicato', unassigned: '— non assegnato —',
+  status_draft: 'Bozza', status_assigned: 'Assegnato', status_to_publish: 'Da pubblicare', status_published: 'Pubblicato', unassigned: '— non assegnato —',
   response_pending: 'In attesa', response_accepted: 'Accettato', response_declined: 'Declinato', add_external: 'Aggiungi persona esterna',
   available: 'Disponibile', assigned: 'Assegnata', holder: 'Detentore', history: 'Storico', add: 'Aggiungi', assign: 'Assegna',
   request: 'Richiedi', log: 'Registra', return: 'Restituisci', new_resource: 'Nuova risorsa',

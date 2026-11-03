@@ -148,12 +148,16 @@ async fn locked_device_keeps_receiving() {
     assert!(b.pending_while_locked() > 0, "received while locked");
     assert_eq!(b.people().unwrap_err().kind, "locked");
     assert!(b.unlock("2468").unwrap());
+    // Bob manages nobody: read the names from his device's data, not the people view.
     let names: Vec<String> = b
-        .people()
+        .view()
         .unwrap()
+        .proj
+        .auth
+        .org
         .persons
-        .into_iter()
-        .map(|p| p.name)
+        .values()
+        .map(|p| p.display_name.clone())
         .collect();
     assert!(names.contains(&"Carol".to_owned()), "{names:?}");
 }

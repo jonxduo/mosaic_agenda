@@ -3,6 +3,7 @@
 
 use std::sync::Arc;
 
+use core_model::config::ViewKind;
 use core_model::{Permission, PersonId, Slug};
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -47,6 +48,7 @@ impl Core {
     /// `qualifications`: comma-separated ids (the view's parameter).
     pub fn qualification_matrix(&self, qualifications: String) -> ApiResult<QualificationMatrix> {
         self.ensure_unlocked()?;
+        self.ensure_view(ViewKind::QualificationMatrix, &Default::default())?;
         let v = self.view()?;
         let me = self.me()?;
         let c = cfg(&v)?;

@@ -13,7 +13,7 @@ use time::Date;
 use crate::auth::{AuthState, Denied};
 use crate::channels::{STAGE_ASSIGNED, STAGE_DRAFT, audience_desc, program_desc};
 use crate::config::Cfg;
-use crate::ops::{AggregateResult, Assignee, ProgramSnapshot, PublishedAssignment};
+use crate::ops::{AggregateResult, Assignee, NoticeItem, ProgramSnapshot, PublishedAssignment};
 use crate::projection::{Document, Program};
 use crate::time::PeriodKey;
 use crate::values::with_computed;
@@ -371,6 +371,22 @@ pub fn display_name(auth: &AuthState, a: &Assignee) -> String {
 }
 
 /// What gets published for a program.
+/// What each assignee is told: their slots in the program, with the dates.
+/// `None` when a slot points past the program's events.
+pub fn notice_items(p: &Program) -> Option<BTreeMap<PersonId, Vec<NoticeItem>>> {
+    let mut by_person: BTreeMap<PersonId, Vec<NoticeItem>> = BTreeMap::new();
+    for (k, (a, _)) in &p.assignments {
+        if let Assignee::Person(person) = a {
+            let date = p.occurrences.get(usize::from(k.occurrence)).copied()?;
+            by_person.entry(*person).or_default().push(NoticeItem {
+                key: k.clone(),
+                date,
+            });
+        }
+    }
+    Some(by_person)
+}
+
 pub fn program_snapshot(auth: &AuthState, id: Id, p: &Program, version: u32) -> ProgramSnapshot {
     ProgramSnapshot {
         program: id,

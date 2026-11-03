@@ -69,7 +69,7 @@ impl Core {
         let t = self.texts();
         let cfg = cfg(&v)?;
         let view = self
-            .people()?
+            .people_unchecked()?
             .persons
             .into_iter()
             .find(|x| x.person_id == person)

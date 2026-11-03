@@ -5,6 +5,7 @@
 //! development HTTP bridge (`api-dev-server`) exposes the same ones to the
 //! browser and to the Playwright tests.
 
+mod access;
 pub mod backup;
 pub mod commands;
 pub mod config;

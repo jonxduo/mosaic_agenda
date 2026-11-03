@@ -71,6 +71,10 @@ fn core_texts(locale: &str) -> &'static [(&'static str, &'static str)] {
             ),
             ("core.work.aggregate", "Pronto da preparare"),
             ("core.work.aggregate_send", "Pronto da inviare"),
+            (
+                "core.work.program_publish",
+                "Da verificare e pubblicare in bacheca",
+            ),
         ],
         _ => &[
             ("core.month.1", "January"),
@@ -127,6 +131,10 @@ fn core_texts(locale: &str) -> &'static [(&'static str, &'static str)] {
             ),
             ("core.work.aggregate", "Ready to prepare"),
             ("core.work.aggregate_send", "Ready to send"),
+            (
+                "core.work.program_publish",
+                "To check and publish on the board",
+            ),
         ],
     }
 }

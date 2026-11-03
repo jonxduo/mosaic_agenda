@@ -7,12 +7,15 @@ use core_engine::ops::{Assignee, Response};
 use core_engine::projection::{BoardItem as PBoardItem, Document, ProgramStatus};
 use core_engine::rules::{expected_subjects, may_fill, present_subjects, step_actors, variant_for};
 use core_engine::time::{PeriodKey, add_days, date_of};
-use core_model::config::{FieldDef, FieldType, Periodicity, Rotation, StepKind, ViewKind};
+use core_model::config::{
+    FieldDef, FieldType, NotifyOn, Periodicity, Rotation, StepKind, ViewKind,
+};
 use core_model::eval::{EvalContext, Evaluator};
 use core_model::strings::{ObjectKind, ObjectRef};
 use core_model::{Permission, PersonId, Scalar, Slug, UnitId};
 use time::Date;
 
+use crate::access::{holds_any, view_permissions};
 use crate::dto::*;
 use crate::texts::Texts;
 use crate::{ApiError, ApiResult, Core, View};
@@ -144,6 +147,44 @@ fn params_map(p: &core_model::config::ViewParams) -> BTreeMap<String, String> {
         );
     }
     m
+}
+
+/// Whether the assignees of this program type hear of it only when it is published.
+pub(crate) fn notified_at_publish(cfg: &Cfg, program_type: &Slug) -> bool {
+    cfg.program_type(program_type)
+        .is_some_and(|d| d.notify == NotifyOn::Publish)
+}
+
+/// `draft`, `assigned` (sent to the assignees), `to_publish` (handed to who
+/// publishes, waiting) or `published`.
+pub(crate) fn program_status(
+    v: &View,
+    cfg: &Cfg,
+    id: &core_model::Id,
+    program_type: &Slug,
+) -> &'static str {
+    let sent = v.proj.assigned_snapshots.get(id).map(|s| s.version);
+    let published = v.proj.published.get(id).map(|s| s.version);
+    let at_publish = notified_at_publish(cfg, program_type);
+    match (sent, published) {
+        (Some(s), Some(p)) if at_publish && s > p => "to_publish",
+        (_, Some(_)) => "published",
+        (Some(_), None) if at_publish => "to_publish",
+        (Some(_), None) => "assigned",
+        (None, None) => "draft",
+    }
+}
+
+/// The draft holds changes not yet sent (for types notified at publication,
+/// "Salva" sends them to who publishes).
+pub(crate) fn unsent(v: &View, id: &core_model::Id) -> bool {
+    let Some(p) = v.proj.programs.get(id) else {
+        return false;
+    };
+    match v.proj.assigned_snapshots.get(id) {
+        Some(s) => core_engine::rules::program_snapshot(&v.proj.auth, *id, p, s.version) != *s,
+        None => !p.assignments.is_empty(),
+    }
 }
 
 fn view_name(k: ViewKind) -> String {
@@ -307,6 +348,7 @@ impl Core {
                 m.visible_to
                     .as_ref()
                     .is_none_or(|a| allowed_in(&v, me, a, today(self)))
+                    && holds_any(&v, me, &view_permissions(m.view, &m.params), self.now())
             })
             .map(|m| MenuItem {
                 label: t.get(m.label.as_str()),
@@ -315,10 +357,12 @@ impl Core {
             })
             .collect();
         // Core view: the configuration editor, for who may publish (§12.4).
-        let may_configure = v.proj.auth.is_root(me)
-            || v.proj
-                .auth
-                .is_allowed(cfg, me, Permission::ConfigPublish, None, None, today(self));
+        let may_configure = holds_any(
+            &v,
+            me,
+            &view_permissions(ViewKind::ConfigEditor, &Default::default()),
+            self.now(),
+        );
         if may_configure {
             items.push(MenuItem {
                 label: t.get("core.menu.schedule"),
@@ -467,6 +511,40 @@ impl Core {
                             action: t.get("core.work.open"),
                             urgent: false,
                         });
+                    }
+                }
+                "program_list" => {
+                    let Ok(list) = self.programs(param("types")) else {
+                        continue;
+                    };
+                    let v = self.view()?;
+                    let c = cfg(&v)?;
+                    let me = self.me()?;
+                    for r in list.programs.iter().filter(|r| r.status == "to_publish") {
+                        let may = Slug::new(&r.program_type).is_ok_and(|pt| {
+                            v.proj.auth.is_allowed(
+                                c,
+                                me,
+                                Permission::ProgramPublish,
+                                Some(&ObjectRef {
+                                    kind: ObjectKind::Program,
+                                    id: pt,
+                                }),
+                                None,
+                                today(self),
+                            )
+                        });
+                        if may && seen.insert((r.program_id.clone(), String::new(), String::new()))
+                        {
+                            out.push(WorkItem {
+                                title: format!("{} · {}", r.title, r.subtitle),
+                                subtitle: t.get("core.work.program_publish"),
+                                view: "program_editor".into(),
+                                params: [("program".to_owned(), r.program_id.clone())].into(),
+                                action: t.get("core.work.open"),
+                                urgent: true,
+                            });
+                        }
                     }
                 }
                 "admin_alerts" => {
@@ -1416,12 +1494,7 @@ impl Core {
                         || t.period(&PeriodKey::week_of(first)),
                         |d| t.period(&crate::schedule::period_of(d, first)),
                     ),
-                    status: match (p.status, v.proj.published.contains_key(id)) {
-                        (_, true) => "published",
-                        (ProgramStatus::Assigned, false) => "assigned",
-                        (ProgramStatus::Draft, false) => "draft",
-                    }
-                    .into(),
+                    status: program_status(&v, cfg, id, &p.program_type).into(),
                 });
             }
         }
@@ -1444,12 +1517,7 @@ impl Core {
                         || t.period(&PeriodKey::week_of(first)),
                         |d| t.period(&crate::schedule::period_of(d, first)),
                     ),
-                    status: if v.proj.published.contains_key(id) {
-                        "published"
-                    } else {
-                        "assigned"
-                    }
-                    .into(),
+                    status: program_status(&v, cfg, id, &s.program_type).into(),
                 });
             }
         }
@@ -1491,7 +1559,7 @@ impl Core {
         let cfg = cfg(&v)?;
         let id = crate::parse_id(&program)?;
         let now = today(self);
-        let (program_type, occurrences, assignments, status): ProgramParts<'_> =
+        let (program_type, occurrences, assignments, _): ProgramParts<'_> =
             match v.proj.programs.get(&id) {
                 Some(p) => (
                     p.program_type.clone(),
@@ -1546,6 +1614,8 @@ impl Core {
         let def = cfg
             .program_type(&program_type)
             .ok_or_else(|| ApiError::not_found("program type"))?;
+        let status = program_status(&v, cfg, &id, &program_type);
+        let at_publish = def.notify == NotifyOn::Publish;
         let obj = ObjectRef {
             kind: ObjectKind::Program,
             id: program_type.clone(),
@@ -1668,7 +1738,9 @@ impl Core {
                 }
             }
         }
+        // Nothing new to publish: the board already shows the version sent.
         let can_publish = v.proj.assigned_snapshots.contains_key(&id)
+            && (!at_publish || status == "to_publish")
             && v.proj
                 .auth
                 .is_allowed(cfg, me, Permission::ProgramPublish, Some(&obj), None, now);
@@ -1730,7 +1802,10 @@ impl Core {
                 .collect(),
             cells,
             can_edit,
+            unsent: can_edit && unsent(&v, &id),
+            // Notified at publication: "Salva" hands the program over, no send.
             can_send: can_edit
+                && !at_publish
                 && v.proj.auth.is_allowed(
                     cfg,
                     me,
@@ -1930,6 +2005,13 @@ impl Core {
 
     pub fn people(&self) -> ApiResult<People> {
         self.ensure_unlocked()?;
+        self.ensure_view(ViewKind::People, &Default::default())?;
+        self.people_unchecked()
+    }
+
+    /// The people view without the view check: a person exporting their own
+    /// data reads their row from it.
+    pub(crate) fn people_unchecked(&self) -> ApiResult<People> {
         let v = self.view()?;
         let me = self.me()?;
         let t = self.texts();
@@ -2116,8 +2198,11 @@ impl Core {
                 }
             })
             .collect();
+        let may = |p: Permission| auth.is_allowed(cfg, me, p, None, None, now);
         Ok(People {
-            can_manage: auth.is_allowed(cfg, me, Permission::PeopleManage, None, None, now),
+            can_manage: may(Permission::PeopleManage),
+            can_qualify: may(Permission::QualificationsManage),
+            can_grant_roles: may(Permission::RolesGrant),
             persons,
             qualifications: cfg
                 .package()
@@ -2187,6 +2272,7 @@ impl Core {
 
     pub fn units(&self) -> ApiResult<Vec<UnitView>> {
         self.ensure_unlocked()?;
+        self.ensure_view(ViewKind::Units, &Default::default())?;
         let v = self.view()?;
         let t = self.texts();
         let cfg = cfg(&v)?;

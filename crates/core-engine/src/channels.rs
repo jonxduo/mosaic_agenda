@@ -8,6 +8,7 @@ use core_crypto::{
 };
 use core_events::payloads::KeyDistribution;
 use core_events::{EventKind, OrgId, SignedEvent};
+use core_model::config::NotifyOn;
 use core_model::eval::{EvalContext, Evaluator};
 use core_model::strings::{ObjectKind, ObjectRef};
 use core_model::{Permission, PersonId, Slug};
@@ -97,6 +98,16 @@ pub fn members(
             person,
         } => {
             let mut out = program_team(auth, cfg, program_type, date)?;
+            // Notified at publication: who publishes writes the notice.
+            if cfg
+                .program_type(program_type)
+                .is_some_and(|d| d.notify == NotifyOn::Publish)
+            {
+                let obj = program_object(program_type);
+                out.extend(auth.org.active_persons().filter(|p| {
+                    auth.is_allowed(cfg, *p, Permission::ProgramPublish, Some(&obj), None, date)
+                }));
+            }
             out.insert(*person);
             out
         }

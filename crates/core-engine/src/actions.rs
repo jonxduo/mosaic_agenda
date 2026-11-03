@@ -13,7 +13,7 @@ use core_crypto::{
 };
 use core_events::payloads::{DeviceAdded, DeviceRevoked, KeyDistribution, SealedKeyEntry};
 use core_events::{Draft, EventError, EventHash, EventKind, ObjectHeader, ObjectType, SignedEvent};
-use core_model::config::{StepKind, VariantDef};
+use core_model::config::{NotifyOn, StepKind, VariantDef};
 use core_model::{Id, PersonId, Slug, UnitId};
 use serde::Serialize;
 use time::Date;
@@ -962,7 +962,8 @@ impl<'a> Client<'a> {
             .get(&program)
             .ok_or_else(|| nf("program"))?
             .clone();
-        let snapshot = program_snapshot(&self.proj.auth, program, &p, p.sent_version + 1);
+        let snapshot_version = p.sent_version + 1;
+        let snapshot = program_snapshot(&self.proj.auth, program, &p, snapshot_version);
         let mut chain = self.chain();
         let header = Self::header(ObjectType::Program, program, &p.program_type);
         self.sealed(
@@ -972,19 +973,25 @@ impl<'a> Client<'a> {
             header.clone(),
             &AssignmentsSent::Team { program, snapshot },
         )?;
-        let mut by_person: BTreeMap<PersonId, Vec<NoticeItem>> = BTreeMap::new();
-        for (k, (a, _)) in &p.assignments {
-            if let Assignee::Person(person) = a {
-                let date = p
-                    .occurrences
-                    .get(usize::from(k.occurrence))
-                    .copied()
-                    .ok_or_else(|| nf("occurrence"))?;
-                by_person.entry(*person).or_default().push(NoticeItem {
-                    key: k.clone(),
-                    date,
-                });
-            }
+        let by_person = notice_items(&p).ok_or_else(|| nf("occurrence"))?;
+        let at_publish = self
+            .cfg()?
+            .program_type(&p.program_type)
+            .is_some_and(|d| d.notify == NotifyOn::Publish);
+        if at_publish {
+            // The assignees hear of it when the program is published.
+            self.sealed(
+                &mut chain,
+                EventKind::ProgramAssignmentsSent,
+                &program_assigned_descriptor(&p.program_type),
+                header,
+                &AssignmentsSent::Roster {
+                    program,
+                    version: snapshot_version,
+                    persons: by_person.into_iter().collect(),
+                },
+            )?;
+            return self.finish(chain);
         }
         for (person, items) in by_person {
             let desc = assignment_descriptor(&p.program_type, &Assignee::Person(person));
@@ -1070,7 +1077,56 @@ impl<'a> Client<'a> {
             Self::header(ObjectType::Program, program, &snap.program_type),
             &snap,
         )?;
+        if def.notify == NotifyOn::Publish {
+            self.publish_notices(&mut chain, program, &snap.program_type)?;
+        }
         self.finish(chain)
+    }
+
+    /// The notices of a program notified at publication: one for every
+    /// assignee whose slots changed since what they were told, an empty one
+    /// for who no longer holds any.
+    fn publish_notices(
+        &self,
+        chain: &mut Chain,
+        program: Id,
+        program_type: &Slug,
+    ) -> Result<(), ActionError> {
+        let Some((_, roster)) = self.proj.rosters.get(&program) else {
+            return Ok(());
+        };
+        let mut due: BTreeMap<PersonId, Vec<NoticeItem>> = self
+            .proj
+            .notices
+            .keys()
+            .filter(|(p, _)| *p == program)
+            .map(|(_, person)| (*person, Vec::new()))
+            .collect();
+        due.extend(roster.iter().cloned());
+        let header = Self::header(ObjectType::Program, program, program_type);
+        for (person, items) in due {
+            let told = self
+                .proj
+                .notices
+                .get(&(program, person))
+                .map(|(_, i)| i.as_slice());
+            if told == Some(items.as_slice()) || (told.is_none() && items.is_empty()) {
+                continue;
+            }
+            self.sealed(
+                chain,
+                EventKind::ProgramAssignmentsSent,
+                &assignment_descriptor(program_type, &Assignee::Person(person)),
+                header.clone(),
+                &AssignmentsSent::Notice {
+                    program,
+                    program_type: program_type.clone(),
+                    person,
+                    items,
+                },
+            )?;
+        }
+        Ok(())
     }
 
     // ----- resources ----------------------------------------------------------------

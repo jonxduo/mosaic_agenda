@@ -2,3 +2,6 @@ home:
   - view: my_documents_due
 menu:
   - { label: menu.logs, view: work_queue, params: { workflow: log }, visible_to: keepers }
+  # Management views: shown only to who holds the permission to act there.
+  - { label: menu.logs, view: people }
+  - { label: menu.logs, view: qualification_matrix, params: { qualifications: [member, senior] } }

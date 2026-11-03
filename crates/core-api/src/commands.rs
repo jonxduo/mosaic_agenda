@@ -302,6 +302,28 @@ impl Core {
         if !specs.is_empty() || !cleared.is_empty() {
             self.act_events(|c| c.update_program(id, specs, cleared))?;
         }
+        // Notified at publication: saving hands the program to who publishes
+        // it; the assignees hear of it only from the board.
+        let hand_over = {
+            let v = self.view()?;
+            let c = cfg(&v)?;
+            let me = self.me()?;
+            v.proj.programs.get(&id).is_some_and(|p| {
+                crate::views::notified_at_publish(c, &p.program_type)
+                    && crate::views::unsent(&v, &id)
+                    && v.proj.auth.is_allowed(
+                        c,
+                        me,
+                        core_model::Permission::ProgramAssign,
+                        Some(&core_engine::channels::program_object(&p.program_type)),
+                        None,
+                        crate::views::today(self),
+                    )
+            })
+        };
+        if hand_over {
+            self.act_events(|c| c.send_assignments(id))?;
+        }
         self.program(program)
     }
 

@@ -7,6 +7,8 @@ home:
     params: { resource_type: territory }
   - view: board
 
+# Le schermate di gestione (persone, gruppi, incarichi, configurazione)
+# compaiono solo a chi ha il permesso di agire: non serve visible_to.
 menu:
   - { label: menu.home, view: home }
   - { label: menu.reports, view: my_documents, params: { form: service_report } }
@@ -17,9 +19,9 @@ menu:
   - { label: menu.territories, view: resource_list, params: { resource_type: territory }, visible_to: territory_team }
   - { label: menu.my_territories, view: my_resources, params: { resource_type: territory } }
   - { label: menu.board, view: board }
-  - { label: menu.people, view: people, visible_to: app_admins }
-  - { label: menu.units, view: units, params: { unit_type: group }, visible_to: app_admins }
-  - { label: menu.roles, view: qualification_matrix, visible_to: app_admins,
+  - { label: menu.people, view: people }
+  - { label: menu.units, view: units, params: { unit_type: group } }
+  - { label: menu.roles, view: qualification_matrix,
       params: { qualifications: [can_attendant, can_av, can_microphones, can_lmm_chairman, can_public_chairman,
                                  can_public_talk, can_treasures, can_gems, can_bible_reading, can_student, can_living,
                                  can_cbs_conductor, can_cbs_reader, can_wt_reader, can_prayer] } }

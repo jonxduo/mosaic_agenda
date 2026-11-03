@@ -660,3 +660,31 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   microfonista, presidenti, discorso, tesori, gemme, lettura biblica, dimostrazione, vita
   cristiana, studio biblico, lettori, preghiera); gli slot dei programmi le richiedono, così
   l'editor propone solo chi è abilitato. Aggiunto lo slot `chairman` all'adunanza pubblica.
+
+## 2026-11-03 — Schermate secondo i permessi; avvisi alla pubblicazione
+
+- **Una schermata di gestione si vede solo se si può agire** (core, `access.rs`): ogni vista ha
+  i permessi che la rendono utile (`qualification_matrix` → `qualifications.manage`; `people` →
+  `people.manage`, `qualifications.manage` o `roles.grant`; `units` → `units.manage`; `roles` →
+  `roles.grant`; configurazione → `config.publish`; `resource_list` → gestire o assegnare quel
+  tipo di risorsa). Il menu nasconde le voci senza permesso, oltre a `visible_to`, e le viste
+  `people`, `units`, `qualification_matrix` rispondono `denied` se chieste comunque (link vecchi,
+  altri client). L'esportazione dei propri dati resta possibile a tutti.
+- **Persone divisa per permesso**: dati, gruppo, dispositivi e privacy con `people.manage`;
+  nomine/qualifiche con `qualifications.manage` (`can_qualify`); ruoli con `roles.grant`
+  (`can_grant_roles`).
+- Congregazione: la matrice "Incarichi" e le qualifiche le gestiscono solo il **segretario** e
+  il nuovo ruolo **assistente del segretario** (anziano o servitore, `assistant_of: secretary`);
+  `app_admin` non ha più `qualifications.manage`. Tolti i `visible_to` ridondanti dal menu.
+- **`notify: publish`** (opzione del tipo di programma, core; predefinito `send` = comportamento
+  di prima): chi prepara il programma vede solo "Salva"; salvare consegna la versione a chi
+  pubblica (evento `Team` + nuovo `Roster`: chi tiene cosa, senza dare accesso alla bozza) e il
+  programma è "Da pubblicare", con una voce in Oggi per chi può pubblicarlo. Gli incaricati non
+  ricevono nulla finché il responsabile della bacheca non pubblica: in quel momento chi pubblica
+  scrive gli avvisi (`Notice`) dal `Roster`. Per questo chi ha `program.publish` legge i canali
+  degli incarichi dei tipi `notify: publish`, e il motore accetta da lui gli avvisi che
+  corrispondono al `Roster`. Alla ripubblicazione ricevono un avviso solo le persone i cui turni
+  sono cambiati; chi non ha più turni riceve un avviso vuoto che cancella il vecchio.
+  Congregazione: tutti i programmi usano `notify: publish`.
+- Le organizzazioni esistenti ricevono queste opzioni solo pubblicando la nuova configurazione
+  (la configurazione vive nello storico dell'organizzazione).

@@ -4,7 +4,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use core_crypto::{ChannelDescriptor, ChannelId};
 use core_events::{EventHash, PayloadChannel};
-use core_model::config::{Effect, NoteRequirement, Repeat, StepKind, Trigger, TriggerFilter};
+use core_model::config::{
+    Effect, NoteRequirement, NotifyOn, Repeat, StepKind, Trigger, TriggerFilter,
+};
 use core_model::eval::{EvalContext, Evaluator};
 use core_model::{Permission, PersonId, Slug, TextKey, UnitId};
 use time::Date;
@@ -1149,22 +1151,73 @@ fn assignments_sent(proj: &mut Projection, h: &H<'_>, s: &AssignmentsSent) -> Re
             proj.assigned_snapshots.insert(*program, snapshot.clone());
             Ok(())
         }
+        AssignmentsSent::Roster {
+            program,
+            version,
+            persons,
+        } => {
+            let p = proj
+                .programs
+                .get(program)
+                .map(|p| p.program_type.clone())
+                .or_else(|| {
+                    proj.assigned_snapshots
+                        .get(program)
+                        .map(|s| s.program_type.clone())
+                })
+                .ok_or_else(|| Denied("unknown program".into()))?;
+            h.need(Permission::ProgramAssign, Some(&program_object(&p)), None)?;
+            h.expect_channel(proj, &program_assigned_descriptor(&p))?;
+            ensure(
+                proj.assigned_snapshots
+                    .get(program)
+                    .is_some_and(|s| s.version == *version),
+                "the roster follows the version it lists",
+            )?;
+            if let Some(prog) = proj.programs.get(program) {
+                let expected: Vec<_> = notice_items(prog)
+                    .ok_or_else(|| Denied("slot past the events".into()))?
+                    .into_iter()
+                    .collect();
+                ensure(
+                    &expected == persons,
+                    "the roster does not match the program",
+                )?;
+            }
+            proj.rosters.insert(*program, (*version, persons.clone()));
+            Ok(())
+        }
         AssignmentsSent::Notice {
             program,
             program_type,
             person,
             items,
         } => {
-            h.need(
-                Permission::ProgramAssign,
-                Some(&program_object(program_type)),
-                None,
-            )?;
+            let obj = program_object(program_type);
+            let at_publish = h
+                .cfg
+                .program_type(program_type)
+                .is_some_and(|d| d.notify == NotifyOn::Publish);
+            // Notified at publication: who publishes writes the notices,
+            // from the roster of the version on the board.
+            if !(at_publish && h.allowed(Permission::ProgramPublish, Some(&obj), None)) {
+                h.need(Permission::ProgramAssign, Some(&obj), None)?;
+            }
             h.expect_channel(
                 proj,
                 &assignment_descriptor(program_type, &Assignee::Person(*person)),
             )?;
-            if let Some(p) = proj.programs.get(program) {
+            if let Some((_, roster)) = proj.rosters.get(program).filter(|_| at_publish) {
+                let listed = roster
+                    .iter()
+                    .find(|(p, _)| p == person)
+                    .map(|(_, i)| i.as_slice())
+                    .unwrap_or_default();
+                ensure(
+                    listed == items.as_slice(),
+                    "the notice does not match the roster",
+                )?;
+            } else if let Some(p) = proj.programs.get(program) {
                 for it in items {
                     let ok = p
                         .assignments
@@ -1173,6 +1226,11 @@ fn assignments_sent(proj: &mut Projection, h: &H<'_>, s: &AssignmentsSent) -> Re
                         && p.occurrences.get(usize::from(it.key.occurrence)) == Some(&it.date);
                     ensure(ok, "the notice does not match the program")?;
                 }
+            }
+            if items.is_empty() {
+                // No slot left for this person: nothing to tell or remind.
+                proj.notices.remove(&(*program, *person));
+                return Ok(());
             }
             proj.notices
                 .insert((*program, *person), (program_type.clone(), items.clone()));

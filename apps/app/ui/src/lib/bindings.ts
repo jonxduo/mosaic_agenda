@@ -631,7 +631,12 @@ export type PeerInfo_Serialize = {
 export type People = People_Serialize | People_Deserialize;
 
 export type People_Deserialize = {
+	/**  Attributes, units, devices and privacy rights. */
 	can_manage: boolean,
+	/**  Granting and ending qualifications. */
+	can_qualify: boolean,
+	/**  Granting roles. */
+	can_grant_roles: boolean,
 	persons: PersonView_Deserialize[],
 	qualifications: Choice[],
 	roles: Choice[],
@@ -641,7 +646,12 @@ export type People_Deserialize = {
 };
 
 export type People_Serialize = {
+	/**  Attributes, units, devices and privacy rights. */
 	can_manage: boolean,
+	/**  Granting and ending qualifications. */
+	can_qualify: boolean,
+	/**  Granting roles. */
+	can_grant_roles: boolean,
 	persons: PersonView_Serialize[],
 	qualifications: Choice[],
 	roles: Choice[],
@@ -766,6 +776,8 @@ export type ProgramEditor_Deserialize = {
 	groups: ProgramGroup_Deserialize[],
 	cells: SlotCell_Deserialize[],
 	can_edit: boolean,
+	/**  The draft differs from what was last sent. */
+	unsent: boolean,
 	can_send: boolean,
 	can_publish: boolean,
 	warnings: string[],
@@ -780,6 +792,8 @@ export type ProgramEditor_Serialize = {
 	groups: ProgramGroup_Serialize[],
 	cells: SlotCell_Serialize[],
 	can_edit: boolean,
+	/**  The draft differs from what was last sent. */
+	unsent: boolean,
 	can_send: boolean,
 	can_publish: boolean,
 	warnings: string[],

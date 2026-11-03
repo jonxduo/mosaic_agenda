@@ -1358,6 +1358,14 @@
       },
       "type": "object"
     },
+    "NotifyOn": {
+      "description": "When the assignees hear of their assignments: as soon as the team sends\nthe program, or only once it is published on the board (the team's\n\"send\" then hands the program to who publishes it).",
+      "enum": [
+        "send",
+        "publish"
+      ],
+      "type": "string"
+    },
     "NotifySpec": {
       "additionalProperties": false,
       "properties": {
@@ -1618,6 +1626,10 @@
         },
         "label": {
           "$ref": "#/$defs/TextKey"
+        },
+        "notify": {
+          "$ref": "#/$defs/NotifyOn",
+          "default": "send"
         },
         "owner_role": {
           "$ref": "#/$defs/Slug"

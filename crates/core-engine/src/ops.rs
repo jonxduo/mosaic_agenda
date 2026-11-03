@@ -296,6 +296,14 @@ pub enum AssignmentsSent {
         person: PersonId,
         items: Vec<NoticeItem>,
     },
+    /// For the team and who publishes, when assignees hear of their slots
+    /// only at publication: who holds what in the version just sent, so
+    /// that who publishes can write the notices without the draft.
+    Roster {
+        program: Id,
+        version: u32,
+        persons: Vec<(PersonId, Vec<NoticeItem>)>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -12,6 +12,7 @@ program_types:
     period: week
     owner_role: lmm_overseer
     acceptance: true                     # ⚙
+    notify: publish                      # avvisi agli incaricati alla pubblicazione in bacheca
     publish_audience: board_public
     remind_before: { days: 2 }
     retention: { years: 2 }              # ⚙
@@ -34,6 +35,7 @@ program_types:
     period: week
     owner_role: public_meeting_coordinator
     acceptance: true
+    notify: publish                      # avvisi agli incaricati alla pubblicazione in bacheca
     publish_audience: board_public
     remind_before: { days: 2 }
     retention: { years: 2 }
@@ -52,6 +54,7 @@ program_types:
     owner_role: av_manager
     assistant_roles: [av_assistant]
     acceptance: true
+    notify: publish                      # avvisi agli incaricati alla pubblicazione in bacheca
     publish_audience: board_public
     remind_before: { days: 2 }
     retention: { years: 2 }
@@ -70,6 +73,7 @@ program_types:
     owner_role: attendant_manager
     assistant_roles: [attendant_assistant]
     acceptance: true
+    notify: publish                      # avvisi agli incaricati alla pubblicazione in bacheca
     publish_audience: board_public
     remind_before: { days: 2 }
     retention: { years: 2 }
@@ -84,6 +88,7 @@ program_types:
     period: week
     owner_role: field_service_organizer
     acceptance: true
+    notify: publish                      # avvisi agli incaricati alla pubblicazione in bacheca
     publish_audience: board_public
     remind_before: { days: 2 }
     retention: { years: 2 }

@@ -98,6 +98,9 @@ pub enum ProgramStatus {
     Assigned,
 }
 
+/// Who holds what in a sent version: the version, then each assignee's slots.
+pub type Roster = (u32, Vec<(PersonId, Vec<NoticeItem>)>);
+
 /// A program as its team sees it.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Program {
@@ -197,6 +200,9 @@ pub struct Projection {
     pub assigned_snapshots: BTreeMap<Id, ProgramSnapshot>,
     pub published: BTreeMap<Id, ProgramSnapshot>,
     pub notices: BTreeMap<(Id, PersonId), (Slug, Vec<NoticeItem>)>,
+    /// Who holds what in the last version sent, for types notified at publication.
+    #[serde(default)]
+    pub rosters: BTreeMap<Id, Roster>,
     pub responses: BTreeMap<(Id, SlotKey), Response>,
     pub resources: BTreeMap<Id, Resource>,
     pub requests: BTreeMap<Id, Request>,
@@ -509,6 +515,7 @@ pub(crate) fn organizational_phase(ctx: &mut Ctx, configs: Configs, org: OrgId) 
         assigned_snapshots: BTreeMap::new(),
         published: BTreeMap::new(),
         notices: BTreeMap::new(),
+        rosters: BTreeMap::new(),
         responses: BTreeMap::new(),
         resources: BTreeMap::new(),
         requests: BTreeMap::new(),

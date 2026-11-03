@@ -699,6 +699,17 @@ pub enum Rotation {
     Month,
 }
 
+/// When the assignees hear of their assignments: as soon as the team sends
+/// the program, or only once it is published on the board (the team's
+/// "send" then hands the program to who publishes it).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum NotifyOn {
+    #[default]
+    Send,
+    Publish,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ProgramTypeDef {
@@ -715,6 +726,8 @@ pub struct ProgramTypeDef {
     /// Assignees confirm or decline.
     #[serde(default = "yes")]
     pub acceptance: bool,
+    #[serde(default)]
+    pub notify: NotifyOn,
     pub slots: Vec<SlotDef>,
     pub publish_audience: Slug,
     #[serde(default)]
