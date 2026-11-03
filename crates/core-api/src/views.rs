@@ -149,6 +149,53 @@ fn params_map(p: &core_model::config::ViewParams) -> BTreeMap<String, String> {
     m
 }
 
+/// The slots held in the other programs sent to who publishes them (their
+/// last roster: who holds what, published or not), as far as this device
+/// can read them.
+pub(crate) fn other_slots(v: &View, cfg: &Cfg, t: &Texts, this: &core_model::Id) -> Vec<OtherSlot> {
+    let mut out = Vec::new();
+    for (id, (_, persons)) in &v.proj.rosters {
+        if id == this {
+            continue;
+        }
+        let Some(ty) = v
+            .proj
+            .assigned_snapshots
+            .get(id)
+            .map(|s| s.program_type.clone())
+            .or_else(|| v.proj.programs.get(id).map(|p| p.program_type.clone()))
+        else {
+            continue;
+        };
+        let Some(def) = cfg.program_type(&ty) else {
+            continue;
+        };
+        for (person, items) in persons {
+            for it in items {
+                let Some(slot) = def.slots.iter().find(|s| s.id == it.key.slot) else {
+                    continue;
+                };
+                let reps = match slot.repeat {
+                    Some(core_model::config::Repeat::Count(n)) => n,
+                    _ => 1,
+                };
+                let slot_label = if slot.count * reps > 1 {
+                    format!("{} {}", t.get(slot.label.as_str()), it.key.index + 1)
+                } else {
+                    t.get(slot.label.as_str())
+                };
+                out.push(OtherSlot {
+                    person: person.to_string(),
+                    date: it.date.to_string(),
+                    label: format!("{} · {}", t.get(def.label.as_str()), slot_label),
+                });
+            }
+        }
+    }
+    out.sort_by(|a, b| a.date.cmp(&b.date).then_with(|| a.label.cmp(&b.label)));
+    out
+}
+
 /// Active persons by how long since their last slot in another program of
 /// `program_type` before `from`: never first, then the longest, then by name.
 pub(crate) fn people_load(
@@ -1940,6 +1987,11 @@ impl Core {
                     label: t.get(o.label.as_str()),
                 })
                 .collect(),
+            others: if can_edit {
+                other_slots(&v, cfg, &t, &id)
+            } else {
+                Vec::new()
+            },
             people: if can_edit {
                 people_load(
                     &v,

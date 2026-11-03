@@ -350,6 +350,17 @@ pub struct PersonLoad {
     pub last: Option<String>,
 }
 
+/// A slot a person holds in another program sent to who publishes
+/// (published or not), for the editor's side list.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct OtherSlot {
+    pub person: String,
+    /// YYYY-MM-DD.
+    pub date: String,
+    /// Program and slot, e.g. "Audio/video · Mixer audio".
+    pub label: String,
+}
+
 /// A heading of the program editor.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct SectionView {
@@ -411,6 +422,8 @@ pub struct ProgramEditor {
     pub columns: Vec<Choice>,
     /// Everyone, the longest without a slot of this type first (for who edits).
     pub people: Vec<PersonLoad>,
+    /// Slots of the people in the other programs sent (for who edits).
+    pub others: Vec<OtherSlot>,
     pub can_edit: bool,
     /// The draft differs from what was last sent.
     pub unsent: bool,

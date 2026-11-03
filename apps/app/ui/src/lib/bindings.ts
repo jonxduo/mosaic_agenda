@@ -640,6 +640,18 @@ export type OpenRequest = {
 	answers: Choice[],
 };
 
+/**
+ *  A slot a person holds in another program sent to who publishes
+ *  (published or not), for the editor's side list.
+ */
+export type OtherSlot = {
+	person: string,
+	/**  YYYY-MM-DD. */
+	date: string,
+	/**  Program and slot, e.g. "Audio/video · Mixer audio". */
+	label: string,
+};
+
 export type Pairing = {
 	person: string,
 	code: string,
@@ -873,6 +885,8 @@ export type ProgramEditor_Deserialize = {
 	columns: Choice[],
 	/**  Everyone, the longest without a slot of this type first (for who edits). */
 	people: PersonLoad_Deserialize[],
+	/**  Slots of the people in the other programs sent (for who edits). */
+	others: OtherSlot[],
 	can_edit: boolean,
 	/**  The draft differs from what was last sent. */
 	unsent: boolean,
@@ -900,6 +914,8 @@ export type ProgramEditor_Serialize = {
 	columns: Choice[],
 	/**  Everyone, the longest without a slot of this type first (for who edits). */
 	people: PersonLoad_Serialize[],
+	/**  Slots of the people in the other programs sent (for who edits). */
+	others: OtherSlot[],
 	can_edit: boolean,
 	/**  The draft differs from what was last sent. */
 	unsent: boolean,

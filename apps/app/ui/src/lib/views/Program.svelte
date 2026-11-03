@@ -67,12 +67,21 @@
       const d = dayOf(p.dates[c.occurrence] ?? '');
       if (v && d < from && (before.get(v) ?? -Infinity) < d) before.set(v, d);
     }
+    // Their slots in the other programs sent, in the same week (Monday to Sunday).
+    const monday = from - ((new Date(from).getUTCDay() + 6) % 7) * DAY;
+    const sunday = monday + 6 * DAY;
+    const dayLabel = (iso: string) =>
+      new Date(dayOf(iso)).toLocaleDateString('it', { weekday: 'short', day: 'numeric', timeZone: 'UTC' });
+    const elsewhere = (id: string) =>
+      p!.others
+        .filter((o) => o.person === id && dayOf(o.date) >= monday && dayOf(o.date) <= sunday)
+        .map((o) => `${o.label} · ${dayLabel(o.date)}`);
     return p.people
       .filter((x) => eligible.has(x.id))
       .map((x) => {
         const last = Math.max(x.last ? dayOf(x.last) : -Infinity, before.get(x.id) ?? -Infinity);
         const weeks = taken.has(x.id) ? 0 : last === -Infinity ? null : Math.floor((from - last) / (7 * DAY));
-        return { ...x, weeks, taken: taken.has(x.id) };
+        return { ...x, weeks, taken: taken.has(x.id), elsewhere: elsewhere(x.id) };
       })
       .sort((a, b) => (b.weeks ?? Infinity) - (a.weeks ?? Infinity) || a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }));
   });
@@ -286,6 +295,7 @@
                 ondragend={() => (dragging = null)}
               >
                 <span class="cname">{x.name}</span>
+                {#if x.elsewhere.length}<span class="elsewhere" title={x.elsewhere.join('\n')}>{x.elsewhere.join(' · ')}</span>{/if}
                 <span class="weeks">{x.taken ? t('weeks_now') : x.weeks === null ? t('weeks_never') : t('weeks_n').replace('{n}', String(x.weeks))}</span>
               </li>
             {/each}
@@ -332,11 +342,13 @@
   .week-of { margin: -4px 0 0; font-size: 13px; font-weight: 600; color: var(--primary-strong); }
   .mini-hint { font-size: 12px; margin: 0; }
   .people ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-  .chip { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); cursor: grab; font-size: 14px; user-select: none; }
+  .chip { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); cursor: grab; font-size: 14px; user-select: none; }
   .chip:active { cursor: grabbing; }
   .chip.taken { opacity: 0.55; }
   .cname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .weeks { flex: none; font-size: 12px; color: var(--muted); }
+  .weeks { grid-column: 2; grid-row: 1; font-size: 12px; color: var(--muted); }
+  /* Other slots of the same week, one small line under the name. */
+  .elsewhere { grid-column: 1 / -1; grid-row: 2; font-size: 11px; color: var(--warn, #b26a00); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
   /* Every box the same height, so the rows of boxes line up. */
   .zone { position: relative; height: 64px; flex: none; border: 1.5px dashed var(--line); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 4px 22px; gap: 1px; }
   .zone.filled { border-style: solid; background: var(--bg); }

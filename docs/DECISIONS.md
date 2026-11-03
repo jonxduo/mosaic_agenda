@@ -817,3 +817,11 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   persona aveva in D, anche se erano già state chiuse dopo (es. servitore chiuso oggi e anziano
   retrodatato in un salvataggio successivo): la nuova sostituisce la vecchia da quel giorno e
   non si sovrappongono. Una qualifica esclusa che comincia dopo D resta un errore.
+
+## 2026-11-03 — Altri incarichi nella stessa settimana
+
+- Nell'elenco delle persone dell'editor, sotto il nome, una riga piccola elenca gli incarichi
+  della persona nella stessa settimana (lunedì–domenica della settimana sullo schermo) negli
+  altri programmi consegnati a chi pubblica, pubblicati o no (`ProgramEditor.others`). La fonte
+  è l'ultimo `Roster` di ogni programma, quindi vale per i tipi `notify: publish` e per ciò che
+  il dispositivo può leggere (gli amministratori leggono tutto).
