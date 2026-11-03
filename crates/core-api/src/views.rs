@@ -184,11 +184,22 @@ pub(crate) fn other_slots(v: &View, cfg: &Cfg, t: &Texts, this: &core_model::Id)
                 } else {
                     t.get(slot.label.as_str())
                 };
+                // Named like a slot of another program: add the short name.
+                let shared = cfg
+                    .package()
+                    .programs
+                    .program_types
+                    .iter()
+                    .any(|o| o.id != def.id && o.slots.iter().any(|x| x.id == slot.id));
+                let slot_name = match (&def.short, shared) {
+                    (Some(k), true) => format!("{slot_label} ({})", t.get(k.as_str())),
+                    _ => slot_label.clone(),
+                };
                 out.push(OtherSlot {
                     person: person.to_string(),
                     date: it.date.to_string(),
                     label: format!("{} · {}", t.get(def.label.as_str()), slot_label),
-                    slot: slot_label,
+                    slot: slot_name,
                 });
             }
         }

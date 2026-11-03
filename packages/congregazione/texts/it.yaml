@@ -130,6 +130,8 @@ e.field_service: "Adunanza per il servizio di campo"
 
 # --- programmi e parti ---
 p.midweek: "Vita e ministero"
+p.midweek_short: "VM"
+p.weekend_short: "AP"
 p.weekend: "Adunanza pubblica"
 p.av: "Audio/video"
 p.attendants: "Uscieri"

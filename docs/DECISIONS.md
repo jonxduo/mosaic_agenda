@@ -825,3 +825,7 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   altri programmi consegnati a chi pubblica, pubblicati o no (`ProgramEditor.others`). La fonte
   è l'ultimo `Roster` di ogni programma, quindi vale per i tipi `notify: publish` e per ciò che
   il dispositivo può leggere (gli amministratori leggono tutto).
+- Tipo di programma, `short` (sigla, es. "VM", "AP"): nella riga degli altri incarichi si
+  aggiunge allo slot che ha lo stesso id in un altro tipo (presidente, preghiere), dove il nome
+  da solo sarebbe ambiguo. Un tocco su un riquadro, al telefono, apre lo stesso elenco del
+  computer per la settimana di quello slot, limitato a chi può svolgerlo.

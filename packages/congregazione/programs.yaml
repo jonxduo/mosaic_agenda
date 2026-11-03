@@ -8,6 +8,7 @@ x-requirements:
 program_types:
   - id: midweek
     label: p.midweek
+    short: p.midweek_short
     event_type: midweek_meeting
     period: month                        # un programma al mese, una sezione per adunanza
     owner_role: lmm_overseer
@@ -71,6 +72,7 @@ program_types:
       - { id: closing_prayer, label: s.closing_prayer, section: living, requires: { has_qualification: can_prayer } }
   - id: weekend
     label: p.weekend
+    short: p.weekend_short
     event_type: weekend_meeting
     period: month
     owner_role: public_meeting_coordinator

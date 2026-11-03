@@ -1805,6 +1805,18 @@
           },
           "type": "array"
         },
+        "short": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TextKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Short name (e.g. two letters), added to a slot named as one of\nanother program type, where the name alone is ambiguous."
+        },
         "slots": {
           "items": {
             "$ref": "#/$defs/SlotDef"

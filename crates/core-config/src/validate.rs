@@ -1435,6 +1435,9 @@ impl<'a> Validator<'a> {
         for (i, t) in defs.iter().enumerate() {
             let p = format!("program_types[{i}]");
             self.text_key(&t.label, PROGRAMS, format!("{p}.label"));
+            if let Some(k) = &t.short {
+                self.text_key(k, PROGRAMS, format!("{p}.short"));
+            }
             if t.event_type.0.is_empty() {
                 self.err(
                     PROGRAMS,

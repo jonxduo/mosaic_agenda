@@ -784,6 +784,10 @@ pub struct PrefillRule {
 pub struct ProgramTypeDef {
     pub id: Slug,
     pub label: TextKey,
+    /// Short name (e.g. two letters), added to a slot named as one of
+    /// another program type, where the name alone is ambiguous.
+    #[serde(default)]
+    pub short: Option<TextKey>,
     pub event_type: OneOrMany<Slug>,
     pub period: ProgramPeriod,
     /// Assignments shared by the events of the same week or month.
