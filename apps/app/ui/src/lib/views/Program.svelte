@@ -206,11 +206,6 @@
 
 {#snippet rows(occurrence: number)}
   <div class="rows" style={`--cols: ${1 + (p?.columns.length ?? 0)}`}>
-    {#if p?.columns.length}
-      <div class="head"></div>
-      <div class="head muted">{t('main_column')}</div>
-      {#each p.columns as col (col.id)}<div class="head muted">{col.label}</div>{/each}
-    {/if}
     {#each rowsOf(occurrence) as c, i (c.slot + c.index)}
       {@const prev = rowsOf(occurrence)[i - 1]}
       {#if c.section && c.section !== prev?.section}
@@ -237,14 +232,30 @@
     </div>
     {#if reading}<p class="muted" role="status">{t('prefill_reading')}</p>{/if}
     {#each p.warnings as w, i (i)}<p class="warn">{w}</p>{/each}
+    <!-- Rows scroll away under this band, level with the sticky headers. -->
+    {#if !compact}<div class="topcover" aria-hidden="true"></div>{/if}
     <div class="editor" class:side>
     <div class="groups" class:compact>
       {#each p.groups as g (g.occurrence)}
         <section class="card stack">
-          <div class="stack tight">
-            <h3>{g.label}</h3>
-            {#if g.detail}<span class="muted">{g.detail}</span>{/if}
-          </div>
+          {#if compact}
+            <div class="stack tight">
+              <h3>{g.label}</h3>
+              {#if g.detail}<span class="muted">{g.detail}</span>{/if}
+            </div>
+          {:else}
+            <!-- Sticks under the toolbar while the week's rows scroll; leaves with the card. -->
+            <div class="whead" style={`--cols: ${1 + p.columns.length}`}>
+              <div class="stack tight">
+                <h3>{g.label}</h3>
+                {#if g.detail}<span class="muted">{g.detail}</span>{/if}
+              </div>
+              {#if p.columns.length}
+                <div class="head muted">{t('main_column')}</div>
+                {#each p.columns as col (col.id)}<div class="head muted">{col.label}</div>{/each}
+              {/if}
+            </div>
+          {/if}
           {#if compact}
             {#each p.cells.filter((c) => c.occurrence === g.occurrence && !c.per_event && isRow(c)) as c (c.slot + c.index)}
               {@render cell(c)}
@@ -350,8 +361,12 @@
   .rows { display: grid; grid-template-columns: minmax(0, 4fr) repeat(var(--cols), minmax(0, 1fr)); }
   .rows > * { padding: 10px 0; border-bottom: 1px solid var(--border); }
   /* Gaps as padding, so the row lines run across every column. */
-  .rows > .who, .rows > .head:not(:first-child) { padding-left: 14px; }
-  .head { font-size: 13px; font-weight: 600; padding-top: 0; }
+  .rows > .who { padding-left: 14px; }
+  .topcover { position: fixed; top: 0; left: 0; right: 0; height: 84px; background: var(--page); z-index: 4; pointer-events: none; }
+  @media (max-width: 760px) { .topcover { display: none; } }
+  .whead { position: sticky; top: 84px; z-index: 3; display: grid; grid-template-columns: minmax(0, 4fr) repeat(var(--cols), minmax(0, 1fr)); align-items: end; background: var(--bg); margin: -18px -20px 0; padding: 18px 20px 10px; border-bottom: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0; }
+  .whead .head { padding-left: 14px; }
+  .head { font-size: 13px; font-weight: 600; }
   .band { grid-column: 1 / -1; background: var(--muted); color: #fff; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; font-size: 14px; padding: 6px 12px; margin-top: 10px; border-radius: 4px; border-bottom: none; }
   .part { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   .part .details { padding: 0; }
@@ -363,7 +378,8 @@
   .who { display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; min-width: 0; }
   @media (max-width: 760px) {
     .rows { grid-template-columns: minmax(0, 1fr); }
-    .rows > .head { display: none; }
+    .whead { grid-template-columns: minmax(0, 1fr); top: 0; }
+    .whead .head { display: none; }
     .mini.phone { display: inline; }
     .rows > .who { border-bottom: none; padding-top: 0; }
     .rows > .who:empty { display: none; }
