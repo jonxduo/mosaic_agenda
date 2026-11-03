@@ -28,6 +28,27 @@
   const sectionOf = (id: string | null) => p?.sections.find((x) => x.id === id);
   const rowsOf = (occurrence: number) => p?.cells.filter((c) => c.occurrence === occurrence && isRow(c)) ?? [];
 
+  // Drag and drop: a person from the side list onto a slot that accepts them.
+  let dragging = $state<string | null>(null);
+  const accepts = (c: Cell, id: string) => c.candidates.some((o) => o.id === id);
+  const nameOf = (c: Cell, id: string) => c.candidates.find((o) => o.id === id)?.label ?? c.assignee_name ?? '';
+  // Who already has a slot here counts as just assigned (0 weeks).
+  const busyNow = $derived(new Set((p?.cells ?? []).map(valueOf).filter(Boolean)));
+  const people = $derived(
+    [...(p?.people ?? [])]
+      .map((x) => ({ ...x, weeks: busyNow.has(x.id) ? 0 : x.weeks }))
+      .sort((a, b) => (b.weeks ?? Infinity) - (a.weeks ?? Infinity) || a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }))
+  );
+  const side = $derived(!!p && p.can_edit && !compact && p.people.length > 0);
+  function drop(c: Cell, e: DragEvent) {
+    e.preventDefault();
+    const id = e.dataTransfer?.getData('text/plain') || dragging;
+    dragging = null;
+    if (!id) return;
+    if (accepts(c, id)) choose(c, id);
+    else toast(t('drop_not_allowed'), true);
+  }
+
   async function load() {
     try {
       p = await run(api.program(program));
@@ -151,6 +172,38 @@
   </div>
 {/snippet}
 
+<!-- A slot as a drop target: dashed when empty, with its label; a click opens the list. -->
+{#snippet zone(c: Cell)}
+  {@const v = valueOf(c)}
+  {@const ok = !!dragging && accepts(c, dragging)}
+  <div
+    class="zone"
+    class:filled={!!v}
+    class:changed={keyOf(c) in pending}
+    class:can={ok}
+    class:cannot={!!dragging && !ok}
+    role="group"
+    aria-label={c.label}
+    ondragover={(e) => { if (ok) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; } }}
+    ondrop={(e) => drop(c, e)}
+  >
+    {#if v}
+      <span class="zlabel">{c.label}</span>
+      <span class="zname">{nameOf(c, v)}</span>
+    {:else}
+      <span class="zempty">{c.label}</span>
+    {/if}
+    {#if p?.can_edit}
+      <select class="overlay" aria-label={c.label} value={v} onchange={(e) => choose(c, e.currentTarget.value)}>
+        <option value="">—</option>
+        {#each c.candidates as o (o.id)}<option value={o.id}>{o.label}</option>{/each}
+      </select>
+      {#if v}<button class="clear" aria-label={`${t('clear')} · ${c.label}`} onclick={() => choose(c, '')}>×</button>{/if}
+    {/if}
+    {#if c.assignee && !(keyOf(c) in pending)}<span class="zbadge badge" class:ok={c.response === 'accepted'}>{t(`response_${c.response}` as never)}</span>{/if}
+  </div>
+{/snippet}
+
 {#snippet rows(occurrence: number)}
   <div class="rows" style={`--cols: ${1 + (p?.columns.length ?? 0)}`}>
     {#if p?.columns.length}
@@ -168,9 +221,9 @@
         <span class="name">{c.label}</span>
         {@render fields(c)}
       </div>
-      <div class="who">{#each inRow(c, null) as x (x.slot)}{#if x.assignable}{@render pick(x, x !== c ? 'always' : 'never')}{/if}{/each}</div>
+      <div class="who">{#each inRow(c, null) as x (x.slot)}{#if x.assignable}{@render zone(x)}{/if}{/each}</div>
       {#each p?.columns ?? [] as col (col.id)}
-        <div class="who aux">{#each inRow(c, col.id) as x, k (x.slot)}{@render pick(x, k > 0 ? 'always' : 'phone')}{/each}</div>
+        <div class="who aux">{#each inRow(c, col.id) as x (x.slot)}{@render zone(x)}{/each}</div>
       {/each}
     {/each}
   </div>
@@ -184,6 +237,7 @@
     </div>
     {#if reading}<p class="muted" role="status">{t('prefill_reading')}</p>{/if}
     {#each p.warnings as w, i (i)}<p class="warn">{w}</p>{/each}
+    <div class="editor" class:side>
     <div class="groups" class:compact>
       {#each p.groups as g (g.occurrence)}
         <section class="card stack">
@@ -208,6 +262,27 @@
           {/if}
         </section>
       {/each}
+    </div>
+    {#if side}
+      <aside class="people card" aria-label={t('people_side')}>
+        <h3>{t('people_side')}</h3>
+        <p class="muted mini-hint">{t('people_side_hint')}</p>
+        <ul>
+          {#each people as x (x.id)}
+            <li
+              class="chip"
+              class:taken={busyNow.has(x.id)}
+              draggable="true"
+              ondragstart={(e) => { dragging = x.id; e.dataTransfer?.setData('text/plain', x.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy'; }}
+              ondragend={() => (dragging = null)}
+            >
+              <span class="cname">{x.name}</span>
+              <span class="weeks">{x.weeks === null ? t('weeks_never') : x.weeks === 0 ? t('weeks_now') : t('weeks_n').replace('{n}', String(x.weeks))}</span>
+            </li>
+          {/each}
+        </ul>
+      </aside>
+    {/if}
     </div>
     <div class="row actions">
       {#if p.can_edit}
@@ -245,6 +320,30 @@
   .pick select { width: 100%; }
   .pick .assigned { min-height: 44px; display: flex; align-items: center; }
   .pick .badge { align-self: flex-start; }
+  .editor { width: 100%; }
+  .editor.side { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 18px; align-items: start; }
+  .people { position: sticky; top: 84px; max-height: calc(100vh - 170px); overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .people h3 { font-size: 16px; }
+  .mini-hint { font-size: 12px; margin: 0; }
+  .people ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .chip { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); cursor: grab; font-size: 14px; user-select: none; }
+  .chip:active { cursor: grabbing; }
+  .chip.taken { opacity: 0.55; }
+  .cname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .weeks { flex: none; font-size: 12px; color: var(--muted); }
+  /* Every box the same height, so the rows of boxes line up. */
+  .zone { position: relative; height: 64px; flex: none; border: 1.5px dashed var(--line); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 4px 22px; gap: 1px; }
+  .zone.filled { border-style: solid; background: var(--bg); }
+  .zone.changed { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }
+  .zone.can { border-color: var(--ok, #2e7d32); background: color-mix(in srgb, var(--ok, #2e7d32) 10%, transparent); }
+  .zone.cannot { opacity: 0.45; }
+  .zempty { font-size: 13px; color: var(--muted); line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; }
+  .zlabel { font-size: 11px; color: var(--muted); line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .zname { font-size: 14px; font-weight: 600; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .overlay { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; min-height: 0; }
+  .clear { position: absolute; top: 2px; right: 4px; z-index: 2; border: none; background: none; color: var(--muted); font-size: 16px; cursor: pointer; line-height: 1; padding: 2px 4px; }
+  .zbadge { position: absolute; bottom: -8px; right: 6px; font-size: 10px; padding: 0 6px; pointer-events: none; }
+  @media (max-width: 1000px) { .editor.side { grid-template-columns: minmax(0, 1fr); } .people { display: none; } }
   .mini { font-size: 12px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .mini.phone { display: none; }
   /* Parts in rows: 4/5 the part, 1/5 per room. */
@@ -258,9 +357,9 @@
   .part .details { padding: 0; }
   .part.inline { flex-direction: row; align-items: center; gap: 10px; }
   /* As tall as a menu, so the name and the first choice share a line. */
-  .name { font-weight: 500; min-height: 44px; display: flex; align-items: center; }
+  .name { font-weight: 500; min-height: 64px; display: flex; align-items: center; }
   .part.inline .details input.num { width: 72px; }
-  .who { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .who { display: flex; flex-direction: column; justify-content: flex-start; gap: 8px; min-width: 0; }
   @media (max-width: 760px) {
     .rows { grid-template-columns: minmax(0, 1fr); }
     .rows > .head { display: none; }

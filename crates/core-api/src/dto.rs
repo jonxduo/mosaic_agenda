@@ -338,6 +338,16 @@ pub struct SlotCell {
     pub assignable: bool,
 }
 
+/// A person in the editor's side list, with how long since their last
+/// slot in a program of the same type.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct PersonLoad {
+    pub id: String,
+    pub name: String,
+    /// Whole weeks from the last slot before this program; none if never.
+    pub weeks: Option<u32>,
+}
+
 /// A heading of the program editor.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct SectionView {
@@ -395,6 +405,8 @@ pub struct ProgramEditor {
     pub sections: Vec<SectionView>,
     /// Extra columns (the options on that have slots beside others).
     pub columns: Vec<Choice>,
+    /// Everyone, the longest without a slot of this type first (for who edits).
+    pub people: Vec<PersonLoad>,
     pub can_edit: bool,
     /// The draft differs from what was last sent.
     pub unsent: bool,

@@ -149,6 +149,57 @@ fn params_map(p: &core_model::config::ViewParams) -> BTreeMap<String, String> {
     m
 }
 
+/// Active persons by how long since their last slot in another program of
+/// `program_type` before `from`: never first, then the longest, then by name.
+pub(crate) fn people_load(
+    v: &View,
+    program_type: &Slug,
+    this: &core_model::Id,
+    from: Date,
+) -> Vec<PersonLoad> {
+    let mut last: BTreeMap<PersonId, Date> = BTreeMap::new();
+    for (pid, p) in &v.proj.programs {
+        if pid == this || &p.program_type != program_type {
+            continue;
+        }
+        for (k, (a, _)) in &p.assignments {
+            let (Assignee::Person(person), Some(d)) =
+                (a, p.occurrences.get(usize::from(k.occurrence)))
+            else {
+                continue;
+            };
+            if *d < from {
+                let e = last.entry(*person).or_insert(*d);
+                *e = (*e).max(*d);
+            }
+        }
+    }
+    let mut out: Vec<PersonLoad> = v
+        .proj
+        .auth
+        .org
+        .persons
+        .iter()
+        .filter(|(p, r)| {
+            r.active && !v.proj.erasure.persons.contains(p) && !r.display_name.is_empty()
+        })
+        .map(|(p, r)| PersonLoad {
+            id: p.to_string(),
+            name: r.display_name.clone(),
+            weeks: last
+                .get(p)
+                .map(|d| u32::try_from((from - *d).whole_weeks()).unwrap_or(0)),
+        })
+        .collect();
+    out.sort_by(|a, b| {
+        b.weeks
+            .unwrap_or(u32::MAX)
+            .cmp(&a.weeks.unwrap_or(u32::MAX))
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+    out
+}
+
 /// The row (slot) and column (option) that show a slot in the editor: its
 /// own row, or the row of the slot it sits `beside` (in its option's column),
 /// `with`, or is paired to (`pair_with` of another slot).
@@ -1887,6 +1938,16 @@ impl Core {
                     label: t.get(o.label.as_str()),
                 })
                 .collect(),
+            people: if can_edit {
+                people_load(
+                    &v,
+                    &program_type,
+                    &id,
+                    occurrences.first().copied().unwrap_or(now),
+                )
+            } else {
+                Vec::new()
+            },
             cells,
             can_edit,
             unsent: can_edit && unsent(&v, &id),

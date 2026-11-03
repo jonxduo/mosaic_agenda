@@ -274,3 +274,53 @@ async fn slot_details_without_assignee() {
     let e = a.assign_slots(id, vec![], vec![change("  ")]).unwrap();
     assert_eq!(detail(&e), Some(serde_json::Value::Null));
 }
+
+/// The editor's side list: who never had a slot of this type first, then
+/// the longest without one, then by name.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn people_by_weeks_since_their_last_slot() {
+    let dir = tempfile::tempdir().unwrap();
+    let a = core(dir.path());
+    a.create_org("Club".into(), "Alice".into()).await.unwrap();
+    let alice = a.people().unwrap().persons[0].person_id.clone();
+    a.grant_qualification(alice.clone(), "member".into(), None, None)
+        .unwrap();
+    a.grant_role(alice.clone(), "keeper".into(), None).unwrap();
+    for name in ["Bob", "Carla"] {
+        let p = a.add_person(name.into(), Default::default()).unwrap();
+        a.grant_qualification(p, "member".into(), None, None)
+            .unwrap();
+    }
+    let first = a
+        .draft_program("weekly_plan".into(), vec!["2026-11-02".into()])
+        .unwrap();
+    a.assign_slots(
+        first,
+        vec![core_api::dto::SlotChange {
+            occurrence: 0,
+            slot: "talker".into(),
+            index: 0,
+            person: alice,
+        }],
+        vec![],
+    )
+    .unwrap();
+    let next = a
+        .draft_program("weekly_plan".into(), vec!["2026-11-16".into()])
+        .unwrap();
+    let list: Vec<(String, Option<u32>)> = a
+        .program(next)
+        .unwrap()
+        .people
+        .into_iter()
+        .map(|p| (p.name, p.weeks))
+        .collect();
+    assert_eq!(
+        list,
+        vec![
+            ("Bob".into(), None),
+            ("Carla".into(), None),
+            ("Alice".into(), Some(2)),
+        ]
+    );
+}

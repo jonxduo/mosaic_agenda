@@ -764,3 +764,15 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   + classe supplementare); fascia rossa Vita cristiana (cantico, parti, studio biblico con
   lettore, cantico, preghiera conclusiva). I numeri dei tre cantici si leggono dalla Guida.
   La classe supplementare è spenta nel pacchetto.
+
+## 2026-11-03 — Assegnazione con trascinamento
+
+- L'editor a righe ha accanto un elenco fisso (con scorrimento proprio) di tutte le persone,
+  ordinate per settimane dall'ultimo incarico in un programma dello stesso tipo prima di questo
+  (`ProgramEditor.people`, `people_load`): prima chi non ne ha mai avuti, poi chi aspetta da più
+  tempo, a parità per nome. Chi ha già un posto nel programma aperto scende in fondo ("ora").
+- Le scelte sono riquadri tratteggiati con l'etichetta al centro, tutti alti uguale (64 px):
+  vi si trascina un nome dall'elenco. Si accetta solo chi è tra i candidati dello slot (stesse
+  regole del motore e della tabella Incarichi), altrimenti un avviso. Un clic sul riquadro apre
+  l'elenco dei nomi (un `select` trasparente sopra): vale per tastiera e telefono, dove
+  l'elenco laterale è nascosto (sotto i 1000 px). La × toglie la persona.

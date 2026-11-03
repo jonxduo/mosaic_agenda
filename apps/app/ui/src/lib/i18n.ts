@@ -1,7 +1,7 @@
 // Generic interface words of the core. Everything domain-specific comes
 // from the package through the commands (labels already resolved).
 const it = {
-  save: 'Salva bozza', save_plain: 'Salva', main_column: 'Sala principale', prefill: 'Precompila', prefill_done: 'Dettagli precompilati', prefill_reading: 'Precompilazione in corso…', saved: 'Salvato', cancel: 'Annulla', confirm: 'Conferma', back: 'Indietro', close: 'Chiudi',
+  save: 'Salva bozza', save_plain: 'Salva', main_column: 'Sala principale', people_side: 'Persone', people_side_hint: 'Trascina un nome su una parte. In alto chi è senza incarichi da più tempo.', weeks_never: 'mai', weeks_now: 'ora', weeks_n: '{n} sett.', drop_not_allowed: 'Questa persona non è abilitata per questa parte', clear: 'Togli', prefill: 'Precompila', prefill_done: 'Dettagli precompilati', prefill_reading: 'Precompilazione in corso…', saved: 'Salvato', cancel: 'Annulla', confirm: 'Conferma', back: 'Indietro', close: 'Chiudi',
   yes: 'Sì', no: 'No', fill: 'Compila', fill_on_behalf: 'Compila per conto', respond: 'Rispondi', accept: 'Accetto',
   decline: 'Non posso', open: 'Apri', todo: 'Da fare', work_for_others: 'Da seguire', nav_work: 'Attività', sync_short: 'Sincro', nav_admin: 'Amministrazione', nav_system: 'Dispositivo', nothing_mine: 'Niente da fare per te in prima persona', board_news: 'Novità in bacheca', nothing: 'Niente da fare per ora',
   missing: 'Mancano', received: 'Ricevuti', done: 'Già avanzati', note: 'Nota', note_required: 'Scrivi una nota',

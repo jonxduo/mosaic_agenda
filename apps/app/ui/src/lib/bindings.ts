@@ -697,6 +697,34 @@ export type PersonExport_Serialize = {
 	erasure_requested: boolean,
 };
 
+/**
+ *  A person in the editor's side list, with how long since their last
+ *  slot in a program of the same type.
+ */
+export type PersonLoad = PersonLoad_Serialize | PersonLoad_Deserialize;
+
+/**
+ *  A person in the editor's side list, with how long since their last
+ *  slot in a program of the same type.
+ */
+export type PersonLoad_Deserialize = {
+	id: string,
+	name: string,
+	/**  Whole weeks from the last slot before this program; none if never. */
+	weeks?: number | null,
+};
+
+/**
+ *  A person in the editor's side list, with how long since their last
+ *  slot in a program of the same type.
+ */
+export type PersonLoad_Serialize = {
+	id: string,
+	name: string,
+	/**  Whole weeks from the last slot before this program; none if never. */
+	weeks: number | null,
+};
+
 export type PersonRow = PersonRow_Serialize | PersonRow_Deserialize;
 
 export type PersonRow_Deserialize = {
@@ -790,6 +818,8 @@ export type ProgramEditor_Deserialize = {
 	sections: SectionView_Deserialize[],
 	/**  Extra columns (the options on that have slots beside others). */
 	columns: Choice[],
+	/**  Everyone, the longest without a slot of this type first (for who edits). */
+	people: PersonLoad_Deserialize[],
 	can_edit: boolean,
 	/**  The draft differs from what was last sent. */
 	unsent: boolean,
@@ -813,6 +843,8 @@ export type ProgramEditor_Serialize = {
 	sections: SectionView_Serialize[],
 	/**  Extra columns (the options on that have slots beside others). */
 	columns: Choice[],
+	/**  Everyone, the longest without a slot of this type first (for who edits). */
+	people: PersonLoad_Serialize[],
 	can_edit: boolean,
 	/**  The draft differs from what was last sent. */
 	unsent: boolean,
