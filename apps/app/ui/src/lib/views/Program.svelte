@@ -52,12 +52,13 @@
   const nameOf = (c: Cell, id: string) => c.candidates.find((o) => o.id === id)?.label ?? c.assignee_name ?? '';
   const DAY = 86_400_000;
   const dayOf = (iso: string) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10));
-  // Who can take a part of this week, by weeks since their last part before
+  // Who can take a part of a week, by weeks since their last part before
   // it (other programs, then the earlier weeks of this one): never first.
-  const people = $derived.by(() => {
-    if (!p || !group) return [];
-    const occs = occsOf(group);
-    const from = dayOf(p.dates[group.occurrence] ?? '');
+  // The side list shows the week on screen; the phone picker, a slot's week.
+  function peopleOf(g: ProgramGroup | undefined) {
+    if (!p || !g) return [];
+    const occs = occsOf(g);
+    const from = dayOf(p.dates[g.occurrence] ?? '');
     const here = p.cells.filter((c) => occs.has(c.occurrence));
     const eligible = new Set(here.flatMap((c) => c.candidates.map((o) => o.id)));
     const taken = new Set(here.map(valueOf).filter(Boolean));
@@ -84,7 +85,20 @@
         return { ...x, weeks, taken: taken.has(x.id), elsewhere: elsewhere(x.id) };
       })
       .sort((a, b) => (b.weeks ?? Infinity) - (a.weeks ?? Infinity) || a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }));
-  });
+  }
+  const people = $derived(peopleOf(group));
+
+  // Phone: a tap on a slot opens the same list, limited to who can take it.
+  let picking = $state<Cell | null>(null);
+  const narrow = () => matchMedia('(max-width: 1000px)').matches;
+  const groupOf = (c: Cell) => p?.groups.find((g) => occsOf(g).has(c.occurrence));
+  const pickList = $derived(picking ? peopleOf(groupOf(picking)).filter((x) => accepts(picking!, x.id)) : []);
+  // Candidates outside the people list (external speakers).
+  const pickOthers = $derived(picking ? picking.candidates.filter((o) => !p?.people.some((x) => x.id === o.id)) : []);
+  function pick(id: string) {
+    if (picking) choose(picking, id);
+    picking = null;
+  }
   const side = $derived(!!p && p.can_edit && p.people.length > 0);
   function drop(c: Cell, e: DragEvent) {
     e.preventDefault();
@@ -208,6 +222,9 @@
     ondragover={(e) => { if (ok) { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; } }}
     ondrop={(e) => drop(c, e)}
   >
+    {#if p?.can_edit}
+      <button type="button" class="tap" aria-label={c.label} onclick={() => { if (narrow()) picking = c; }}></button>
+    {/if}
     {#if v}
       <span class="zlabel">{c.label}</span>
       <span class="zname">{nameOf(c, v)}</span>
@@ -316,6 +333,35 @@
       {#if p.can_prefill}<button class="btn" disabled={busy || reading} onclick={() => prefill()}>{t('prefill')}</button>{/if}
       {#if changed}<span class="muted" role="status">{t('unsaved_changes').replace('{n}', String(changed))}</span>{/if}
     </div>
+    {#if picking}
+      {@const pc = picking}
+      <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+      <div class="sheet-backdrop" onclick={() => (picking = null)}></div>
+      <div class="sheet" role="dialog" aria-modal="true" aria-label={pc.label} tabindex="-1" onkeydown={(e) => e.key === 'Escape' && (picking = null)}>
+        <div class="sheet-head">
+          <div class="stack tight">
+            <strong>{pc.label}</strong>
+            <span class="week-of">{groupOf(pc)?.label}</span>
+          </div>
+          <button class="btn small" onclick={() => (picking = null)}>{t('close')}</button>
+        </div>
+        <ul>
+          {#if valueOf(pc)}<li><button class="chip none" onclick={() => pick('')}><span class="cname">{t('nobody')}</span></button></li>{/if}
+          {#each pickList as x (x.id)}
+            <li>
+              <button class="chip" class:taken={x.taken} class:current={valueOf(pc) === x.id} onclick={() => pick(x.id)}>
+                <span class="cname">{x.name}</span>
+                {#if x.elsewhere.length}<span class="elsewhere">{x.elsewhere.map((o) => o.slot).join(' · ')}</span>{/if}
+                <span class="weeks">{x.taken ? t('weeks_now') : x.weeks === null ? t('weeks_never') : t('weeks_n').replace('{n}', String(x.weeks))}</span>
+              </button>
+            </li>
+          {/each}
+          {#each pickOthers as o (o.id)}
+            <li><button class="chip" onclick={() => pick(o.id)}><span class="cname">{o.label}</span></button></li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
     <!-- With the side list it sits at its bottom (here only where the list is hidden). -->
     {#if p.can_edit}
       <div class="row" class:narrow-only={side}>
@@ -365,6 +411,16 @@
   .external input { min-height: 38px; font-size: 14px; }
   .narrow-only { display: none; }
   @media (max-width: 1000px) { .editor.side { grid-template-columns: minmax(0, 1fr); } .people { display: none; } .narrow-only { display: flex; } }
+  /* A transparent button over the box: on phones it opens the picker sheet. */
+  .tap { display: none; position: absolute; inset: 0; z-index: 1; background: none; border: none; cursor: pointer; }
+  @media (max-width: 1000px) { .tap { display: block; } .overlay { display: none; } }
+  .sheet-backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / 0.3); z-index: 40; }
+  .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 41; max-height: 78vh; overflow-y: auto; background: var(--bg); border-radius: 18px 18px 0 0; padding: 14px 16px calc(18px + var(--inset-bottom, env(safe-area-inset-bottom, 0px))); box-shadow: 0 -10px 30px rgb(0 0 0 / 0.18); display: flex; flex-direction: column; gap: 10px; }
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; position: sticky; top: -14px; background: var(--bg); padding: 4px 0 6px; }
+  .sheet ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .sheet .chip { width: 100%; text-align: left; font: inherit; font-size: 15px; color: var(--text); cursor: pointer; min-height: 48px; }
+  .sheet .chip.current { border-color: var(--primary); background: var(--primary-soft); }
+  .sheet .chip.none .cname { color: var(--muted); }
   /* Parts in rows: 4/5 the part, 1/5 per room. */
   .rows { display: grid; grid-template-columns: minmax(0, 4fr) repeat(var(--cols), minmax(0, 1fr)); }
   .rows > * { padding: 10px 0; border-bottom: 1px solid var(--border); }
