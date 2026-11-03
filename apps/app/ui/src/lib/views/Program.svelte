@@ -106,10 +106,10 @@
     {#if label !== 'never'}<span class="muted mini" class:phone={label === 'phone'}>{c.label}</span>{/if}
     {#if p?.can_edit}
       <select aria-label={c.label} class:changed={keyOf(c) in pending} value={valueOf(c)} onchange={(e) => choose(c, e.currentTarget.value)}>
-        <option value="">{t('unassigned')}</option>
+        <option value="">{compact ? t('unassigned') : '—'}</option>
         {#each c.candidates as o (o.id)}<option value={o.id}>{o.label}</option>{/each}
       </select>
-    {:else}<span>{c.assignee_name ?? '—'}</span>{/if}
+    {:else}<span class="assigned">{c.assignee_name ?? '—'}</span>{/if}
     {#if c.assignee && !(keyOf(c) in pending)}<span class="badge" class:ok={c.response === 'accepted'}>{t(`response_${c.response}` as never)}</span>{/if}
   </div>
 {/snippet}
@@ -243,17 +243,23 @@
   .side { display: flex; flex-direction: column; gap: 6px; width: min(260px, 50%); }
   .pick { display: flex; flex-direction: column; gap: 3px; }
   .pick select { width: 100%; }
-  .mini { font-size: 12px; }
+  .pick .assigned { min-height: 44px; display: flex; align-items: center; }
+  .pick .badge { align-self: flex-start; }
+  .mini { font-size: 12px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .mini.phone { display: none; }
   /* Parts in rows: 4/5 the part, 1/5 per room. */
-  .rows { display: grid; grid-template-columns: minmax(0, 4fr) repeat(var(--cols), minmax(0, 1fr)); column-gap: 14px; }
+  .rows { display: grid; grid-template-columns: minmax(0, 4fr) repeat(var(--cols), minmax(0, 1fr)); }
   .rows > * { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  /* Gaps as padding, so the row lines run across every column. */
+  .rows > .who, .rows > .head:not(:first-child) { padding-left: 14px; }
   .head { font-size: 13px; font-weight: 600; padding-top: 0; }
   .band { grid-column: 1 / -1; background: var(--muted); color: #fff; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; font-size: 14px; padding: 6px 12px; margin-top: 10px; border-radius: 4px; border-bottom: none; }
   .part { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   .part .details { padding: 0; }
   .part.inline { flex-direction: row; align-items: center; gap: 10px; }
-  .name { font-weight: 500; }
+  /* As tall as a menu, so the name and the first choice share a line. */
+  .name { font-weight: 500; min-height: 44px; display: flex; align-items: center; }
+  .part.inline .details input.num { width: 72px; }
   .who { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
   @media (max-width: 760px) {
     .rows { grid-template-columns: minmax(0, 1fr); }
