@@ -22,6 +22,7 @@
   import Programs from './views/Programs.svelte';
   import Program from './views/Program.svelte';
   import Board from './views/Board.svelte';
+  import BoardPost from './views/BoardPost.svelte';
   import Resources from './views/Resources.svelte';
   import Resource from './views/Resource.svelte';
   import MyResources from './views/MyResources.svelte';
@@ -148,7 +149,10 @@
   function navigate(m: MenuItem) {
     go(m.view, m.params);
   }
+  // Pages opened from a menu entry keep that entry active.
+  const PARENT: Record<string, string> = { board_post: 'board', program_editor: 'program_list' };
   const isActive = (m: MenuItem) =>
+    (PARENT[route.view] === m.view && !m.params.form) ||
     m.view === route.view &&
     Object.keys(m.params).length === Object.keys(route.params).length &&
     Object.entries(m.params).every(([k, v]) => route.params[k] === v);
@@ -256,6 +260,7 @@
         {:else if route.view === 'program_list'}<Programs types={params.types} />
         {:else if route.view === 'program_editor'}<Program program={params.program} />
         {:else if route.view === 'board'}<Board />
+        {:else if route.view === 'board_post'}<BoardPost post={params.post} />
         {:else if route.view === 'resource_list'}<Resources resourceType={params.resource_type} />
         {:else if route.view === 'resource_detail'}<Resource resource={params.resource} />
         {:else if route.view === 'my_resources'}<MyResources resourceType={params.resource_type} />
