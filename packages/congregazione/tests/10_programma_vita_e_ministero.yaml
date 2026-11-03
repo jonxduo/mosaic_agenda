@@ -26,6 +26,11 @@ when:
   - { check: { notified: { who: lmm, text: n.assignment_declined } } }
   - { as: giulio, do: assignment.respond, program: w45, type: midweek, slot: bible_reading, response: accepted }
   - { as: paolo, do: assignment.respond, program: w45, type: midweek, slot: bible_reading, assignee: giulio, response: declined, expect: denied }
+  # L'amministratore fa tutto, anche senza ruoli né qualifiche: legge la bozza e ne prepara una.
+  - { check: { can_read: { who: admin, program: w45 } } }
+  - { as: admin, do: program.draft, name: adm, type: midweek, dates: [2026-11-12] }
+  - { as: admin, do: program.assign, program: adm, slot: bible_reading, person: giulio }
+  - { check: { cannot_read: { who: paolo, program: adm } } }
 then:
   - { can_read: { who: paolo, program: w45 } }
   - { on_board: { who: paolo, program: w45 } }

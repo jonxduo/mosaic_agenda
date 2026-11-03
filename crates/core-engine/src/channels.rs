@@ -57,7 +57,7 @@ pub fn members(
         ChannelScope::Organization => None,
         ChannelScope::Unit(u) => Some(*u),
     };
-    Ok(match desc {
+    let mut out = match desc {
         ChannelDescriptor::Organization => {
             let mut out: BTreeSet<PersonId> = auth.org.active_persons().collect();
             out.extend(auth.org.root_admins.iter().copied());
@@ -133,7 +133,11 @@ pub fn members(
                 .filter(|p| auth.is_allowed(cfg, *p, perm, Some(&obj), None, date))
                 .collect()
         }
-    })
+    };
+    // The administrators can do everything, so they read every channel:
+    // without its keys a permission would be of no use (DECISIONS.md).
+    out.extend(auth.org.root_admins.iter().copied());
+    Ok(out)
 }
 
 fn program_team(

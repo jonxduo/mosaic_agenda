@@ -720,3 +720,13 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
 - Interfaccia: su desktop i programmi senza dettagli (audio/video, uscieri) mettono i riquadri
   degli eventi due per riga. Su telefono "Sincro" è l'ultima voce del menu; il pulsante Menu
   mostra un pallino arancione se ci sono eventi da inviare.
+
+## 2026-11-03 — L'amministratore legge ogni canale
+
+- Gli amministratori (root) avevano già ogni permesso (`is_allowed`), ma non le chiavi dei
+  canali dei gruppi di lavoro: per esempio non potevano preparare l'adunanza infrasettimanale
+  senza il ruolo di sorvegliante ("this device is not a member of the channel"). Ora
+  `channels::members` aggiunge sempre i root a ogni canale: possono fare tutto a prescindere da
+  ruoli e qualifiche. Le chiavi dei canali già esistenti arrivano da `complete_channels`, come
+  per ogni nuovo membro. Conseguenza voluta: i root leggono anche i dati personali (rapporti).
+- Scenario 10: l'amministratore senza ruoli legge la bozza e prepara un programma.
