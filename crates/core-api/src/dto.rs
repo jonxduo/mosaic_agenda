@@ -505,6 +505,14 @@ pub struct UnitRef {
     pub membership_id: String,
 }
 
+/// A qualification in the person form, with those it cannot be held with.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct QualificationOption {
+    pub id: String,
+    pub label: String,
+    pub excludes: Vec<String>,
+}
+
 /// A role in the person form: a unit role is held in the person's own unit
 /// of that type, unless it supervises others (`choose_unit`: pick the unit).
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -542,7 +550,7 @@ pub struct People {
     /// Qualifications edited as a date (`ui.people.dated_qualifications`).
     pub dated: Vec<Choice>,
     /// Qualifications edited as a box with a date (`ui.people.qualifications`).
-    pub appointments: Vec<Choice>,
+    pub appointments: Vec<QualificationOption>,
     /// Attributes edited with the devices (`ui.people.with_devices`).
     pub with_devices: Vec<String>,
     pub role_options: Vec<RoleOption>,

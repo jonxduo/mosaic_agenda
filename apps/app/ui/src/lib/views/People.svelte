@@ -81,12 +81,25 @@
       if (from && (!h || h.from !== from)) grants.push(() => run(api.grantQualification(id, q, from, null)));
     };
     if (data.can_qualify) {
+      // Two ticked boxes that exclude each other: say so in words.
+      for (const q of data.appointments.filter((x) => appts[x.id]?.on)) {
+        const clash = data.appointments.find((x) => appts[x.id]?.on && x.id !== q.id && (q.excludes.includes(x.id) || x.excludes.includes(q.id)));
+        if (clash) return toast(t('appointments_clash').replace('{a}', q.label).replace('{b}', clash.label), true);
+      }
       for (const q of data.dated) replace(q.id, dates[q.id] ?? '');
       for (const q of data.appointments) {
         const a = appts[q.id];
         const h = held(q.id);
-        if (!a?.on && h) ends.push(() => run(api.endGrant('qualification', h.grant_id, null)));
-        else if (a?.on) replace(q.id, a.from || today());
+        if (!a?.on && h) {
+          // Replaced by an appointment it excludes (e.g. a backdated one):
+          // it ends when that one starts, not today, so they never overlap.
+          const next = data.appointments
+            .filter((x) => appts[x.id]?.on && !held(x.id) && (x.excludes.includes(q.id) || q.excludes.includes(x.id)))
+            .map((x) => appts[x.id].from || today())
+            .sort()[0];
+          const end = next && next < today() ? (next < h.from ? h.from : next) : null;
+          ends.push(() => run(api.endGrant('qualification', h.grant_id, end)));
+        } else if (a?.on) replace(q.id, a.from || today());
       }
     }
     // Roles: a unit role is held in the person's unit of that type (the one

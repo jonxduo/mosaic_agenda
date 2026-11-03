@@ -679,7 +679,7 @@ export type People_Deserialize = {
 	/**  Qualifications edited as a date (`ui.people.dated_qualifications`). */
 	dated: Choice[],
 	/**  Qualifications edited as a box with a date (`ui.people.qualifications`). */
-	appointments: Choice[],
+	appointments: QualificationOption[],
 	/**  Attributes edited with the devices (`ui.people.with_devices`). */
 	with_devices: string[],
 	role_options: RoleOption_Deserialize[],
@@ -701,7 +701,7 @@ export type People_Serialize = {
 	/**  Qualifications edited as a date (`ui.people.dated_qualifications`). */
 	dated: Choice[],
 	/**  Qualifications edited as a box with a date (`ui.people.qualifications`). */
-	appointments: Choice[],
+	appointments: QualificationOption[],
 	/**  Attributes edited with the devices (`ui.people.with_devices`). */
 	with_devices: string[],
 	role_options: RoleOption_Serialize[],
@@ -977,6 +977,13 @@ export type QualificationMatrix_Serialize = {
 	columns: Choice[],
 	rows: MatrixRow_Serialize[],
 	can_manage: boolean,
+};
+
+/**  A qualification in the person form, with those it cannot be held with. */
+export type QualificationOption = {
+	id: string,
+	label: string,
+	excludes: string[],
 };
 
 export type ResourceDetail = ResourceDetail_Serialize | ResourceDetail_Deserialize;

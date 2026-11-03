@@ -2456,7 +2456,19 @@ impl Core {
                 })
                 .collect(),
             dated: choices_of(&cfg.package().ui.people.dated_qualifications),
-            appointments: choices_of(&cfg.package().ui.people.qualifications),
+            appointments: cfg
+                .package()
+                .ui
+                .people
+                .qualifications
+                .iter()
+                .filter_map(|q| cfg.qualification(q))
+                .map(|q| QualificationOption {
+                    id: q.id.to_string(),
+                    label: t.get(q.label.as_str()),
+                    excludes: q.excludes.iter().map(ToString::to_string).collect(),
+                })
+                .collect(),
             with_devices: cfg
                 .package()
                 .ui
