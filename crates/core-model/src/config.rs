@@ -710,6 +710,45 @@ pub enum NotifyOn {
     Publish,
 }
 
+/// A web page per event whose outline (headings and the text below them)
+/// fills the details of the slots: titles, minutes… Only empty details are
+/// filled, and everything stays editable.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PrefillDef {
+    /// `https://` address with `{year}` and `{week}` (ISO week of the
+    /// event), `{date}` (YYYY-MM-DD), `{month}`, `{day}`.
+    pub url: String,
+    /// Regular expression on the text of a link of that page: the first
+    /// link that matches is opened and read instead.
+    #[serde(default)]
+    pub follow: Option<String>,
+    /// Tried in order on every heading of the page; the first that matches
+    /// takes it.
+    pub rules: Vec<PrefillRule>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PrefillRule {
+    /// Regular expression on the enclosing (higher) heading.
+    #[serde(default)]
+    pub section: Option<String>,
+    /// Regular expression on the heading.
+    pub heading: String,
+    /// Regular expression on the text below the heading.
+    #[serde(default)]
+    pub text: Option<String>,
+    /// The slot it fills, the next free position for repeated slots; none to
+    /// recognize a heading and leave it alone.
+    #[serde(default)]
+    pub slot: Option<Slug>,
+    /// Extra field → template with the named groups of the expressions,
+    /// e.g. `{title}`.
+    #[serde(default)]
+    pub set: BTreeMap<Slug, String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ProgramTypeDef {
@@ -728,6 +767,9 @@ pub struct ProgramTypeDef {
     pub acceptance: bool,
     #[serde(default)]
     pub notify: NotifyOn,
+    /// Where the details of the slots can be read from for each event.
+    #[serde(default)]
+    pub prefill: Option<PrefillDef>,
     pub slots: Vec<SlotDef>,
     pub publish_audience: Slug,
     #[serde(default)]

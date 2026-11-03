@@ -601,18 +601,28 @@ fn bundle_recompiled_from_sources_when_the_model_changed() {
     assert_eq!(normal.package, pkg);
     assert_eq!(normal.sources, sources);
 
-    // Same header, unreadable compiled part. The compiled part is the same
-    // in a bundle without sources, whose header is: format, version, empty map.
-    let bare = core_config::compile(pkg.clone()).unwrap();
-    let bare_header = 1 + 1 + core_model::CORE_VERSION.len() + 1;
-    let body = bare.bytes.len() - bare_header;
-    let mut broken = bundle.bytes[..bundle.bytes.len() - body].to_vec();
-    broken.extend([0xff; 8]);
+    // Same header and sources, unreadable compiled part: format 4 keeps
+    // both compressed after a header with format and core version.
+    let header = |format: u32, sources: &std::collections::BTreeMap<String, String>| {
+        postcard::to_allocvec(&(format, core_model::CORE_VERSION, sources)).unwrap()
+    };
+    let none = std::collections::BTreeMap::new();
+    let mut inner = postcard::to_allocvec(&sources).unwrap();
+    inner.extend([0xff; 8]);
+    let mut broken = header(core_config::COMPILED_FORMAT, &none);
+    broken.extend(miniz_oxide::deflate::compress_to_vec(&inner, 6));
     let again = core_config::decode(&broken).unwrap();
     assert_eq!(again.package, pkg);
 
+    // Format 3 (uncompressed, sources in the header) is still read.
+    let mut old = header(3, &sources);
+    old.extend([0xff; 8]);
+    assert_eq!(core_config::decode(&old).unwrap().package, pkg);
+
     // Without sources there is nothing to recompile from.
-    let mut broken = bare.bytes[..bare_header].to_vec();
-    broken.extend([0xff; 8]);
+    let mut inner = postcard::to_allocvec(&none).unwrap();
+    inner.extend([0xff; 8]);
+    let mut broken = header(core_config::COMPILED_FORMAT, &none);
+    broken.extend(miniz_oxide::deflate::compress_to_vec(&inner, 6));
     assert!(core_config::decode(&broken).is_err());
 }

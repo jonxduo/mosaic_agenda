@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ProgramEditor_Serialize as Editor, SlotCell_Serialize as Cell, SlotChange } from '../bindings';
+  import type { ProgramEditor_Serialize as Editor, SlotCell_Serialize as Cell, SlotChange, DetailChange } from '../bindings';
   import { api, run } from '../api';
   import { t } from '../i18n';
   import { fail, toast } from '../toast.svelte';
@@ -7,19 +7,53 @@
   let { program }: { program: string } = $props();
   let p = $state<Editor | null>(null);
   let external = $state('');
-  run(api.program(program)).then((x) => (p = x)).catch(fail);
+  let reading = $state(false);
 
-  // Choices stay here until "Salva bozza" (or "Invia", which saves first).
+  // Choices and details stay here until "Salva" (or "Invia", which saves first).
   let pending = $state<Record<string, SlotChange>>({});
+  let details = $state<Record<string, DetailChange>>({});
   let busy = $state(false);
   const keyOf = (c: { occurrence: number; slot: string; index: number }) => `${c.occurrence}|${c.slot}|${c.index}`;
-  const changed = $derived(Object.keys(pending).length);
+  const changed = $derived(Object.keys(pending).length + Object.keys(details).length);
   const valueOf = (c: Cell) => pending[keyOf(c)]?.person ?? c.assignee ?? '';
+  const text = (v: unknown) => (v === null || v === undefined ? '' : String(v));
+  const detailOf = (c: Cell, id: string) => details[keyOf(c)]?.values[id] ?? text(c.details.find((f) => f.id === id)?.value);
+  // Lists of duties (no details to write) sit two per row on wide screens.
+  const compact = $derived(!!p && !p.cells.some((c) => c.details.length));
+
+  async function load() {
+    try {
+      p = await run(api.program(program));
+      // Types with a prefill: read the pages once, on first opening.
+      if (p.needs_prefill) await prefill(true);
+    } catch (e) {
+      fail(e);
+    }
+  }
+  load();
+
+  async function prefill(quiet = false) {
+    reading = true;
+    try {
+      p = await run(api.prefillProgram(program));
+      if (!quiet) toast(t('prefill_done'));
+    } catch (e) {
+      if (!quiet) fail(e);
+    } finally {
+      reading = false;
+    }
+  }
 
   function choose(c: Cell, person: string) {
     const k = keyOf(c);
     if (person === (c.assignee ?? '')) delete pending[k];
     else pending[k] = { occurrence: c.occurrence, slot: c.slot, index: c.index, person };
+  }
+  function write(c: Cell, id: string, value: string) {
+    const k = keyOf(c);
+    const d = details[k] ?? { occurrence: c.occurrence, slot: c.slot, index: c.index, values: {} };
+    d.values[id] = value;
+    details[k] = d;
   }
   async function save(quiet = false) {
     if (!changed && !p?.unsent) return true;
@@ -27,8 +61,9 @@
     try {
       // For programs notified at publication, saving also hands the program
       // to who publishes it on the board.
-      p = await run(api.assignSlots(program, Object.values(pending)));
+      p = await run(api.assignSlots(program, Object.values(pending), Object.values(details)));
       pending = {};
+      details = {};
       if (!quiet) toast(p?.can_send ? t('draft_saved') : t('saved'));
       return true;
     } catch (e) {
@@ -59,15 +94,36 @@
 </script>
 
 {#snippet cell(c: Cell)}
-  <div class="list-row">
-    <span class="grow">{c.label}</span>
-    {#if p?.can_edit}
-      <select aria-label={c.label} class:changed={keyOf(c) in pending} value={valueOf(c)} onchange={(e) => choose(c, e.currentTarget.value)} style="max-width: 260px">
-        <option value="">{t('unassigned')}</option>
-        {#each c.candidates as o (o.id)}<option value={o.id}>{o.label}</option>{/each}
-      </select>
-    {:else}<span>{c.assignee_name ?? '—'}</span>{/if}
- {#if c.assignee && !(keyOf(c) in pending)}<span class="badge" class:ok={c.response === 'accepted'}>{t(`response_${c.response}` as never)}</span>{/if}
+  <div class="slot">
+    <div class="list-row">
+      <span class="grow">{c.label}</span>
+      {#if p?.can_edit}
+        <select aria-label={c.label} class:changed={keyOf(c) in pending} value={valueOf(c)} onchange={(e) => choose(c, e.currentTarget.value)} style="max-width: 260px">
+          <option value="">{t('unassigned')}</option>
+          {#each c.candidates as o (o.id)}<option value={o.id}>{o.label}</option>{/each}
+        </select>
+      {:else}<span>{c.assignee_name ?? '—'}</span>{/if}
+      {#if c.assignee && !(keyOf(c) in pending)}<span class="badge" class:ok={c.response === 'accepted'}>{t(`response_${c.response}` as never)}</span>{/if}
+    </div>
+    {#if c.details.length}
+      <div class="details" class:changed={keyOf(c) in details}>
+        {#each c.details as f (f.id)}
+          {#if p?.can_edit}
+            <input
+              class={f.kind === 'integer' ? 'num' : 'grow'}
+              type={f.kind === 'integer' ? 'number' : 'text'}
+              min={f.min ?? undefined}
+              placeholder={f.label}
+              aria-label={`${c.label} · ${f.label}`}
+              value={detailOf(c, f.id)}
+              oninput={(e) => write(c, f.id, e.currentTarget.value)}
+            />
+          {:else if text(f.value)}
+            <span class="muted">{f.kind === 'integer' ? `${f.value} min` : text(f.value)}</span>
+          {/if}
+        {/each}
+      </div>
+    {/if}
   </div>
 {/snippet}
 
@@ -77,32 +133,36 @@
       <h1>{p.title}</h1>
       <span class="badge">{t(`status_${p.status}` as never)}</span>
     </div>
+    {#if reading}<p class="muted" role="status">{t('prefill_reading')}</p>{/if}
     {#each p.warnings as w, i (i)}<p class="warn">{w}</p>{/each}
-    {#each p.groups as g (g.occurrence)}
-      <section class="card stack">
-        <div class="stack tight">
-          <h3>{g.label}</h3>
-          {#if g.detail}<span class="muted">{g.detail}</span>{/if}
-        </div>
-        {#each p.cells.filter((c) => c.occurrence === g.occurrence && !c.per_event) as c (c.slot + c.index)}
-          {@render cell(c)}
-        {/each}
-        {#if p.cells.some((c) => c.per_event && g.days.some((d) => d.occurrence === c.occurrence))}
-          {#each g.days as d (d.occurrence)}
-            <h4 class="day">{d.label}</h4>
-            {#each p.cells.filter((c) => c.per_event && c.occurrence === d.occurrence) as c (c.slot + c.index)}
-              {@render cell(c)}
-            {/each}
+    <div class="groups" class:compact>
+      {#each p.groups as g (g.occurrence)}
+        <section class="card stack">
+          <div class="stack tight">
+            <h3>{g.label}</h3>
+            {#if g.detail}<span class="muted">{g.detail}</span>{/if}
+          </div>
+          {#each p.cells.filter((c) => c.occurrence === g.occurrence && !c.per_event) as c (c.slot + c.index)}
+            {@render cell(c)}
           {/each}
-        {/if}
-      </section>
-    {/each}
+          {#if p.cells.some((c) => c.per_event && g.days.some((d) => d.occurrence === c.occurrence))}
+            {#each g.days as d (d.occurrence)}
+              <h4 class="day">{d.label}</h4>
+              {#each p.cells.filter((c) => c.per_event && c.occurrence === d.occurrence) as c (c.slot + c.index)}
+                {@render cell(c)}
+              {/each}
+            {/each}
+          {/if}
+        </section>
+      {/each}
+    </div>
     <div class="row actions">
       {#if p.can_edit}
         <button class="btn" class:primary={!p.can_send} disabled={busy || (!changed && !p.unsent)} onclick={() => save()}>{t(p.can_send ? 'save' : 'save_plain')}</button>
       {/if}
       {#if p.can_send}<button class="btn primary" disabled={busy} onclick={() => act('send')}>{t('send')}</button>{/if}
       {#if p.can_publish}<button class="btn" disabled={busy} onclick={() => act('publish')}>{t('publish')}</button>{/if}
+      {#if p.can_prefill}<button class="btn" disabled={busy || reading} onclick={() => prefill()}>{t('prefill')}</button>{/if}
       {#if changed}<span class="muted" role="status">{t('unsaved_changes').replace('{n}', String(changed))}</span>{/if}
     </div>
     {#if p.can_edit}
@@ -117,7 +177,16 @@
 <style>
   .page { gap: 16px; }
   .tight { gap: 2px; }
+  .groups { display: flex; flex-direction: column; gap: 16px; }
+  @media (min-width: 900px) {
+    .groups.compact { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  }
   select.changed { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }
+  .details { display: flex; gap: 8px; padding: 0 0 8px; }
+  .details input { min-height: 34px; font-size: 14px; }
+  .details input.grow { flex: 1 1 auto; min-width: 0; }
+  .details input.num { width: 84px; flex: none; }
+  .details.changed input { border-color: var(--primary); }
   .actions { position: sticky; bottom: 12px; background: var(--page); padding: 8px 0; }
   @media (max-width: 640px) { .actions { bottom: 96px; } }
   .day { margin-top: 10px; font-size: 14px; color: var(--muted); font-weight: 600; }

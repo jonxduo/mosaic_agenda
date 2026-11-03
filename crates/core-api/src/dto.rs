@@ -326,6 +326,18 @@ pub struct SlotCell {
     pub candidates: Vec<Choice>,
     /// The slot changes at every event inside a group (see `ProgramGroup::days`).
     pub per_event: bool,
+    /// The slot's extra fields (title, minutes…) with their values.
+    pub details: Vec<Field>,
+}
+
+/// The details of one slot written in the editor: field → text, an empty
+/// text clears the field.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct DetailChange {
+    pub occurrence: u32,
+    pub slot: String,
+    pub index: u32,
+    pub values: BTreeMap<String, String>,
 }
 
 /// One slot choice of the program editor (an empty `person` empties it).
@@ -367,6 +379,10 @@ pub struct ProgramEditor {
     pub can_edit: bool,
     /// The draft differs from what was last sent.
     pub unsent: bool,
+    /// The type reads details from a page per event (`prefill`).
+    pub can_prefill: bool,
+    /// Nothing was prefilled or written yet: the editor reads the pages on opening.
+    pub needs_prefill: bool,
     pub can_send: bool,
     pub can_publish: bool,
     pub warnings: Vec<String>,

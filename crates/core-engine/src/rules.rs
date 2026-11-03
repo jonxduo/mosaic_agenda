@@ -404,7 +404,12 @@ pub fn program_snapshot(auth: &AuthState, id: Id, p: &Program, version: u32) -> 
                     .copied()
                     .unwrap_or(Date::MIN),
                 display_name: display_name(auth, a),
-                extra: extra.clone(),
+                // The slot's details, then what was given with the assignee.
+                extra: {
+                    let mut e = p.details.get(k).cloned().unwrap_or_default();
+                    e.extend(extra.clone());
+                    e
+                },
             })
             .collect(),
     }

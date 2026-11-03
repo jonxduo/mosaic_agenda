@@ -1633,6 +1633,29 @@ impl Core {
                     None,
                     now,
                 ));
+        // Details of each slot: the draft's, else those of the version sent.
+        let details: BTreeMap<core_engine::ops::SlotKey, core_engine::ops::Values> =
+            match v.proj.programs.get(&id) {
+                Some(p) => {
+                    let mut d = p.details.clone();
+                    for (k, (_, extra)) in &p.assignments {
+                        d.entry(k.clone()).or_default().extend(extra.clone());
+                    }
+                    d
+                }
+                None => v
+                    .proj
+                    .assigned_snapshots
+                    .get(&id)
+                    .or_else(|| v.proj.published.get(&id))
+                    .map(|s| {
+                        s.assignments
+                            .iter()
+                            .map(|a| (a.key.clone(), a.extra.clone()))
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+            };
         let groups = crate::schedule::groups(def.rotation, &occurrences);
         let mut cells = Vec::new();
         // Slots that change at every event get one cell per event.
@@ -1734,6 +1757,11 @@ impl Core {
                         response: response.into(),
                         candidates,
                         per_event,
+                        details: slot
+                            .extra_fields
+                            .iter()
+                            .map(|f| field_dto(&t, f, details.get(&key).and_then(|d| d.get(&f.id))))
+                            .collect(),
                     });
                 }
             }
@@ -1803,6 +1831,13 @@ impl Core {
             cells,
             can_edit,
             unsent: can_edit && unsent(&v, &id),
+            can_prefill: can_edit && def.prefill.is_some(),
+            needs_prefill: can_edit
+                && def.prefill.is_some()
+                && v.proj
+                    .programs
+                    .get(&id)
+                    .is_some_and(|p| p.details.is_empty()),
             // Notified at publication: "Salva" hands the program over, no send.
             can_send: can_edit
                 && !at_publish

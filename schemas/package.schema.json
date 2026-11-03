@@ -1596,6 +1596,88 @@
       ],
       "type": "object"
     },
+    "PrefillDef": {
+      "additionalProperties": false,
+      "description": "A web page per event whose outline (headings and the text below them)\nfills the details of the slots: titles, minutes… Only empty details are\nfilled, and everything stays editable.",
+      "properties": {
+        "follow": {
+          "default": null,
+          "description": "Regular expression on the text of a link of that page: the first\nlink that matches is opened and read instead.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rules": {
+          "description": "Tried in order on every heading of the page; the first that matches\ntakes it.",
+          "items": {
+            "$ref": "#/$defs/PrefillRule"
+          },
+          "type": "array"
+        },
+        "url": {
+          "description": "`https://` address with `{year}` and `{week}` (ISO week of the\nevent), `{date}` (YYYY-MM-DD), `{month}`, `{day}`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url",
+        "rules"
+      ],
+      "type": "object"
+    },
+    "PrefillRule": {
+      "additionalProperties": false,
+      "properties": {
+        "heading": {
+          "description": "Regular expression on the heading.",
+          "type": "string"
+        },
+        "section": {
+          "default": null,
+          "description": "Regular expression on the enclosing (higher) heading.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "set": {
+          "additionalProperties": false,
+          "default": {},
+          "description": "Extra field → template with the named groups of the expressions,\ne.g. `{title}`.",
+          "patternProperties": {
+            "^[a-z][a-z0-9_]*$": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "slot": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Slug"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The slot it fills, the next free position for repeated slots; none to\nrecognize a heading and leave it alone."
+        },
+        "text": {
+          "default": null,
+          "description": "Regular expression on the text below the heading.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "heading"
+      ],
+      "type": "object"
+    },
     "ProgramPeriod": {
       "enum": [
         "week",
@@ -1636,6 +1718,18 @@
         },
         "period": {
           "$ref": "#/$defs/ProgramPeriod"
+        },
+        "prefill": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PrefillDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Where the details of the slots can be read from for each event."
         },
         "publish_audience": {
           "$ref": "#/$defs/Slug"

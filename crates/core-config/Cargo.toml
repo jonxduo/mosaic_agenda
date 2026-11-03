@@ -18,6 +18,8 @@ postcard.workspace = true
 blake3.workspace = true
 thiserror.workspace = true
 jsonschema.workspace = true
+regex.workspace = true
+miniz_oxide.workspace = true
 
 [dev-dependencies]
 tempfile = "3"

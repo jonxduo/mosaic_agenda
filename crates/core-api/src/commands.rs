@@ -272,6 +272,7 @@ impl Core {
                 index,
                 person,
             }],
+            Vec::new(),
         )
     }
 
@@ -280,8 +281,13 @@ impl Core {
         self: &Arc<Self>,
         program: String,
         changes: Vec<SlotChange>,
+        details: Vec<DetailChange>,
     ) -> ApiResult<ProgramEditor> {
         let id = parse_id(&program)?;
+        if !details.is_empty() {
+            let set = self.detail_values(id, details)?;
+            self.act_events(|c| c.set_program_details(id, set))?;
+        }
         let mut specs = Vec::new();
         let mut cleared = Vec::new();
         for ch in changes {
@@ -325,6 +331,48 @@ impl Core {
             self.act_events(|c| c.send_assignments(id))?;
         }
         self.program(program)
+    }
+
+    /// Editor texts as typed values of the slots' extra fields.
+    fn detail_values(
+        &self,
+        program: Id,
+        details: Vec<DetailChange>,
+    ) -> ApiResult<Vec<(SlotKey, Values)>> {
+        let v = self.view()?;
+        let p = v
+            .proj
+            .programs
+            .get(&program)
+            .ok_or_else(|| ApiError::not_found("program"))?;
+        let def = cfg(&v)?
+            .program_type(&p.program_type)
+            .ok_or_else(|| ApiError::not_found("program type"))?;
+        let mut out = Vec::new();
+        for d in details {
+            let slot = slug(&d.slot)?;
+            let sdef = def
+                .slots
+                .iter()
+                .find(|s| s.id == slot)
+                .ok_or_else(|| ApiError::not_found("slot"))?;
+            let key = SlotKey {
+                occurrence: u16::try_from(d.occurrence).map_err(ApiError::invalid)?,
+                slot,
+                index: u16::try_from(d.index).map_err(ApiError::invalid)?,
+            };
+            let mut values = p.details.get(&key).cloned().unwrap_or_default();
+            for (field, text) in d.values {
+                let f = slug(&field)?;
+                let ty = sdef.extra_fields.iter().find(|x| x.id == f).map(|x| x.ty);
+                match crate::prefill::scalar(ty, text.trim()) {
+                    Some(s) => values.insert(f, s),
+                    None => values.remove(&f),
+                };
+            }
+            out.push((key, values));
+        }
+        Ok(out)
     }
 
     /// The slot keys of the group of `occurrence` (see `rotation`).

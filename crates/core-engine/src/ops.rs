@@ -306,6 +306,14 @@ pub enum AssignmentsSent {
     },
 }
 
+/// The details of slots (their extra fields, e.g. the title of a part),
+/// set with or without an assignee. Empty values clear a slot's details.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProgramDetailsSet {
+    pub program: Id,
+    pub details: Vec<(SlotKey, Values)>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Response {
     Accepted,
@@ -465,6 +473,7 @@ pub enum Op {
     CalendarEventCancelled(CalendarEventCancelled),
     ProgramDrafted(ProgramDrafted),
     ProgramUpdated(ProgramUpdated),
+    ProgramDetailsSet(ProgramDetailsSet),
     ProgramAssignmentsSent(AssignmentsSent),
     AssignmentResponded(AssignmentResponded),
     ProgramPublished(ProgramSnapshot),
@@ -525,6 +534,7 @@ impl Op {
             K::CalendarEventCancelled => Op::CalendarEventCancelled(de(bytes)?),
             K::ProgramDrafted => Op::ProgramDrafted(de(bytes)?),
             K::ProgramUpdated => Op::ProgramUpdated(de(bytes)?),
+            K::ProgramDetailsSet => Op::ProgramDetailsSet(de(bytes)?),
             K::ProgramAssignmentsSent => Op::ProgramAssignmentsSent(de(bytes)?),
             K::AssignmentResponded => Op::AssignmentResponded(de(bytes)?),
             K::ProgramPublished => Op::ProgramPublished(de(bytes)?),

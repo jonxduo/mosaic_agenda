@@ -688,3 +688,35 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   Congregazione: tutti i programmi usano `notify: publish`.
 - Le organizzazioni esistenti ricevono queste opzioni solo pubblicando la nuova configurazione
   (la configurazione vive nello storico dell'organizzazione).
+
+## 2026-11-03 — Programmi mensili delle adunanze, precompilazione, bundle compresso
+
+- **Dettagli degli slot** (core): i campi extra di uno slot (titolo, minuti, brano…) vivono
+  nel programma anche senza persona assegnata (`Program.details`, evento nuovo
+  `program.details_set`, in coda all'elenco dei tipi). Nella versione inviata e pubblicata i
+  dettagli si fondono con gli extra dell'assegnazione. L'editor li mostra sotto ogni incarico,
+  modificabili; "Salva" li invia insieme alle scelte (`assign_slots(program, changes, details)`),
+  un testo vuoto cancella il campo.
+- **`prefill`** (opzione del tipo di programma, core generico): un indirizzo per evento
+  (`{year}`/`{week}` = anno e settimana ISO, `{date}`, `{month}`, `{day}`), un `follow` facoltativo
+  (regex sul testo del primo link da aprire) e regole provate in ordine su ogni titolo della
+  pagina: `section`/`heading`/`text` sono regex sul titolo superiore, sul titolo e sul testo
+  sotto; `set` compone i campi con i gruppi nominati. La prima regola che combacia prende il
+  titolo (anche senza `slot`, per ignorarlo); gli slot ripetuti si riempiono in ordine. La
+  pagina è ridotta a "schema" (titoli h1–h6 con il testo sotto e i link) da un lettore HTML
+  minimo, senza dipendenze nuove. Si riempiono solo i campi vuoti; l'editor legge le pagine da
+  solo alla prima apertura (nessun dettaglio ancora) e ha il pulsante "Precompila". Una pagina
+  che non si legge lascia l'evento com'è.
+- Congregazione: adunanza infrasettimanale e del fine settimana passano a **programmi mensili**
+  (una sezione per adunanza). L'infrasettimanale legge la Guida della settimana da
+  wol.jw.org (discorso dei Tesori, brano della lettura biblica, parti degli studenti con minuti,
+  parti di Vita cristiana con minuti, materiale dello studio biblico); il fine settimana legge
+  il titolo dello Studio Torre di Guardia (campo "Articolo" del lettore). Verificato sulle
+  settimane 45 e 47 del 2026 con il test `live_pages` (ignorato di default: rete).
+- **Bundle formato 4**: sorgenti e pacchetto compilato sono compressi (deflate, `miniz_oxide`)
+  dopo un'intestazione con formato e versione del core. Il pacchetto aveva superato i 64 KB di
+  un evento (67 KB → 16 KB). Il formato 3 resta leggibile: le organizzazioni esistenti lo hanno
+  nella loro storia.
+- Interfaccia: su desktop i programmi senza dettagli (audio/video, uscieri) mettono i riquadri
+  degli eventi due per riga. Su telefono "Sincro" è l'ultima voce del menu; il pulsante Menu
+  mostra un pallino arancione se ci sono eventi da inviare.

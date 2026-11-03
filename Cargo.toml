@@ -61,6 +61,8 @@ crypto_box = { version = "0.9", features = ["seal", "std"] }
 chacha20poly1305 = "0.10"
 hkdf = "0.12"
 url = "2"
+regex = "1"
+miniz_oxide = "0.8"
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "json", "http2"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 jsonwebtoken = { version = "11", default-features = false, features = ["rust_crypto", "use_pem"] }

@@ -954,6 +954,28 @@ impl<'a> Client<'a> {
         self.finish(chain)
     }
 
+    /// Sets the details (extra fields) of slots, assigned or not.
+    pub fn set_program_details(
+        &self,
+        program: Id,
+        details: Vec<(SlotKey, Values)>,
+    ) -> Result<Vec<SignedEvent>, ActionError> {
+        let p = self
+            .proj
+            .programs
+            .get(&program)
+            .ok_or_else(|| nf("program"))?;
+        let mut chain = self.chain();
+        self.sealed(
+            &mut chain,
+            EventKind::ProgramDetailsSet,
+            &program_draft_descriptor(&p.program_type),
+            Self::header(ObjectType::Program, program, &p.program_type),
+            &ProgramDetailsSet { program, details },
+        )?;
+        self.finish(chain)
+    }
+
     /// Sends the assignments: snapshot for the team and whoever may put it on the board, one notice per assignee.
     pub fn send_assignments(&self, program: Id) -> Result<Vec<SignedEvent>, ActionError> {
         let p = self

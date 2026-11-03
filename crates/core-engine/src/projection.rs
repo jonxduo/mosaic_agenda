@@ -108,6 +108,8 @@ pub struct Program {
     pub config_version: u32,
     pub occurrences: Vec<Date>,
     pub assignments: BTreeMap<SlotKey, (Assignee, Values)>,
+    /// Extra fields of slots set apart from the assignee (prefilled titles…).
+    pub details: BTreeMap<SlotKey, Values>,
     pub status: ProgramStatus,
     pub sent_version: u32,
 }

@@ -84,6 +84,7 @@ kinds! {
     PersonDataErasureRequested => "person.data_erasure_requested", true;
     RetentionApplied => "retention.applied", true;
     AdminQuarantineResolved => "admin.quarantine_resolved", true;
+    ProgramDetailsSet => "program.details_set", false;
 }
 
 #[cfg(test)]

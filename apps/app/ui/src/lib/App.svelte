@@ -275,14 +275,10 @@
       {#each mine as m (m.label)}
         <a href={`#/${m.view}`} aria-current={isActive(m) ? 'page' : undefined} onclick={(e) => { e.preventDefault(); showApps = false; navigate(m); }}><Icon name={m.view} size={22} /><span class="label">{m.label}</span></a>
       {/each}
-      <a class="sync" href="#/sync_status" aria-current={route.view === 'sync_status' ? 'page' : undefined} aria-label={status.unsynced ? status.unsynced_label : t('synced')} onclick={(e) => { e.preventDefault(); showApps = false; go('sync_status'); }}>
-        <Icon name="sync_status" size={22} />
-        <span class="label" aria-hidden="true">{t('sync_short')}</span>
-        <span class="dot" style={`background: ${status.unsynced ? 'var(--warn)' : 'var(--ok)'}`}></span>
-      </a>
       <button type="button" class="app" aria-haspopup="true" aria-expanded={showApps} aria-label={`${status.branding.app_name} · ${t('menu')}`} onclick={() => (showApps = !showApps)}>
         <img src="/package/logo.png" alt="" />
         <span class="label" aria-hidden="true">{t('menu')}</span>
+        {#if status.unsynced}<span class="dot" style="background: var(--warn)"></span>{/if}
       </button>
     </nav>
     {#if showApps}
@@ -290,6 +286,12 @@
       <div class="backdrop sheet-backdrop" onclick={() => (showApps = false)}></div>
       <div class="sheet" role="menu" tabindex="-1" onkeydown={(e) => e.key === 'Escape' && (showApps = false)}>
         {@render appEntries()}
+        <!-- Phone: the sync state is the last entry of the menu. -->
+        <hr />
+        <a href="#/sync_status" role="menuitem" class="item sync" aria-current={route.view === 'sync_status' ? 'page' : undefined} onclick={(e) => { e.preventDefault(); showApps = false; go('sync_status'); }}>
+          <Icon name="sync_status" /><span>{status.unsynced ? status.unsynced_label : t('synced')}</span>
+          <span class="dot" style={`background: ${status.unsynced ? 'var(--warn)' : 'var(--ok)'}`}></span>
+        </a>
       </div>
     {/if}
   </div>
@@ -368,7 +370,8 @@
     .bottom a[aria-current='page'], .bottom button[aria-expanded='true'] { background: var(--primary-soft); color: var(--primary-strong); }
     .bottom .app img { width: 24px; height: 24px; }
     .bottom .label { font-size: 11px; line-height: 1.15; max-width: 100%; padding: 0 2px; text-align: center; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; }
-    .bottom .sync .dot { top: 6px; right: calc(50% - 16px); }
+    .bottom .app .dot { position: absolute; top: 6px; right: calc(50% - 18px); width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--bg); box-sizing: content-box; }
+    .sheet .sync .dot { position: static; margin-left: auto; width: 9px; height: 9px; border-radius: 50%; flex: none; }
     .sheet-backdrop { display: block; z-index: 29; }
     .sheet { display: flex; flex-direction: column; gap: 2px; position: fixed; left: 12px; right: 12px; bottom: calc(88px + var(--inset-bottom, env(safe-area-inset-bottom, 0px))); z-index: 31; background: var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 8px; max-height: 65vh; overflow-y: auto; box-shadow: 0 12px 32px rgb(0 0 0 / 0.16); }
     .sheet hr { border: none; border-top: 1px solid var(--border); margin: 6px 4px; }

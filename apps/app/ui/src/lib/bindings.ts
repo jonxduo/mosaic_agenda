@@ -43,7 +43,8 @@ export const commands = {
 	programDates: (programType: string, period: string | null) => typedError<ProgramDates, ApiError>(__TAURI_INVOKE("program_dates", { programType, period })),
 	draftProgram: (programType: string, dates: string[]) => typedError<string, ApiError>(__TAURI_INVOKE("draft_program", { programType, dates })),
 	assignSlot: (program: string, occurrence: number, slot: string, index: number, person: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("assign_slot", { program, occurrence, slot, index, person })),
-	assignSlots: (program: string, changes: SlotChange[]) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("assign_slots", { program, changes })),
+	assignSlots: (program: string, changes: SlotChange[], details: DetailChange[]) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("assign_slots", { program, changes, details })),
+	prefillProgram: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("prefill_program", { program })),
 	sendProgram: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("send_program", { program })),
 	publishProgram: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("publish_program", { program })),
 	respond: (program: string, programType: string, occurrence: number, slot: string, index: number, accept: boolean, note: string | null, assignee: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("respond", { program, programType, occurrence, slot, index, accept, note, assignee })),
@@ -338,6 +339,17 @@ export type ConfigVersion_Serialize = {
 	can_publish: boolean,
 	/**  The app carries a newer version of the package than the active one. */
 	app_update: string | null,
+};
+
+/**
+ *  The details of one slot written in the editor: field → text, an empty
+ *  text clears the field.
+ */
+export type DetailChange = {
+	occurrence: number,
+	slot: string,
+	index: number,
+	values: { [key in string]: string },
 };
 
 export type DocumentRow = DocumentRow_Serialize | DocumentRow_Deserialize;
@@ -778,6 +790,10 @@ export type ProgramEditor_Deserialize = {
 	can_edit: boolean,
 	/**  The draft differs from what was last sent. */
 	unsent: boolean,
+	/**  The type reads details from a page per event (`prefill`). */
+	can_prefill: boolean,
+	/**  Nothing was prefilled or written yet: the editor reads the pages on opening. */
+	needs_prefill: boolean,
 	can_send: boolean,
 	can_publish: boolean,
 	warnings: string[],
@@ -794,6 +810,10 @@ export type ProgramEditor_Serialize = {
 	can_edit: boolean,
 	/**  The draft differs from what was last sent. */
 	unsent: boolean,
+	/**  The type reads details from a page per event (`prefill`). */
+	can_prefill: boolean,
+	/**  Nothing was prefilled or written yet: the editor reads the pages on opening. */
+	needs_prefill: boolean,
 	can_send: boolean,
 	can_publish: boolean,
 	warnings: string[],
@@ -954,6 +974,8 @@ export type SlotCell_Deserialize = {
 	candidates: Choice[],
 	/**  The slot changes at every event inside a group (see `ProgramGroup::days`). */
 	per_event: boolean,
+	/**  The slot's extra fields (title, minutes…) with their values. */
+	details: Field_Deserialize[],
 };
 
 export type SlotCell_Serialize = {
@@ -967,6 +989,8 @@ export type SlotCell_Serialize = {
 	candidates: Choice[],
 	/**  The slot changes at every event inside a group (see `ProgramGroup::days`). */
 	per_event: boolean,
+	/**  The slot's extra fields (title, minutes…) with their values. */
+	details: Field_Serialize[],
 };
 
 /**  One slot choice of the program editor (an empty `person` empties it). */

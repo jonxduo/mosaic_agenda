@@ -7,7 +7,14 @@ use core_model::eval::ConfigIndex;
 use serde::{Deserialize, Serialize};
 
 /// Version of the compiled layout; bumped on incompatible changes.
-pub const COMPILED_FORMAT: u32 = 3;
+pub const COMPILED_FORMAT: u32 = 4;
+
+/// The previous layout (uncompressed), still read: organizations created
+/// before carry it in their history.
+pub const FORMAT_UNCOMPRESSED: u32 = 3;
+
+/// Ceiling for the decompressed size of a bundle.
+const MAX_INFLATED: usize = 16 * 1024 * 1024;
 
 /// What the engine uses at runtime: the validated package (anchors expanded,
 /// texts flattened) plus derived lookup tables.
@@ -76,18 +83,22 @@ pub fn compile_with_sources(
     let mut bytes = postcard::to_allocvec(&Header {
         format: COMPILED_FORMAT,
         core_version: compiled.core_version.clone(),
-        sources: sources.clone(),
+        sources: BTreeMap::new(),
     })?;
-    bytes.extend(postcard::to_allocvec(&Body {
+    let mut inner = postcard::to_allocvec(&sources)?;
+    inner.extend(postcard::to_allocvec(&Body {
         package: &compiled.package,
         index: &compiled.index,
     })?);
+    bytes.extend(miniz_oxide::deflate::compress_to_vec(&inner, 9));
     let hash = *blake3::hash(&bytes).as_bytes();
     Ok(Bundle { bytes, hash })
 }
 
-/// Layout (format 3): the header with the source files first, then the
-/// compiled package. postcard is not self-describing, so a newer core may not
+/// Layout (format 4): a header (format, core version, no sources), then,
+/// compressed with deflate, the source files and the compiled package — a
+/// published configuration must fit in one event. Format 3 had the sources
+/// in the header and nothing compressed. postcard is not self-describing, so a newer core may not
 /// read the compiled part of an older bundle (a field added to the model):
 /// it then compiles the package again from the sources, which every
 /// published version carries.
@@ -112,16 +123,27 @@ struct OwnedBody {
 
 /// Decodes a bundle, checking its format version.
 pub fn decode(bytes: &[u8]) -> Result<CompiledConfig, DecodeError> {
-    let (header, rest) = postcard::take_from_bytes::<Header>(bytes)?;
-    if header.format != COMPILED_FORMAT {
-        return Err(DecodeError::Format {
-            found: header.format,
-            expected: COMPILED_FORMAT,
-        });
-    }
+    let (mut header, rest) = postcard::take_from_bytes::<Header>(bytes)?;
+    let inflated;
+    let rest = match header.format {
+        COMPILED_FORMAT => {
+            inflated = miniz_oxide::inflate::decompress_to_vec_with_limit(rest, MAX_INFLATED)
+                .map_err(|e| DecodeError::Sources(format!("cannot inflate: {e:?}")))?;
+            let (sources, body) = postcard::take_from_bytes::<BTreeMap<String, String>>(&inflated)?;
+            header.sources = sources;
+            body
+        }
+        FORMAT_UNCOMPRESSED => rest,
+        found => {
+            return Err(DecodeError::Format {
+                found,
+                expected: COMPILED_FORMAT,
+            });
+        }
+    };
     match postcard::from_bytes::<OwnedBody>(rest) {
         Ok(body) => Ok(CompiledConfig {
-            format: header.format,
+            format: COMPILED_FORMAT,
             core_version: header.core_version,
             package: body.package,
             index: body.index,

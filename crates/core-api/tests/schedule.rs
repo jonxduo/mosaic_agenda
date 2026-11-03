@@ -213,3 +213,64 @@ async fn qualification_granted_today_counts_for_past_events() {
         .unwrap();
     assert!(talker.candidates.iter().any(|x| x.id == alice));
 }
+
+/// The details of a slot (its extra fields) are written without an
+/// assignee, kept when someone is assigned, and travel with the version sent.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn slot_details_without_assignee() {
+    let dir = tempfile::tempdir().unwrap();
+    let a = core(dir.path());
+    a.create_org("Club".into(), "Alice".into()).await.unwrap();
+    let alice = a.people().unwrap().persons[0].person_id.clone();
+    a.grant_qualification(alice.clone(), "member".into(), None, None)
+        .unwrap();
+    a.grant_role(alice.clone(), "keeper".into(), None).unwrap();
+    let id = a
+        .draft_program("weekly_plan".into(), vec!["2026-11-02".into()])
+        .unwrap();
+    let detail = |e: &core_api::dto::ProgramEditor| {
+        e.cells
+            .iter()
+            .find(|c| c.slot == "talker" && c.index == 1)
+            .and_then(|c| c.details.iter().find(|f| f.id == "topic"))
+            .map(|f| f.value.clone())
+    };
+    let change = |text: &str| core_api::dto::DetailChange {
+        occurrence: 0,
+        slot: "talker".into(),
+        index: 1,
+        values: [("topic".to_owned(), text.to_owned())].into(),
+    };
+    let e = a
+        .assign_slots(id.clone(), vec![], vec![change("Patience")])
+        .unwrap();
+    assert_eq!(detail(&e), Some(serde_json::json!("Patience")));
+    assert!(!e.needs_prefill, "no prefill for this type");
+
+    // Assigning keeps the details; the version sent carries them.
+    let e = a
+        .assign_slots(
+            id.clone(),
+            vec![core_api::dto::SlotChange {
+                occurrence: 0,
+                slot: "talker".into(),
+                index: 1,
+                person: alice,
+            }],
+            vec![],
+        )
+        .unwrap();
+    assert_eq!(detail(&e), Some(serde_json::json!("Patience")));
+    a.send_program(id.clone()).unwrap();
+    let v = a.view().unwrap();
+    let snap = v.proj.assigned_snapshots.values().next().unwrap();
+    assert_eq!(
+        snap.assignments[0].extra.values().next(),
+        Some(&core_model::Scalar::Str("Patience".into()))
+    );
+    drop(v);
+
+    // An empty text clears the field.
+    let e = a.assign_slots(id, vec![], vec![change("  ")]).unwrap();
+    assert_eq!(detail(&e), Some(serde_json::Value::Null));
+}

@@ -52,6 +52,7 @@ pub const COMMANDS: &[&str] = &[
     "draft_program",
     "assign_slot",
     "assign_slots",
+    "prefill_program",
     "send_program",
     "publish_program",
     "respond",
@@ -195,7 +196,7 @@ pub async fn dispatch(core: &Arc<Core>, cmd: &str, input: Value) -> ApiResult<Va
             call!({ program: String, occurrence: u32, slot: String, index: u32, person: String } => core.assign_slot(program, occurrence, slot, index, person)?)
         }
         "assign_slots" => {
-            call!({ program: String, changes: Vec<crate::dto::SlotChange> } => core.assign_slots(program, changes)?)
+            call!({ program: String, changes: Vec<crate::dto::SlotChange>, details: Vec<crate::dto::DetailChange> } => core.assign_slots(program, changes, details)?)
         }
         "send_program" => call!({ program: String } => core.send_program(program)?),
         "publish_program" => call!({ program: String } => core.publish_program(program)?),
@@ -268,6 +269,9 @@ pub async fn dispatch(core: &Arc<Core>, cmd: &str, input: Value) -> ApiResult<Va
         "alerts" => json(core.alerts()?),
         "sync_status" => json(core.sync_status().await?),
         "sync_now" => json(core.sync_now().await?),
+        "prefill_program" => {
+            call!({ program: String } => core.prefill_program(program).await?)
+        }
         "notifications" => json(core.take_notifications()?),
         "settings" => json(core.settings()?),
         "update_settings" => {

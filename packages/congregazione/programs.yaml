@@ -9,43 +9,64 @@ program_types:
   - id: midweek
     label: p.midweek
     event_type: midweek_meeting
-    period: week
+    period: month                        # un programma al mese, una sezione per adunanza
     owner_role: lmm_overseer
     acceptance: true                     # ⚙
     notify: publish                      # avvisi agli incaricati alla pubblicazione in bacheca
     publish_audience: board_public
     remind_before: { days: 2 }
     retention: { years: 2 }              # ⚙
+    # Precompilazione dalla Guida per l'adunanza della settimana (wol.jw.org): solo i campi vuoti,
+    # tutto resta modificabile. {year}/{week} = anno e settimana ISO dell'adunanza.
+    prefill:
+      url: "https://wol.jw.org/it/wol/meetings/r6/lp-i/{year}/{week}"
+      follow: "Guida per l.adunanza Vita e ministero"   # il primo link: quello della settimana
+      rules:
+        - { section: "TESORI", heading: '^1\. (?<title>.+)$', slot: treasures_talk, set: { title: "{title}" } }
+        - { section: "TESORI", heading: "Gemme spirituali" }
+        - { section: "TESORI", heading: "Lettura biblica", text: '\(\d+ min\) (?<passage>[^(\n]+?) *(\(|$)', slot: bible_reading, set: { passage: "{passage}" } }
+        - { section: "MINISTERO", heading: '^\d+\. (?<title>.+)$', text: '\((?<min>\d+) min\)', slot: student_part, set: { title: "{title}", minutes: "{min}" } }
+        - { section: "VITA CRISTIANA", heading: "Studio biblico di congregazione", text: '\(\d+ min\) (?<what>[^\n]+)', slot: cbs_conductor, set: { material: "{what}" } }
+        - { section: "VITA CRISTIANA", heading: '^\d+\. (?<title>.+)$', text: '\((?<min>\d+) min\)', slot: living_part, set: { title: "{title}", minutes: "{min}" } }
     slots:                               # ⚙ struttura da verificare con il sorvegliante; requisiti modificabili
       - { id: chairman, label: s.chairman, requires: { has_qualification: can_lmm_chairman } }
       - { id: opening_prayer, label: s.opening_prayer, requires: { has_qualification: can_prayer } }
       - { id: treasures_talk, label: s.treasures_talk, requires: { has_qualification: can_treasures }, extra_fields: [ { id: title, type: text } ] }
       - { id: spiritual_gems, label: s.spiritual_gems, requires: { has_qualification: can_gems } }
-      - { id: bible_reading, label: s.bible_reading, requires: { has_qualification: can_bible_reading } }
+      - { id: bible_reading, label: s.bible_reading, requires: { has_qualification: can_bible_reading },
+          extra_fields: [ { id: passage, type: text } ] }
       - { id: student_part, label: s.student_part, repeat: { count: 4 }, requires: { has_qualification: can_student },
           extra_fields: [ { id: title, type: text }, { id: minutes, type: integer, min: 0 } ], pair_with: student_assistant }
       - { id: student_assistant, label: s.student_assistant, repeat: { count: 4 }, requires: { has_qualification: can_student } }
-      - { id: living_part, label: s.living_part, repeat: { count: 2 }, requires: { has_qualification: can_living }, extra_fields: [ { id: title, type: text } ] }
-      - { id: cbs_conductor, label: s.cbs_conductor, requires: { has_qualification: can_cbs_conductor } }
+      - { id: living_part, label: s.living_part, repeat: { count: 2 }, requires: { has_qualification: can_living },
+          extra_fields: [ { id: title, type: text }, { id: minutes, type: integer, min: 0 } ] }
+      - { id: cbs_conductor, label: s.cbs_conductor, requires: { has_qualification: can_cbs_conductor },
+          extra_fields: [ { id: material, type: text } ] }
       - { id: cbs_reader, label: s.cbs_reader, requires: { has_qualification: can_cbs_reader } }
       - { id: closing_prayer, label: s.closing_prayer, requires: { has_qualification: can_prayer } }
   - id: weekend
     label: p.weekend
     event_type: weekend_meeting
-    period: week
+    period: month
     owner_role: public_meeting_coordinator
     acceptance: true
     notify: publish                      # avvisi agli incaricati alla pubblicazione in bacheca
     publish_audience: board_public
     remind_before: { days: 2 }
     retention: { years: 2 }
+    # Titolo dello Studio Torre di Guardia della settimana (wol.jw.org).
+    prefill:
+      url: "https://wol.jw.org/it/wol/meetings/r6/lp-i/{year}/{week}"
+      rules:
+        - { heading: "^Studio Torre di Guardia$", text: '^(?<title>[^\n]+)', slot: wt_reader, set: { article: "{title}" } }
     slots:
       - { id: chairman, label: s.weekend_chairman, requires: { has_qualification: can_public_chairman } }
       - { id: talk, label: s.public_talk, allow_external: true, requires: { has_qualification: can_public_talk },
           extra_fields: [ { id: theme, type: text }, { id: home_congregation, type: text } ] }
       - { id: opening_prayer, label: s.opening_prayer, requires: { has_qualification: can_prayer } }
       - { id: closing_prayer, label: s.closing_prayer, requires: { has_qualification: can_prayer } }
-      - { id: wt_reader, label: s.wt_reader, requires: { has_qualification: can_wt_reader } }
+      - { id: wt_reader, label: s.wt_reader, requires: { has_qualification: can_wt_reader },
+          extra_fields: [ { id: article, type: text } ] }
   - id: av
     label: p.av
     event_type: [midweek_meeting, weekend_meeting]

@@ -7,9 +7,9 @@ use std::str::FromStr;
 use core_model::audience::{AudienceDef, Selector, SystemAudience};
 use core_model::cond::{Cond, Expr};
 use core_model::config::{
-    AggregateDef, ChoiceOption, FieldDef, FieldType, FormDef, MeasureOp, PackageConfig,
-    ProgramPeriod, QualificationDef, QualificationDuration, Repeat, ResourceTypeDef, RoleDef,
-    Rotation, TriggerFilter, ViewParams, WorkflowDef, default_label,
+    AggregateDef, ChoiceOption, FieldDef, FieldType, FormDef, MeasureOp, PackageConfig, PrefillDef,
+    ProgramPeriod, ProgramTypeDef, QualificationDef, QualificationDuration, Repeat,
+    ResourceTypeDef, RoleDef, Rotation, TriggerFilter, ViewParams, WorkflowDef, default_label,
 };
 use core_model::strings::{GroupBy, MemberOf, ObjectKind, ObjectRef, ScopeDef};
 use core_model::{Scalar, Slug, TextKey};
@@ -107,6 +107,68 @@ impl<'a> Validator<'a> {
     }
 
     // ----- helpers -------------------------------------------------------
+
+    /// Address, expressions and targets of a program type's prefill.
+    fn prefill(&mut self, t: &ProgramTypeDef, pf: &PrefillDef, p: &str) {
+        if !pf.url.starts_with("https://") {
+            self.err(
+                PROGRAMS,
+                format!("{p}.prefill.url"),
+                "the address must start with https://",
+            );
+        }
+        let re = |this: &mut Self, src: &str, path: String| -> BTreeSet<String> {
+            match regex::Regex::new(src) {
+                Ok(r) => r.capture_names().flatten().map(str::to_owned).collect(),
+                Err(e) => {
+                    this.err(PROGRAMS, path, format!("invalid regular expression: {e}"));
+                    BTreeSet::new()
+                }
+            }
+        };
+        if let Some(f) = &pf.follow {
+            re(self, f, format!("{p}.prefill.follow"));
+        }
+        for (i, r) in pf.rules.iter().enumerate() {
+            let rp = format!("{p}.prefill.rules[{i}]");
+            let mut groups = re(self, &r.heading, format!("{rp}.heading"));
+            if let Some(x) = &r.section {
+                groups.extend(re(self, x, format!("{rp}.section")));
+            }
+            if let Some(x) = &r.text {
+                groups.extend(re(self, x, format!("{rp}.text")));
+            }
+            let Some(slot) = &r.slot else {
+                continue;
+            };
+            let Some(def) = t.slots.iter().find(|s| &s.id == slot) else {
+                self.err(
+                    PROGRAMS,
+                    format!("{rp}.slot"),
+                    format!("unknown slot `{slot}`"),
+                );
+                continue;
+            };
+            for (field, template) in &r.set {
+                if !def.extra_fields.iter().any(|f| &f.id == field) {
+                    self.err(
+                        PROGRAMS,
+                        format!("{rp}.set.{field}"),
+                        format!("`{field}` is not an extra field of `{slot}`"),
+                    );
+                }
+                for name in template_names(template) {
+                    if !groups.contains(&name) {
+                        self.err(
+                            PROGRAMS,
+                            format!("{rp}.set.{field}"),
+                            format!("no group named `{name}` in the expressions"),
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     fn err(&mut self, file: &str, path: impl Into<String>, msg: impl Into<String>) {
         self.issues.push(Issue::error(file, path, msg));
@@ -1346,6 +1408,9 @@ impl<'a> Validator<'a> {
                     .enumerate()
                     .map(|(j, s)| (&s.id, format!("{p}.slots[{j}].id"))),
             );
+            if let Some(pf) = &t.prefill {
+                self.prefill(t, pf, &p);
+            }
             let slot_ids: BTreeSet<&Slug> = t.slots.iter().map(|s| &s.id).collect();
             for (j, s) in t.slots.iter().enumerate() {
                 let sp = format!("{p}.slots[{j}]");
@@ -1713,4 +1778,17 @@ fn form_field_ids(f: &FormDef) -> impl Iterator<Item = Slug> + '_ {
     f.variants
         .iter()
         .flat_map(|v| v.fields.iter().map(|x| x.id.clone()))
+}
+
+/// The `{name}` placeholders of a template.
+pub fn template_names(template: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut rest = template;
+    while let Some(start) = rest.find('{') {
+        let after = &rest[start + 1..];
+        let Some(end) = after.find('}') else { break };
+        out.push(after[..end].to_owned());
+        rest = &after[end + 1..];
+    }
+    out
 }
