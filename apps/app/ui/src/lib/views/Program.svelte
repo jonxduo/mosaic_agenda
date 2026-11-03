@@ -72,10 +72,10 @@
     const sunday = monday + 6 * DAY;
     const dayLabel = (iso: string) =>
       new Date(dayOf(iso)).toLocaleDateString('it', { weekday: 'short', day: 'numeric', timeZone: 'UTC' });
+    // The slot names on the line; program and day in the tooltip.
     const elsewhere = (id: string) =>
-      p!.others
-        .filter((o) => o.person === id && dayOf(o.date) >= monday && dayOf(o.date) <= sunday)
-        .map((o) => `${o.label} · ${dayLabel(o.date)}`);
+      p!.others.filter((o) => o.person === id && dayOf(o.date) >= monday && dayOf(o.date) <= sunday)
+        .map((o) => ({ slot: o.slot, full: `${o.label} · ${dayLabel(o.date)}` }));
     return p.people
       .filter((x) => eligible.has(x.id))
       .map((x) => {
@@ -295,7 +295,7 @@
                 ondragend={() => (dragging = null)}
               >
                 <span class="cname">{x.name}</span>
-                {#if x.elsewhere.length}<span class="elsewhere" title={x.elsewhere.join('\n')}>{x.elsewhere.join(' · ')}</span>{/if}
+                {#if x.elsewhere.length}<span class="elsewhere" title={x.elsewhere.map((o) => o.full).join('\n')}>{x.elsewhere.map((o) => o.slot).join(' · ')}</span>{/if}
                 <span class="weeks">{x.taken ? t('weeks_now') : x.weeks === null ? t('weeks_never') : t('weeks_n').replace('{n}', String(x.weeks))}</span>
               </li>
             {/each}

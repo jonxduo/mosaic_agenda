@@ -359,6 +359,8 @@ pub struct OtherSlot {
     pub date: String,
     /// Program and slot, e.g. "Audio/video · Mixer audio".
     pub label: String,
+    /// The slot alone, e.g. "Mixer audio".
+    pub slot: String,
 }
 
 /// A heading of the program editor.

@@ -188,6 +188,7 @@ pub(crate) fn other_slots(v: &View, cfg: &Cfg, t: &Texts, this: &core_model::Id)
                     person: person.to_string(),
                     date: it.date.to_string(),
                     label: format!("{} · {}", t.get(def.label.as_str()), slot_label),
+                    slot: slot_label,
                 });
             }
         }

@@ -1,6 +1,6 @@
-//! Appointments that exclude each other: granting one from a date closes
+//! Qualifications that exclude each other: granting one from a date closes
 //! the other on that date, even if it was already closed later, so a
-//! backdated appointment never overlaps the one it replaces.
+//! backdated grant never overlaps the one it replaces.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
@@ -11,13 +11,13 @@ use core_api::{Core, CoreOptions};
 use core_crypto::MemorySecretStore;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn backdated_appointment_replaces_the_one_it_excludes() {
-    let pkg = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/congregazione");
-    let (p, _) = core_config::load_and_validate(&pkg).unwrap();
+async fn backdated_grant_replaces_the_one_it_excludes() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../core-config/tests/fixtures/club");
+    let (p, _) = core_config::load_and_validate(&dir).unwrap();
     let bundle = core_config::compile(p).unwrap().bytes;
-    let dir = tempfile::tempdir().unwrap();
+    let tmp = tempfile::tempdir().unwrap();
     let a = Core::open(CoreOptions {
-        data_dir: dir.path().join("a"),
+        data_dir: tmp.path().join("a"),
         bundle,
         secrets: Arc::new(MemorySecretStore::default()),
         network: None,
@@ -27,25 +27,20 @@ async fn backdated_appointment_replaces_the_one_it_excludes() {
         security: None,
     })
     .unwrap();
-    a.create_org("C".into(), "Admin".into()).await.unwrap();
+    a.create_org("Club".into(), "Admin".into()).await.unwrap();
     let m = a
         .add_person(
-            "Marco".into(),
-            [("sex".to_owned(), serde_json::json!("m"))]
+            "Bob".into(),
+            [("level".to_owned(), serde_json::json!(3))]
                 .into_iter()
                 .collect(),
         )
         .unwrap();
-    for (q, f) in [
-        ("publisher", "2000-01-01"),
-        ("baptized", "2006-04-22"),
-        ("ministerial_servant", "2010-03-01"),
-    ] {
-        a.grant_qualification(m.clone(), q.into(), Some(f.into()), None)
-            .unwrap();
-    }
-    // Servant closed today in one save…
-    let ms = a
+    // `junior` excludes `senior`.
+    a.grant_qualification(m.clone(), "junior".into(), Some("2010-03-01".into()), None)
+        .unwrap();
+    // Junior closed today in one step…
+    let junior = a
         .people()
         .unwrap()
         .persons
@@ -54,24 +49,21 @@ async fn backdated_appointment_replaces_the_one_it_excludes() {
         .unwrap()
         .held
         .into_iter()
-        .find(|h| h.qualification == "ministerial_servant")
+        .find(|h| h.qualification == "junior")
         .unwrap();
-    a.end_grant("qualification".into(), ms.grant_id, None)
+    a.end_grant("qualification".into(), junior.grant_id, None)
         .unwrap();
-    // …elder from 2017 in the next: the servant now ends in 2017.
-    a.grant_qualification(m.clone(), "elder".into(), Some("2017-11-03".into()), None)
+    // …senior from 2017 in the next: junior now ends in 2017.
+    a.grant_qualification(m.clone(), "senior".into(), Some("2017-11-03".into()), None)
         .unwrap();
     let v = a.view().unwrap();
-    let ends: Vec<(String, String, Option<String>)> = v
+    let periods: Vec<(String, String, Option<String>)> = v
         .proj
         .auth
         .org
         .qualification_grants
         .iter()
-        .filter(|g| {
-            g.person.to_string() == m
-                && ["elder", "ministerial_servant"].contains(&g.qualification.as_str())
-        })
+        .filter(|g| g.person.to_string() == m && g.qualification.as_str() != "member")
         .map(|g| {
             (
                 g.qualification.to_string(),
@@ -81,15 +73,15 @@ async fn backdated_appointment_replaces_the_one_it_excludes() {
         })
         .collect();
     assert!(
-        ends.contains(&(
-            "ministerial_servant".into(),
+        periods.contains(&(
+            "junior".into(),
             "2010-03-01".into(),
             Some("2017-11-03".into())
         )),
-        "{ends:?}"
+        "{periods:?}"
     );
     assert!(
-        ends.contains(&("elder".into(), "2017-11-03".into(), None)),
-        "{ends:?}"
+        periods.contains(&("senior".into(), "2017-11-03".into(), None)),
+        "{periods:?}"
     );
 }

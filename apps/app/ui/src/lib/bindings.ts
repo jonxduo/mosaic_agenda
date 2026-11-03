@@ -650,6 +650,8 @@ export type OtherSlot = {
 	date: string,
 	/**  Program and slot, e.g. "Audio/video · Mixer audio". */
 	label: string,
+	/**  The slot alone, e.g. "Mixer audio". */
+	slot: string,
 };
 
 export type Pairing = {
