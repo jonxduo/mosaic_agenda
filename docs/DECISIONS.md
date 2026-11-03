@@ -791,3 +791,22 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   cantico, Studio Torre di Guardia (tema a sinistra; conduttore e lettore nella stessa riga),
   cantico, preghiera finale. Nuova abilitazione `can_wt_conductor` (anziani), anche nella
   tabella Incarichi; il tema dello studio si legge dalla pagina della settimana.
+
+## 2026-11-03 — Modulo della persona
+
+- Il dettaglio di una persona è un modulo solo, in sezioni a griglia: Dati (attributi e le
+  qualifiche "con data" del pacchetto, es. "Battezzato il": la data dà la qualifica, vuota la
+  toglie), Nomine e servizi (ogni qualifica di `ui.people.qualifications` è una casella con la
+  data di inizio; spuntata senza data prende oggi, tolta finisce oggi), Gruppo e ruoli. Un solo
+  "Salva"; sotto restano gli attributi `ui.people.with_devices` (es. "Usa l'app", salvati
+  subito) e i dispositivi. Esportazione e cancellazione dei dati in alto a destra.
+- Cambiare o cancellare una data è una correzione: la concessione precedente si chiude alla sua
+  data d'inizio (non è mai valsa) e se ne crea una nuova. Al salvataggio prima le chiusure, poi
+  le concessioni (così una nomina può sostituirne una che esclude).
+- Ruoli: caselle a scelta multipla, senza date. Un ruolo di unità vale per l'unità della persona
+  di quel tipo; solo un ruolo che `supervises` chiede l'unità ("Gruppo supervisionato").
+  Congregazione: aggiunto il pioniere ausiliare alle caselle e alle etichette della riga.
+- Prestazioni: il JSON Schema del pacchetto e i suoi validatori si costruiscono una volta per
+  processo, e un bundle ricompilato dai sorgenti (modello cambiato) si ricorda per contenuto.
+  Prima ogni modifica ricompilava tutte le versioni della configurazione dello storico (minuti
+  in debug con 9 versioni).

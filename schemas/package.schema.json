@@ -1436,6 +1436,14 @@
             "$ref": "#/$defs/Slug"
           },
           "type": "array"
+        },
+        "with_devices": {
+          "default": [],
+          "description": "Attributes edited with the devices, apart from the person's data\n(e.g. whether they use the app), saved as soon as they change.",
+          "items": {
+            "$ref": "#/$defs/Slug"
+          },
+          "type": "array"
         }
       },
       "type": "object"
@@ -3100,7 +3108,8 @@
           "default": {
             "attributes": [],
             "dated_qualifications": [],
-            "qualifications": []
+            "qualifications": [],
+            "with_devices": []
           },
           "description": "What the people list shows on each person's row."
         }

@@ -482,6 +482,45 @@ pub struct PersonView {
     pub marks: Vec<String>,
     /// Attribute values as stored, to fill the edit form.
     pub values: JsonMap,
+    /// Qualifications held today, with their grant and start date.
+    pub held: Vec<HeldQualification>,
+    /// Roles held today.
+    pub held_roles: Vec<HeldRole>,
+    /// The units the person belongs to today.
+    pub unit_ids: Vec<UnitRef>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct HeldRole {
+    pub role: String,
+    pub grant_id: String,
+    pub unit: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct UnitRef {
+    pub unit_id: String,
+    pub unit_type: String,
+}
+
+/// A role in the person form: a unit role is held in the person's own unit
+/// of that type, unless it supervises others (`choose_unit`: pick the unit).
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct RoleOption {
+    pub id: String,
+    pub label: String,
+    pub unit_type: Option<String>,
+    pub choose_unit: bool,
+    /// Units of the type, when the unit is chosen.
+    pub units: Vec<Choice>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct HeldQualification {
+    pub qualification: String,
+    pub grant_id: String,
+    /// YYYY-MM-DD.
+    pub from: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -498,6 +537,13 @@ pub struct People {
     pub units: Vec<Choice>,
     pub unit_types: Vec<Choice>,
     pub attributes: Vec<Field>,
+    /// Qualifications edited as a date (`ui.people.dated_qualifications`).
+    pub dated: Vec<Choice>,
+    /// Qualifications edited as a box with a date (`ui.people.qualifications`).
+    pub appointments: Vec<Choice>,
+    /// Attributes edited with the devices (`ui.people.with_devices`).
+    pub with_devices: Vec<String>,
+    pub role_options: Vec<RoleOption>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

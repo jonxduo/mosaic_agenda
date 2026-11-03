@@ -489,6 +489,13 @@ export type Grant = {
 	period: string,
 };
 
+export type HeldQualification = {
+	qualification: string,
+	grant_id: string,
+	/**  YYYY-MM-DD. */
+	from: string,
+};
+
 export type HeldResource = HeldResource_Serialize | HeldResource_Deserialize;
 
 export type HeldResource_Deserialize = {
@@ -503,6 +510,20 @@ export type HeldResource_Serialize = {
 	title: string,
 	subtitle: string,
 	open_request: OpenRequest | null,
+};
+
+export type HeldRole = HeldRole_Serialize | HeldRole_Deserialize;
+
+export type HeldRole_Deserialize = {
+	role: string,
+	grant_id: string,
+	unit?: string | null,
+};
+
+export type HeldRole_Serialize = {
+	role: string,
+	grant_id: string,
+	unit: string | null,
 };
 
 export type HistoryLine = HistoryLine_Serialize | HistoryLine_Deserialize;
@@ -655,6 +676,13 @@ export type People_Deserialize = {
 	units: Choice[],
 	unit_types: Choice[],
 	attributes: Field_Deserialize[],
+	/**  Qualifications edited as a date (`ui.people.dated_qualifications`). */
+	dated: Choice[],
+	/**  Qualifications edited as a box with a date (`ui.people.qualifications`). */
+	appointments: Choice[],
+	/**  Attributes edited with the devices (`ui.people.with_devices`). */
+	with_devices: string[],
+	role_options: RoleOption_Deserialize[],
 };
 
 export type People_Serialize = {
@@ -670,6 +698,13 @@ export type People_Serialize = {
 	units: Choice[],
 	unit_types: Choice[],
 	attributes: Field_Serialize[],
+	/**  Qualifications edited as a date (`ui.people.dated_qualifications`). */
+	dated: Choice[],
+	/**  Qualifications edited as a box with a date (`ui.people.qualifications`). */
+	appointments: Choice[],
+	/**  Attributes edited with the devices (`ui.people.with_devices`). */
+	with_devices: string[],
+	role_options: RoleOption_Serialize[],
 };
 
 /**  Everything this device holds in clear about a person. */
@@ -766,6 +801,12 @@ export type PersonView_Deserialize = {
 	marks: string[],
 	/**  Attribute values as stored, to fill the edit form. */
 	values: JsonMap,
+	/**  Qualifications held today, with their grant and start date. */
+	held: HeldQualification[],
+	/**  Roles held today. */
+	held_roles: HeldRole_Deserialize[],
+	/**  The units the person belongs to today. */
+	unit_ids: UnitRef[],
 };
 
 export type PersonView_Serialize = {
@@ -787,6 +828,12 @@ export type PersonView_Serialize = {
 	marks: string[],
 	/**  Attribute values as stored, to fill the edit form. */
 	values: JsonMap,
+	/**  Qualifications held today, with their grant and start date. */
+	held: HeldQualification[],
+	/**  Roles held today. */
+	held_roles: HeldRole_Serialize[],
+	/**  The units the person belongs to today. */
+	unit_ids: UnitRef[],
 };
 
 /**  The dates proposed for a new program of a type. */
@@ -1000,6 +1047,38 @@ export type ResourceRow_Serialize = {
 	status: string,
 };
 
+/**
+ *  A role in the person form: a unit role is held in the person's own unit
+ *  of that type, unless it supervises others (`choose_unit`: pick the unit).
+ */
+export type RoleOption = RoleOption_Serialize | RoleOption_Deserialize;
+
+/**
+ *  A role in the person form: a unit role is held in the person's own unit
+ *  of that type, unless it supervises others (`choose_unit`: pick the unit).
+ */
+export type RoleOption_Deserialize = {
+	id: string,
+	label: string,
+	unit_type?: string | null,
+	choose_unit: boolean,
+	/**  Units of the type, when the unit is chosen. */
+	units: Choice[],
+};
+
+/**
+ *  A role in the person form: a unit role is held in the person's own unit
+ *  of that type, unless it supervises others (`choose_unit`: pick the unit).
+ */
+export type RoleOption_Serialize = {
+	id: string,
+	label: string,
+	unit_type: string | null,
+	choose_unit: boolean,
+	/**  Units of the type, when the unit is chosen. */
+	units: Choice[],
+};
+
 /**  A heading of the program editor. */
 export type SectionView = SectionView_Serialize | SectionView_Deserialize;
 
@@ -1098,6 +1177,11 @@ export type SyncStatus_Serialize = {
 	outbox: number,
 	last_sync: string | null,
 	peers: PeerInfo_Serialize[],
+};
+
+export type UnitRef = {
+	unit_id: string,
+	unit_type: string,
 };
 
 export type UnitView = {

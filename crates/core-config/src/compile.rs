@@ -151,6 +151,16 @@ pub fn decode(bytes: &[u8]) -> Result<CompiledConfig, DecodeError> {
         }),
         Err(e) if header.sources.is_empty() => Err(e.into()),
         Err(_) => {
+            // Recompiling is slow and the same bundle comes back at every
+            // rebuild of the projection: keep the result by content.
+            use std::collections::HashMap;
+            use std::sync::{Mutex, OnceLock};
+            static RECOMPILED: OnceLock<Mutex<HashMap<[u8; 32], CompiledConfig>>> = OnceLock::new();
+            let key = *blake3::hash(bytes).as_bytes();
+            let cache = RECOMPILED.get_or_init(Default::default);
+            if let Some(c) = cache.lock().ok().and_then(|m| m.get(&key).cloned()) {
+                return Ok(c);
+            }
             let package = crate::load_files(&header.sources).map_err(|issues| {
                 DecodeError::Sources(
                     issues
@@ -160,6 +170,9 @@ pub fn decode(bytes: &[u8]) -> Result<CompiledConfig, DecodeError> {
             })?;
             let mut compiled = CompiledConfig::new(package);
             compiled.sources = header.sources;
+            if let Ok(mut m) = cache.lock() {
+                m.insert(key, compiled.clone());
+            }
             Ok(compiled)
         }
     }

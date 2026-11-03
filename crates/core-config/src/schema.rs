@@ -4,8 +4,14 @@ use core_model::config::PackageConfig;
 use serde_json::Value;
 
 /// The full schema: `PackageConfig` with one `$defs` entry per file type.
+/// Built once: generating it is slow and it never changes in a process.
 pub fn package_schema() -> Value {
-    serde_json::to_value(schemars::schema_for!(PackageConfig)).unwrap_or(Value::Null)
+    static SCHEMA: std::sync::OnceLock<Value> = std::sync::OnceLock::new();
+    SCHEMA
+        .get_or_init(|| {
+            serde_json::to_value(schemars::schema_for!(PackageConfig)).unwrap_or(Value::Null)
+        })
+        .clone()
 }
 
 /// Pretty-printed schema, as committed in `schemas/package.schema.json`.

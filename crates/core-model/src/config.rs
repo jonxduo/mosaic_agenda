@@ -1106,6 +1106,10 @@ pub struct PeopleUi {
     pub dated_qualifications: Vec<Slug>,
     #[serde(default)]
     pub qualifications: Vec<Slug>,
+    /// Attributes edited with the devices, apart from the person's data
+    /// (e.g. whether they use the app), saved as soon as they change.
+    #[serde(default)]
+    pub with_devices: Vec<Slug>,
 }
 
 /// Generic views of the core (PROGETTO.md §12.2) and home widgets.

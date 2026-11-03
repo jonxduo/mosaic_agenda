@@ -34,4 +34,6 @@ menu:
 people:
   attributes: [birth_date, sex, hope]
   dated_qualifications: [baptized]
-  qualifications: [elder, ministerial_servant, regular_pioneer, special_pioneer, field_missionary]
+  # Nella riga come etichette, nel modulo come caselle con data.
+  qualifications: [elder, ministerial_servant, auxiliary_pioneer, regular_pioneer, special_pioneer, field_missionary]
+  with_devices: [uses_app]

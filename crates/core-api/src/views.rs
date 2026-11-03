@@ -2327,6 +2327,46 @@ impl Core {
                         .collect(),
                 );
                 PersonView {
+                    held_roles: auth
+                        .role_ids
+                        .iter()
+                        .filter_map(|(gid, (i, _))| auth.org.role_grants.get(*i).map(|g| (gid, g)))
+                        .filter(|(_, g)| g.person == *p && g.period.end.is_none_or(|e| e > now))
+                        .map(|(gid, g)| HeldRole {
+                            role: g.role.to_string(),
+                            grant_id: gid.to_string(),
+                            unit: match g.scope {
+                                core_model::state::GrantScope::Unit(u) => Some(u.to_string()),
+                                core_model::state::GrantScope::Organization => None,
+                            },
+                        })
+                        .collect(),
+                    unit_ids: auth
+                        .org
+                        .units_of(*p, now)
+                        .filter_map(|u| {
+                            auth.org.units.get(&u).map(|x| UnitRef {
+                                unit_id: u.to_string(),
+                                unit_type: x.unit_type.to_string(),
+                            })
+                        })
+                        .collect(),
+                    held: auth
+                        .qualification_ids
+                        .iter()
+                        .filter_map(|(gid, i)| {
+                            auth.org.qualification_grants.get(*i).map(|g| (gid, g))
+                        })
+                        .filter(|(_, g)| {
+                            g.person == *p
+                                && g.period.end.is_none_or(|e| e > now && e > g.period.start)
+                        })
+                        .map(|(gid, g)| HeldQualification {
+                            qualification: g.qualification.to_string(),
+                            grant_id: gid.to_string(),
+                            from: g.period.start.to_string(),
+                        })
+                        .collect(),
                     facts,
                     marks,
                     values,
@@ -2356,6 +2396,15 @@ impl Core {
             })
             .collect();
         let may = |p: Permission| auth.is_allowed(cfg, me, p, None, None, now);
+        let choices_of = |ids: &[Slug]| -> Vec<Choice> {
+            ids.iter()
+                .filter_map(|q| cfg.qualification(q))
+                .map(|q| Choice {
+                    id: q.id.to_string(),
+                    label: t.get(q.label.as_str()),
+                })
+                .collect()
+        };
         Ok(People {
             can_manage: may(Permission::PeopleManage),
             can_qualify: may(Permission::QualificationsManage),
@@ -2370,6 +2419,48 @@ impl Core {
                     id: q.id.to_string(),
                     label: t.get(q.label.as_str()),
                 })
+                .collect(),
+            role_options: cfg
+                .roles()
+                .iter()
+                .map(|r| {
+                    let unit_type = match &r.scope {
+                        core_model::strings::ScopeDef::UnitType(ty) => Some(ty.clone()),
+                        core_model::strings::ScopeDef::Organization => None,
+                    };
+                    let choose_unit = unit_type.is_some() && r.supervises.is_some();
+                    RoleOption {
+                        id: r.id.to_string(),
+                        label: t.get(r.label.as_str()),
+                        units: if choose_unit {
+                            auth.org
+                                .units
+                                .iter()
+                                .filter(|(_, u)| {
+                                    u.active && Some(&u.unit_type) == unit_type.as_ref()
+                                })
+                                .map(|(id, u)| Choice {
+                                    id: id.to_string(),
+                                    label: u.name.clone(),
+                                })
+                                .collect()
+                        } else {
+                            Vec::new()
+                        },
+                        unit_type: unit_type.map(|x| x.to_string()),
+                        choose_unit,
+                    }
+                })
+                .collect(),
+            dated: choices_of(&cfg.package().ui.people.dated_qualifications),
+            appointments: choices_of(&cfg.package().ui.people.qualifications),
+            with_devices: cfg
+                .package()
+                .ui
+                .people
+                .with_devices
+                .iter()
+                .map(ToString::to_string)
                 .collect(),
             roles: cfg
                 .roles()

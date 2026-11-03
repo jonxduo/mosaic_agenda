@@ -70,10 +70,27 @@ pub(crate) fn pointer_to_path(pointer: &str) -> String {
     out
 }
 
+/// The compiled validator of one file definition, built once per process
+/// (a package is checked file by file, and every version of it again).
+fn validator(definition: &str) -> Result<std::sync::Arc<jsonschema::Validator>, String> {
+    use std::collections::HashMap;
+    use std::sync::{Arc, Mutex, OnceLock};
+    static CACHE: OnceLock<Mutex<HashMap<String, Arc<jsonschema::Validator>>>> = OnceLock::new();
+    let cache = CACHE.get_or_init(Default::default);
+    if let Some(v) = cache.lock().ok().and_then(|c| c.get(definition).cloned()) {
+        return Ok(v);
+    }
+    let v =
+        Arc::new(jsonschema::validator_for(&file_schema(definition)).map_err(|e| e.to_string())?);
+    if let Ok(mut c) = cache.lock() {
+        c.insert(definition.to_owned(), v.clone());
+    }
+    Ok(v)
+}
+
 /// Checks a value against the schema of one file definition.
 fn schema_issues(file: &str, definition: &str, value: &Value) -> Vec<Issue> {
-    let schema = file_schema(definition);
-    let validator = match jsonschema::validator_for(&schema) {
+    let validator = match validator(definition) {
         Ok(v) => v,
         Err(e) => {
             return vec![Issue::error(

@@ -1763,7 +1763,20 @@ impl<'a> Validator<'a> {
             self.view_params(&m.params, &format!("{p}.params"));
         }
         let people = &self.pkg.ui.people;
-        for (i, a) in people.attributes.iter().enumerate() {
+        let attrs: Vec<(String, &Slug)> = people
+            .attributes
+            .iter()
+            .enumerate()
+            .map(|(i, a)| (format!("people.attributes[{i}]"), a))
+            .chain(
+                people
+                    .with_devices
+                    .iter()
+                    .enumerate()
+                    .map(|(i, a)| (format!("people.with_devices[{i}]"), a)),
+            )
+            .collect();
+        for (path, a) in attrs {
             if !self
                 .pkg
                 .manifest
@@ -1771,11 +1784,7 @@ impl<'a> Validator<'a> {
                 .iter()
                 .any(|x| &x.id == a)
             {
-                self.err(
-                    UI,
-                    format!("people.attributes[{i}]"),
-                    format!("unknown person attribute `{a}`"),
-                );
+                self.err(UI, path, format!("unknown person attribute `{a}`"));
             }
         }
         let quals: Vec<(String, Slug)> = people
