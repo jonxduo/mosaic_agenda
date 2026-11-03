@@ -189,6 +189,7 @@ pub(crate) fn people_load(
             weeks: last
                 .get(p)
                 .map(|d| u32::try_from((from - *d).whole_weeks()).unwrap_or(0)),
+            last: last.get(p).map(ToString::to_string),
         })
         .collect();
     out.sort_by(|a, b| {
@@ -1880,6 +1881,7 @@ impl Core {
                 .iter()
                 .map(|d| capitalize(&t.long_date(*d)))
                 .collect(),
+            dates: occurrences.iter().map(ToString::to_string).collect(),
             groups: groups
                 .iter()
                 .filter_map(|g| {

@@ -83,15 +83,20 @@ program_types:
     prefill:
       url: "https://wol.jw.org/it/wol/meetings/r6/lp-i/{year}/{week}"
       rules:
-        - { heading: "^Studio Torre di Guardia$", text: '^(?<title>[^\n]+)', slot: wt_reader, set: { article: "{title}" } }
+        - { heading: "^Studio Torre di Guardia$", text: '^(?<title>[^\n]+)', slot: wt_conductor, set: { wt_theme: "{title}" } }
     slots:
+      - { id: opening_song, label: s.song, assignable: false, extra_fields: [ { id: song, type: integer, min: 1 } ] }
+      - { id: opening_prayer, label: s.opening_prayer, requires: { has_qualification: can_prayer } }
       - { id: chairman, label: s.weekend_chairman, requires: { has_qualification: can_public_chairman } }
       - { id: talk, label: s.public_talk, allow_external: true, requires: { has_qualification: can_public_talk },
           extra_fields: [ { id: theme, type: text }, { id: home_congregation, type: text } ] }
-      - { id: opening_prayer, label: s.opening_prayer, requires: { has_qualification: can_prayer } }
+      - { id: middle_song, label: s.song, assignable: false, extra_fields: [ { id: song, type: integer, min: 1 } ] }
+      # Una riga: il tema a sinistra, conduttore e lettore a destra.
+      - { id: wt_conductor, label: s.wt_conductor, requires: { has_qualification: can_wt_conductor },
+          extra_fields: [ { id: wt_theme, type: text } ] }
+      - { id: wt_reader, label: s.wt_reader, with: wt_conductor, requires: { has_qualification: can_wt_reader } }
+      - { id: closing_song, label: s.song, assignable: false, extra_fields: [ { id: song, type: integer, min: 1 } ] }
       - { id: closing_prayer, label: s.closing_prayer, requires: { has_qualification: can_prayer } }
-      - { id: wt_reader, label: s.wt_reader, requires: { has_qualification: can_wt_reader },
-          extra_fields: [ { id: article, type: text } ] }
   - id: av
     label: p.av
     event_type: [midweek_meeting, weekend_meeting]

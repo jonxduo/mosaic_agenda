@@ -346,6 +346,8 @@ pub struct PersonLoad {
     pub name: String,
     /// Whole weeks from the last slot before this program; none if never.
     pub weeks: Option<u32>,
+    /// Date (YYYY-MM-DD) of that last slot in another program of the type.
+    pub last: Option<String>,
 }
 
 /// A heading of the program editor.
@@ -400,6 +402,8 @@ pub struct ProgramEditor {
     pub title: String,
     pub status: String,
     pub occurrences: Vec<String>,
+    /// The same events as dates (YYYY-MM-DD).
+    pub dates: Vec<String>,
     pub groups: Vec<ProgramGroup>,
     pub cells: Vec<SlotCell>,
     pub sections: Vec<SectionView>,

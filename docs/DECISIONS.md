@@ -776,3 +776,18 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   regole del motore e della tabella Incarichi), altrimenti un avviso. Un clic sul riquadro apre
   l'elenco dei nomi (un `select` trasparente sopra): vale per tastiera e telefono, dove
   l'elenco laterale è nascosto (sotto i 1000 px). La × toglie la persona.
+
+## 2026-11-03 — Un solo editor per tutti i programmi; elenco per settimana
+
+- Tutti i programmi (anche audio/video e uscieri) usano l'editor a righe con l'elenco delle
+  persone e il trascinamento; tolto il modo a riquadri. Gli slot che cambiano a ogni evento
+  dentro un gruppo hanno righe proprie sotto il giorno.
+- L'elenco segue la settimana (gruppo di eventi) sullo schermo: mostra solo chi è candidato
+  per almeno uno slot di quella settimana e conta le settimane dall'ultimo slot prima della sua
+  data, guardando gli altri programmi del tipo (`PersonLoad.last`) e le settimane precedenti di
+  questo (scelte non ancora salvate comprese). Chi ha già un posto quella settimana è "ora", in
+  fondo. `ProgramEditor.dates` dà le date degli eventi.
+- Congregazione, fine settimana: cantico, preghiera iniziale, presidente, discorso pubblico,
+  cantico, Studio Torre di Guardia (tema a sinistra; conduttore e lettore nella stessa riga),
+  cantico, preghiera finale. Nuova abilitazione `can_wt_conductor` (anziani), anche nella
+  tabella Incarichi; il tema dello studio si legge dalla pagina della settimana.

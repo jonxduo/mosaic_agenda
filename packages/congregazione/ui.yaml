@@ -24,7 +24,7 @@ menu:
   - { label: menu.roles, view: qualification_matrix,
       params: { qualifications: [can_attendant, can_av, can_microphones, can_lmm_chairman, can_public_chairman,
                                  can_public_talk, can_treasures, can_gems, can_bible_reading, can_student, can_living,
-                                 can_cbs_conductor, can_cbs_reader, can_wt_reader, can_prayer] } }
+                                 can_cbs_conductor, can_cbs_reader, can_wt_conductor, can_wt_reader, can_prayer] } }
   - { label: menu.alerts, view: admin_alerts, visible_to: app_admins }
   - { label: menu.sync, view: sync_status }
   - { label: menu.settings, view: settings }

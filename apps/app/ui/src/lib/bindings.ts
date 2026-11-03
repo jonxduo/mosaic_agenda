@@ -712,6 +712,8 @@ export type PersonLoad_Deserialize = {
 	name: string,
 	/**  Whole weeks from the last slot before this program; none if never. */
 	weeks?: number | null,
+	/**  Date (YYYY-MM-DD) of that last slot in another program of the type. */
+	last?: string | null,
 };
 
 /**
@@ -723,6 +725,8 @@ export type PersonLoad_Serialize = {
 	name: string,
 	/**  Whole weeks from the last slot before this program; none if never. */
 	weeks: number | null,
+	/**  Date (YYYY-MM-DD) of that last slot in another program of the type. */
+	last: string | null,
 };
 
 export type PersonRow = PersonRow_Serialize | PersonRow_Deserialize;
@@ -813,6 +817,8 @@ export type ProgramEditor_Deserialize = {
 	title: string,
 	status: string,
 	occurrences: string[],
+	/**  The same events as dates (YYYY-MM-DD). */
+	dates: string[],
 	groups: ProgramGroup_Deserialize[],
 	cells: SlotCell_Deserialize[],
 	sections: SectionView_Deserialize[],
@@ -838,6 +844,8 @@ export type ProgramEditor_Serialize = {
 	title: string,
 	status: string,
 	occurrences: string[],
+	/**  The same events as dates (YYYY-MM-DD). */
+	dates: string[],
 	groups: ProgramGroup_Serialize[],
 	cells: SlotCell_Serialize[],
 	sections: SectionView_Serialize[],

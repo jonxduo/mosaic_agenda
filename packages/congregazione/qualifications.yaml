@@ -42,6 +42,7 @@ qualifications:
   - { id: can_public_chairman, label: q.can_public_chairman, duration: permanent, requires: *q_elder_or_ms, visibility: elders }
   - { id: can_cbs_conductor, label: q.can_cbs_conductor, duration: permanent, requires: *q_elder_or_ms, visibility: elders }
   - { id: can_cbs_reader, label: q.can_cbs_reader, duration: permanent, requires: *q_male, visibility: elders }
+  - { id: can_wt_conductor, label: q.can_wt_conductor, duration: permanent, requires: { has_qualification: elder }, visibility: elders }
   - { id: can_wt_reader, label: q.can_wt_reader, duration: permanent, requires: *q_male, visibility: elders }
   - { id: can_treasures, label: q.can_treasures, duration: permanent, requires: *q_elder_or_ms, visibility: elders }
   - { id: can_gems, label: q.can_gems, duration: permanent, requires: *q_elder_or_ms, visibility: elders }
