@@ -741,3 +741,26 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   partner di un'altra). La scelta del partner (l'interlocutore) compare dentro la parte, subito
   sotto la sua scelta, non più in fondo alla sezione. I campi `long_text` sono aree di testo a
   tutta larghezza.
+
+## 2026-11-03 — Programma in righe, sezioni, classe supplementare
+
+- **Opzioni del tipo di programma** (core): `options: [{ id, label, enabled }]`; uno slot con
+  `option` è attivo solo se l'opzione è accesa (`ProgramTypeDef::slot_active`). Gli
+  amministratori le accendono in "Calendario e turni" ("Opzioni dei programmi").
+- **Disposizione** (core): `sections: [{ id, label, color }]` e `SlotDef.section` mettono una
+  fascia colorata dove la sezione cambia; `beside: <slot>` mostra lo slot nella riga di un altro,
+  nella colonna della sua opzione (una seconda sala); `with: <slot>` nella stessa riga, sotto
+  la persona dell'altro (es. il lettore); il partner di `pair_with` va nella riga della sua parte.
+  `assignable: false` = slot senza persona, solo dettagli (es. il numero del cantico); il motore
+  rifiuta assegnazioni su questi slot. L'editor riceve per ogni cella `row`, `column`, `section`,
+  `assignable` e le colonne extra in uso.
+- Editor: i programmi con dettagli mostrano una riga per parte, a sinistra la parte e i suoi
+  campi, a destra chi la svolge (4/5 + 1/5; con la classe supplementare 4/6 + 1/6 + 1/6); la pagina
+  usa fino a 1180 px. Su telefono le colonne si impilano con la loro etichetta. Audio/video e
+  uscieri restano a riquadri, due per riga.
+- Congregazione, infrasettimanale: presidente, consigliere ausiliario (classe supplementare),
+  cantico e preghiera; fascia grigia Tesori (discorso, gemme, lettura biblica + classe
+  supplementare); fascia gialla Efficaci nel ministero (parti degli studenti con interlocutore,
+  + classe supplementare); fascia rossa Vita cristiana (cantico, parti, studio biblico con
+  lettore, cantico, preghiera conclusiva). I numeri dei tre cantici si leggono dalla Guida.
+  La classe supplementare è spenta nel pacchetto.

@@ -17,10 +17,13 @@
   // j: position in programs.yaml (null for a slot added here).
   type Slot = { j: number | null; id: string; key: string; label: string; enabled: boolean; count: number; repeated: boolean; eachEvent: boolean; removed: boolean };
   type Prog = { i: number; id: string; label: string; rotation: string; period: string; slots: Slot[]; requires: unknown; adding: string };
+  // An option of a program type (e.g. a second room): i program, k option.
+  type Opt = { i: number; k: number; id: string; program: string; label: string; enabled: boolean };
 
   let current = $state<ConfigVersion | null>(null);
   let events = $state<Ev[]>([]);
   let programs = $state<Prog[]>([]);
+  let options = $state<Opt[]>([]);
   let busy = $state(false);
   let issues = $state<ConfigIssue[]>([]);
   let initial = '';
@@ -29,7 +32,7 @@
 
   const list = (v: unknown): Js[] => (Array.isArray(v) ? (v as Js[]) : []);
   const file = (path: string) => current?.files.find((f) => f.path === path);
-  const snapshot = () => JSON.stringify({ events, programs });
+  const snapshot = () => JSON.stringify({ events, programs, options });
   const dirty = $derived(current !== null && snapshot() !== initial);
 
   async function load() {
@@ -72,6 +75,9 @@
             removed: false
           }))
         }));
+      options = list(prog?.program_types).flatMap((p, i) =>
+        list(p.options).map((o, k) => ({ i, k, id: `${String(p.id)}.${String(o.id)}`, program: label(p.label), label: label(o.label), enabled: o.enabled === true }))
+      );
       initial = snapshot();
     } catch (e) {
       fail(e);
@@ -121,6 +127,7 @@
       setAt(cal, ['event_types', e.i, 'default_recurrence'], `FREQ=WEEKLY;BYDAY=${e.days.join(',')}`);
       setAt(cal, ['event_types', e.i, 'default_time'], e.time || undefined);
     }
+    for (const o of options) setAt(prog, ['program_types', o.i, 'options', o.k, 'enabled'], o.enabled ? true : undefined);
     for (const p of programs) {
       const base = ['program_types', p.i];
       setAt(prog, [...base, 'rotation'], p.rotation === 'occurrence' ? undefined : p.rotation);
@@ -225,6 +232,21 @@
       </section>
     {/if}
 
+    {#if options.length}
+      <section class="stack" aria-labelledby="sch-options">
+        <h2 id="sch-options">{t('sch_options')}</h2>
+        <div class="card stack">
+          {#each options as o (o.id)}
+            <label class="inline option">
+              <input type="checkbox" bind:checked={o.enabled} disabled={!current.can_publish} />
+              <span>{o.label}</span>
+              <span class="muted">· {o.program}</span>
+            </label>
+          {/each}
+        </div>
+      </section>
+    {/if}
+
     {#if programs.length}
       <section class="stack" aria-labelledby="sch-programs">
         <h2 id="sch-programs">{t('sch_programs')}</h2>
@@ -310,6 +332,8 @@
   .issues { border-color: var(--danger); }
   .issues p { font-size: 14px; }
   .slots { gap: 0; }
+  .option { gap: 10px; }
+  .option input { width: 18px; height: 18px; min-height: 0; margin: 0; }
   .slot { display: grid; grid-template-columns: auto minmax(140px, 1fr) auto auto auto; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
   .slot.off .name, .slot.off .count, .slot.off .each { opacity: 0.5; }
   .on, .each input { width: 20px; height: 20px; min-height: 20px; margin: 0; accent-color: var(--primary); flex: none; }

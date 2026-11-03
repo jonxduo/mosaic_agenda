@@ -1,7 +1,7 @@
 // Generic interface words of the core. Everything domain-specific comes
 // from the package through the commands (labels already resolved).
 const it = {
-  save: 'Salva bozza', save_plain: 'Salva', prefill: 'Precompila', prefill_done: 'Dettagli precompilati', prefill_reading: 'Precompilazione in corso…', saved: 'Salvato', cancel: 'Annulla', confirm: 'Conferma', back: 'Indietro', close: 'Chiudi',
+  save: 'Salva bozza', save_plain: 'Salva', main_column: 'Sala principale', prefill: 'Precompila', prefill_done: 'Dettagli precompilati', prefill_reading: 'Precompilazione in corso…', saved: 'Salvato', cancel: 'Annulla', confirm: 'Conferma', back: 'Indietro', close: 'Chiudi',
   yes: 'Sì', no: 'No', fill: 'Compila', fill_on_behalf: 'Compila per conto', respond: 'Rispondi', accept: 'Accetto',
   decline: 'Non posso', open: 'Apri', todo: 'Da fare', work_for_others: 'Da seguire', nav_work: 'Attività', sync_short: 'Sincro', nav_admin: 'Amministrazione', nav_system: 'Dispositivo', nothing_mine: 'Niente da fare per te in prima persona', board_news: 'Novità in bacheca', nothing: 'Niente da fare per ora',
   missing: 'Mancano', received: 'Ricevuti', done: 'Già avanzati', note: 'Nota', note_required: 'Scrivi una nota',
@@ -66,7 +66,7 @@ const it = {
   sch_title: 'Calendario e turni', sch_hint: 'Giorni degli eventi e come si ripetono gli incarichi. Salvando, la configurazione passa alla versione successiva su tutti i dispositivi.',
   sch_events: 'Giorni e orari', sch_days: 'Giorni', sch_time: 'Ora', sch_programs: 'Turni degli incarichi', sch_rotation: 'Le stesse persone',
   rot_occurrence: 'Cambiano a ogni evento', rot_week: 'Per tutta la settimana', rot_month: 'Per tutto il mese', sch_slots: 'Incarichi da assegnare',
-  sch_count: 'Persone', sch_save: 'Salva e pubblica', sch_saved: 'Impostazioni salvate (versione {n})', sch_none: 'Seleziona almeno un incarico',
+  sch_count: 'Persone', sch_save: 'Salva e pubblica', sch_options: 'Opzioni dei programmi', sch_saved: 'Impostazioni salvate (versione {n})', sch_none: 'Seleziona almeno un incarico',
   sch_readonly: 'Solo chi può pubblicare la configurazione modifica queste impostazioni.',
   sch_active: 'Da assegnare', sch_name: "Nome dell'incarico", sch_each: 'Cambia a ogni evento', sch_each_hint: 'Per questo incarico si sceglie una persona diversa a ogni evento, anche se le altre restano le stesse per la settimana o il mese',
   sch_new_slot: 'Nuovo incarico', sch_remove_confirm: "Eliminare l'incarico «{name}»? Le assegnazioni già fatte restano nello storico.", sch_no_days: 'Scegli almeno un giorno per ogni evento',

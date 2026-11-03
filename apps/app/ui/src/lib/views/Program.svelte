@@ -18,8 +18,15 @@
   const valueOf = (c: Cell) => pending[keyOf(c)]?.person ?? c.assignee ?? '';
   const text = (v: unknown) => (v === null || v === undefined ? '' : String(v));
   const detailOf = (c: Cell, id: string) => details[keyOf(c)]?.values[id] ?? text(c.details.find((f) => f.id === id)?.value);
-  // Lists of duties (no details to write) sit two per row on wide screens.
+  // Lists of duties (no details to write) sit two per row on wide screens;
+  // the others show one row per part: the part on the left, who does it on
+  // the right, one column per room.
   const compact = $derived(!!p && !p.cells.some((c) => c.details.length));
+  const isRow = (c: Cell) => c.row === c.slot && !c.column;
+  const inRow = (top: Cell, column: string | null) =>
+    p?.cells.filter((x) => x.occurrence === top.occurrence && x.row === top.slot && x.index === top.index && (x.column ?? null) === column) ?? [];
+  const sectionOf = (id: string | null) => p?.sections.find((x) => x.id === id);
+  const rowsOf = (occurrence: number) => p?.cells.filter((c) => c.occurrence === occurrence && isRow(c)) ?? [];
 
   async function load() {
     try {
@@ -93,11 +100,12 @@
   }
 </script>
 
-{#snippet choice(c: Cell, pair = false)}
-  <div class="list-row" class:pair>
-    <span class="grow">{c.label}</span>
+<!-- label: 'never', 'always', or 'phone' (where the column titles are hidden). -->
+{#snippet pick(c: Cell, label: 'never' | 'always' | 'phone')}
+  <div class="pick">
+    {#if label !== 'never'}<span class="muted mini" class:phone={label === 'phone'}>{c.label}</span>{/if}
     {#if p?.can_edit}
-      <select aria-label={c.label} class:changed={keyOf(c) in pending} value={valueOf(c)} onchange={(e) => choose(c, e.currentTarget.value)} style="max-width: 260px">
+      <select aria-label={c.label} class:changed={keyOf(c) in pending} value={valueOf(c)} onchange={(e) => choose(c, e.currentTarget.value)}>
         <option value="">{t('unassigned')}</option>
         {#each c.candidates as o (o.id)}<option value={o.id}>{o.label}</option>{/each}
       </select>
@@ -106,49 +114,70 @@
   </div>
 {/snippet}
 
+{#snippet fields(c: Cell)}
+  {#if c.details.length}
+    <div class="details" class:changed={keyOf(c) in details}>
+      {#each c.details as f (f.id)}
+        {#if p?.can_edit}
+          {#if f.kind === 'long_text'}
+            <textarea class="wide" rows="2" placeholder={f.label} aria-label={`${c.label} · ${f.label}`} value={detailOf(c, f.id)} oninput={(e) => write(c, f.id, e.currentTarget.value)}></textarea>
+          {:else}
+            <input
+              class={f.kind === 'integer' ? 'num' : 'grow'}
+              type={f.kind === 'integer' ? 'number' : 'text'}
+              min={f.min ?? undefined}
+              placeholder={f.label}
+              aria-label={`${c.label} · ${f.label}`}
+              value={detailOf(c, f.id)}
+              oninput={(e) => write(c, f.id, e.currentTarget.value)}
+            />
+          {/if}
+        {:else if text(f.value)}
+          <span class="muted" class:wide={f.kind === 'long_text'}>{f.id === 'minutes' ? `${f.value} min` : f.kind === 'integer' ? `${f.label} ${f.value}` : text(f.value)}</span>
+        {/if}
+      {/each}
+    </div>
+  {/if}
+{/snippet}
+
+<!-- One card per group of events: a list of duties (compact) or parts in rows. -->
 {#snippet cell(c: Cell)}
   <div class="slot">
-    {@render choice(c)}
-    <!-- Who is chosen together with this slot (e.g. a householder) sits right under it. -->
-    {#if c.partner}
-      {@const mate = p?.cells.find((x) => x.slot === c.partner && x.occurrence === c.occurrence && x.index === c.index)}
-      {#if mate}{@render choice(mate, true)}{/if}
+    <div class="list-row">
+      <span class="grow">{c.label}</span>
+      <div class="side">{#each inRow(c, null) as x (x.slot)}{#if x.assignable}{@render pick(x, x !== c ? 'always' : 'never')}{/if}{/each}</div>
+    </div>
+    {@render fields(c)}
+  </div>
+{/snippet}
+
+{#snippet rows(occurrence: number)}
+  <div class="rows" style={`--cols: ${1 + (p?.columns.length ?? 0)}`}>
+    {#if p?.columns.length}
+      <div class="head"></div>
+      <div class="head muted">{t('main_column')}</div>
+      {#each p.columns as col (col.id)}<div class="head muted">{col.label}</div>{/each}
     {/if}
-    {#if c.details.length}
-      <div class="details" class:changed={keyOf(c) in details}>
-        {#each c.details as f (f.id)}
-          {#if p?.can_edit}
-            {#if f.kind === 'long_text'}
-              <textarea
-                class="wide"
-                rows="2"
-                placeholder={f.label}
-                aria-label={`${c.label} · ${f.label}`}
-                value={detailOf(c, f.id)}
-                oninput={(e) => write(c, f.id, e.currentTarget.value)}
-              ></textarea>
-            {:else}
-              <input
-                class={f.kind === 'integer' ? 'num' : 'grow'}
-                type={f.kind === 'integer' ? 'number' : 'text'}
-                min={f.min ?? undefined}
-                placeholder={f.label}
-                aria-label={`${c.label} · ${f.label}`}
-                value={detailOf(c, f.id)}
-                oninput={(e) => write(c, f.id, e.currentTarget.value)}
-              />
-            {/if}
-          {:else if text(f.value)}
-            <span class="muted" class:wide={f.kind === 'long_text'}>{f.kind === 'integer' ? `${f.value} min` : text(f.value)}</span>
-          {/if}
-        {/each}
+    {#each rowsOf(occurrence) as c, i (c.slot + c.index)}
+      {@const prev = rowsOf(occurrence)[i - 1]}
+      {#if c.section && c.section !== prev?.section}
+        {@const sec = sectionOf(c.section)}
+        <div class="band" style={sec?.color ? `background: ${sec.color}` : ''}>{sec?.label}</div>
+      {/if}
+      <div class="part" class:inline={c.details.every((f) => f.kind === 'integer')}>
+        <span class="name">{c.label}</span>
+        {@render fields(c)}
       </div>
-    {/if}
+      <div class="who">{#each inRow(c, null) as x (x.slot)}{#if x.assignable}{@render pick(x, x !== c ? 'always' : 'never')}{/if}{/each}</div>
+      {#each p?.columns ?? [] as col (col.id)}
+        <div class="who aux">{#each inRow(c, col.id) as x, k (x.slot)}{@render pick(x, k > 0 ? 'always' : 'phone')}{/each}</div>
+      {/each}
+    {/each}
   </div>
 {/snippet}
 
 {#if p}
-  <div class="stack page">
+  <div class="stack page" class:wide={!compact}>
     <div class="spread">
       <h1>{p.title}</h1>
       <span class="badge">{t(`status_${p.status}` as never)}</span>
@@ -162,13 +191,17 @@
             <h3>{g.label}</h3>
             {#if g.detail}<span class="muted">{g.detail}</span>{/if}
           </div>
-          {#each p.cells.filter((c) => c.occurrence === g.occurrence && !c.per_event && !c.paired) as c (c.slot + c.index)}
-            {@render cell(c)}
-          {/each}
+          {#if compact}
+            {#each p.cells.filter((c) => c.occurrence === g.occurrence && !c.per_event && isRow(c)) as c (c.slot + c.index)}
+              {@render cell(c)}
+            {/each}
+          {:else}
+            {@render rows(g.occurrence)}
+          {/if}
           {#if p.cells.some((c) => c.per_event && g.days.some((d) => d.occurrence === c.occurrence))}
             {#each g.days as d (d.occurrence)}
               <h4 class="day">{d.label}</h4>
-              {#each p.cells.filter((c) => c.per_event && c.occurrence === d.occurrence && !c.paired) as c (c.slot + c.index)}
+              {#each p.cells.filter((c) => c.per_event && c.occurrence === d.occurrence && isRow(c)) as c (c.slot + c.index)}
                 {@render cell(c)}
               {/each}
             {/each}
@@ -207,7 +240,29 @@
   .details input.grow { flex: 1 1 220px; min-width: 0; }
   .details .wide { flex: 1 1 100%; }
   .details textarea { resize: vertical; font: inherit; font-size: 14px; }
-  .pair { padding-left: 18px; border-left: 2px solid var(--primary-soft); }
+  .side { display: flex; flex-direction: column; gap: 6px; width: min(260px, 50%); }
+  .pick { display: flex; flex-direction: column; gap: 3px; }
+  .pick select { width: 100%; }
+  .mini { font-size: 12px; }
+  .mini.phone { display: none; }
+  /* Parts in rows: 4/5 the part, 1/5 per room. */
+  .rows { display: grid; grid-template-columns: minmax(0, 4fr) repeat(var(--cols), minmax(0, 1fr)); column-gap: 14px; }
+  .rows > * { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .head { font-size: 13px; font-weight: 600; padding-top: 0; }
+  .band { grid-column: 1 / -1; background: var(--muted); color: #fff; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; font-size: 14px; padding: 6px 12px; margin-top: 10px; border-radius: 4px; border-bottom: none; }
+  .part { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .part .details { padding: 0; }
+  .part.inline { flex-direction: row; align-items: center; gap: 10px; }
+  .name { font-weight: 500; }
+  .who { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  @media (max-width: 760px) {
+    .rows { grid-template-columns: minmax(0, 1fr); }
+    .rows > .head { display: none; }
+    .mini.phone { display: inline; }
+    .rows > .who { border-bottom: none; padding-top: 0; }
+    .rows > .who:empty { display: none; }
+    .rows > .part { border-bottom: none; }
+  }
   .details input.num { width: 84px; flex: none; }
   .details.changed input { border-color: var(--primary); }
   .actions { position: sticky; bottom: 12px; background: var(--page); padding: 8px 0; }

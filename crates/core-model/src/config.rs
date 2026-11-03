@@ -699,6 +699,36 @@ pub enum Rotation {
     Month,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ProgramOptionDef {
+    pub id: Slug,
+    pub label: TextKey,
+    #[serde(default)]
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SectionDef {
+    pub id: Slug,
+    pub label: TextKey,
+    /// `#rrggbb` background of the heading.
+    #[serde(default)]
+    pub color: Option<String>,
+}
+
+impl ProgramTypeDef {
+    /// Enabled, and its option (if any) is on.
+    pub fn slot_active(&self, slot: &SlotDef) -> bool {
+        slot.enabled
+            && slot
+                .option
+                .as_ref()
+                .is_none_or(|o| self.options.iter().any(|x| &x.id == o && x.enabled))
+    }
+}
+
 /// When the assignees hear of their assignments: as soon as the team sends
 /// the program, or only once it is published on the board (the team's
 /// "send" then hands the program to who publishes it).
@@ -770,6 +800,13 @@ pub struct ProgramTypeDef {
     /// Where the details of the slots can be read from for each event.
     #[serde(default)]
     pub prefill: Option<PrefillDef>,
+    /// Switches that the administrators turn on or off (e.g. a second room):
+    /// a slot with `option` is active only while it is on.
+    #[serde(default)]
+    pub options: Vec<ProgramOptionDef>,
+    /// Headings that group the slots, in the order of the slots.
+    #[serde(default)]
+    pub sections: Vec<SectionDef>,
     pub slots: Vec<SlotDef>,
     pub publish_audience: Slug,
     #[serde(default)]
@@ -811,6 +848,23 @@ pub struct SlotDef {
     /// A new person at every event, whatever the program's `rotation`.
     #[serde(default)]
     pub each_event: bool,
+    /// Section of the program (see `ProgramTypeDef::sections`): a heading is
+    /// shown where the section changes.
+    #[serde(default)]
+    pub section: Option<Slug>,
+    /// Active only while this option of the program type is on.
+    #[serde(default)]
+    pub option: Option<Slug>,
+    /// Shown in the row of that slot (same position), in the column of its
+    /// `option` (e.g. a second room).
+    #[serde(default)]
+    pub beside: Option<Slug>,
+    /// Shown in the row of that slot, under its person (e.g. a reader).
+    #[serde(default)]
+    pub with: Option<Slug>,
+    /// Takes a person; when false the slot only holds details (e.g. a number).
+    #[serde(default = "yes")]
+    pub assignable: bool,
 }
 
 // ---------------------------------------------------------------------------

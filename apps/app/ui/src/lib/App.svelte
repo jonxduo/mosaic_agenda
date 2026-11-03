@@ -352,6 +352,8 @@
   .subnav a[aria-current='page'] { background: var(--primary-soft); color: var(--primary-strong); font-weight: 600; }
   .content { min-width: 0; padding: 40px 32px 96px; }
   .content :global(> *) { max-width: 820px; margin-left: auto; margin-right: auto; }
+  /* Pages laid out in columns (e.g. a program with its rooms) use more of the screen. */
+  .content :global(> .wide) { max-width: 1180px; }
   .bottom { display: none; }
   .sheet, .sheet-backdrop { display: none; }
   .ask-backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / 0.35); z-index: 60; }

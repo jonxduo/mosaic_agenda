@@ -328,10 +328,22 @@ pub struct SlotCell {
     pub per_event: bool,
     /// The slot's extra fields (title, minutes…) with their values.
     pub details: Vec<Field>,
-    /// The slot chosen together with this one (`pair_with`), shown inside it.
-    pub partner: Option<String>,
-    /// This cell is the partner of another: the editor shows it there.
-    pub paired: bool,
+    /// The slot whose row shows this cell (itself for a row of its own).
+    pub row: String,
+    /// The option whose column shows this cell; none for the main column.
+    pub column: Option<String>,
+    /// Section of the slot (`ProgramEditor::sections`).
+    pub section: Option<String>,
+    /// Takes a person (else it only holds details).
+    pub assignable: bool,
+}
+
+/// A heading of the program editor.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct SectionView {
+    pub id: String,
+    pub label: String,
+    pub color: Option<String>,
 }
 
 /// The details of one slot written in the editor: field → text, an empty
@@ -380,6 +392,9 @@ pub struct ProgramEditor {
     pub occurrences: Vec<String>,
     pub groups: Vec<ProgramGroup>,
     pub cells: Vec<SlotCell>,
+    pub sections: Vec<SectionView>,
+    /// Extra columns (the options on that have slots beside others).
+    pub columns: Vec<Choice>,
     pub can_edit: bool,
     /// The draft differs from what was last sent.
     pub unsent: bool,

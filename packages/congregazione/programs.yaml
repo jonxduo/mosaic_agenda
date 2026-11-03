@@ -22,6 +22,10 @@ program_types:
       url: "https://wol.jw.org/it/wol/meetings/r6/lp-i/{year}/{week}"
       follow: "Guida per l.adunanza Vita e ministero"   # il primo link: quello della settimana
       rules:
+        # Cantici: d'apertura (con la preghiera), a metà di Vita cristiana, finale.
+        - { heading: '^Cantico (?<n>\d+) e preghiera', slot: opening_prayer, set: { song: "{n}" } }
+        - { heading: 'Commenti conclusivi.*Cantico (?<n>\d+)', slot: closing_song, set: { song: "{n}" } }
+        - { section: "VITA CRISTIANA", heading: '^Cantico (?<n>\d+)$', slot: middle_song, set: { song: "{n}" } }
         - { section: "TESORI", heading: '^1\. (?<title>.+)$', slot: treasures_talk, set: { title: "{title}" } }
         - { section: "TESORI", heading: "Gemme spirituali" }
         - { section: "TESORI", heading: "Lettura biblica", text: '\(\d+ min\) (?<passage>[^(\n]+?) *(\(|$)', slot: bible_reading, set: { passage: "{passage}" } }
@@ -30,23 +34,41 @@ program_types:
             slot: student_part, set: { title: "{title}", minutes: "{min}", synopsis: "{synopsis}", lesson: "{lesson}" } }
         - { section: "VITA CRISTIANA", heading: "Studio biblico di congregazione", text: '\(\d+ min\) (?<what>[^\n]+)', slot: cbs_conductor, set: { material: "{what}" } }
         - { section: "VITA CRISTIANA", heading: '^\d+\. (?<title>.+)$', text: '\((?<min>\d+) min\)', slot: living_part, set: { title: "{title}", minutes: "{min}" } }
+    # ⚙ Classe supplementare: l'amministratore la attiva in "Calendario e turni".
+    options:
+      - { id: aux_class, label: o.aux_class, enabled: false }
+    sections:
+      - { id: treasures, label: sec.treasures, color: "#575a5d" }
+      - { id: ministry, label: sec.ministry, color: "#b5892e" }
+      - { id: living, label: sec.living, color: "#7e1a26" }
     slots:                               # ⚙ struttura da verificare con il sorvegliante; requisiti modificabili
       - { id: chairman, label: s.chairman, requires: { has_qualification: can_lmm_chairman } }
-      - { id: opening_prayer, label: s.opening_prayer, requires: { has_qualification: can_prayer } }
-      - { id: treasures_talk, label: s.treasures_talk, requires: { has_qualification: can_treasures }, extra_fields: [ { id: title, type: text } ] }
-      - { id: spiritual_gems, label: s.spiritual_gems, requires: { has_qualification: can_gems } }
-      - { id: bible_reading, label: s.bible_reading, requires: { has_qualification: can_bible_reading },
+      - { id: aux_counselor, label: s.aux_counselor, option: aux_class, requires: *elder }
+      - { id: opening_prayer, label: s.song_and_prayer, requires: { has_qualification: can_prayer },
+          extra_fields: [ { id: song, type: integer, min: 1 } ] }
+      - { id: treasures_talk, label: s.treasures_talk, section: treasures, requires: { has_qualification: can_treasures },
+          extra_fields: [ { id: title, type: text } ] }
+      - { id: spiritual_gems, label: s.spiritual_gems, section: treasures, requires: { has_qualification: can_gems } }
+      - { id: bible_reading, label: s.bible_reading, section: treasures, requires: { has_qualification: can_bible_reading },
           extra_fields: [ { id: passage, type: text } ] }
-      - { id: student_part, label: s.student_part, repeat: { count: 4 }, requires: { has_qualification: can_student },
+      - { id: aux_bible_reading, label: s.aux_bible_reading, section: treasures, option: aux_class, beside: bible_reading,
+          requires: { has_qualification: can_bible_reading } }
+      - { id: student_part, label: s.student_part, section: ministry, repeat: { count: 4 }, requires: { has_qualification: can_student },
           extra_fields: [ { id: title, type: text }, { id: minutes, type: integer, min: 0 }, { id: synopsis, type: long_text },
                           { id: lesson, type: text } ], pair_with: student_assistant }
-      - { id: student_assistant, label: s.student_assistant, repeat: { count: 4 }, requires: { has_qualification: can_student } }
-      - { id: living_part, label: s.living_part, repeat: { count: 2 }, requires: { has_qualification: can_living },
+      - { id: student_assistant, label: s.student_assistant, section: ministry, repeat: { count: 4 }, requires: { has_qualification: can_student } }
+      - { id: aux_student_part, label: s.aux_student_part, section: ministry, option: aux_class, beside: student_part, repeat: { count: 4 },
+          requires: { has_qualification: can_student }, pair_with: aux_student_assistant }
+      - { id: aux_student_assistant, label: s.aux_student_assistant, section: ministry, option: aux_class, repeat: { count: 4 },
+          requires: { has_qualification: can_student } }
+      - { id: middle_song, label: s.song, section: living, assignable: false, extra_fields: [ { id: song, type: integer, min: 1 } ] }
+      - { id: living_part, label: s.living_part, section: living, repeat: { count: 2 }, requires: { has_qualification: can_living },
           extra_fields: [ { id: title, type: text }, { id: minutes, type: integer, min: 0 } ] }
-      - { id: cbs_conductor, label: s.cbs_conductor, requires: { has_qualification: can_cbs_conductor },
+      - { id: cbs_conductor, label: s.cbs_conductor, section: living, requires: { has_qualification: can_cbs_conductor },
           extra_fields: [ { id: material, type: text } ] }
-      - { id: cbs_reader, label: s.cbs_reader, requires: { has_qualification: can_cbs_reader } }
-      - { id: closing_prayer, label: s.closing_prayer, requires: { has_qualification: can_prayer } }
+      - { id: cbs_reader, label: s.cbs_reader, section: living, with: cbs_conductor, requires: { has_qualification: can_cbs_reader } }
+      - { id: closing_song, label: s.song, section: living, assignable: false, extra_fields: [ { id: song, type: integer, min: 1 } ] }
+      - { id: closing_prayer, label: s.closing_prayer, section: living, requires: { has_qualification: can_prayer } }
   - id: weekend
     label: p.weekend
     event_type: weekend_meeting

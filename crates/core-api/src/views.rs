@@ -149,6 +149,36 @@ fn params_map(p: &core_model::config::ViewParams) -> BTreeMap<String, String> {
     m
 }
 
+/// The row (slot) and column (option) that show a slot in the editor: its
+/// own row, or the row of the slot it sits `beside` (in its option's column),
+/// `with`, or is paired to (`pair_with` of another slot).
+pub(crate) fn placement<'a>(
+    def: &'a core_model::config::ProgramTypeDef,
+    slot: &'a core_model::config::SlotDef,
+) -> (&'a Slug, Option<&'a Slug>) {
+    let mut current = slot;
+    let mut column = None;
+    // Bounded walk: a broken chain cannot loop.
+    for _ in 0..def.slots.len() {
+        let host = if let Some(b) = &current.beside {
+            column = column.or(current.option.as_ref());
+            Some(b)
+        } else if let Some(w) = &current.with {
+            Some(w)
+        } else {
+            def.slots
+                .iter()
+                .find(|s| s.pair_with.as_ref() == Some(&current.id))
+                .map(|s| &s.id)
+        };
+        match host.and_then(|h| def.slots.iter().find(|s| &s.id == h)) {
+            Some(next) => current = next,
+            None => break,
+        }
+    }
+    (&current.id, column)
+}
+
 /// Whether the assignees of this program type hear of it only when it is published.
 pub(crate) fn notified_at_publish(cfg: &Cfg, program_type: &Slug) -> bool {
     cfg.program_type(program_type)
@@ -1659,7 +1689,7 @@ impl Core {
         let groups = crate::schedule::groups(def.rotation, &occurrences);
         let mut cells = Vec::new();
         // Slots that change at every event get one cell per event.
-        for slot in def.slots.iter().filter(|s| s.enabled) {
+        for slot in def.slots.iter().filter(|s| def.slot_active(s)) {
             let rotation = crate::schedule::slot_rotation(def, &slot.id);
             let per_event = rotation != def.rotation;
             for group in &crate::schedule::groups(rotation, &occurrences) {
@@ -1678,7 +1708,7 @@ impl Core {
                         index: index as u16,
                     };
                     let current = assignments.get(&key);
-                    let candidates = if can_edit {
+                    let candidates = if can_edit && slot.assignable {
                         let mut c: Vec<Choice> = v
                             .proj
                             .auth
@@ -1762,11 +1792,10 @@ impl Core {
                             .iter()
                             .map(|f| field_dto(&t, f, details.get(&key).and_then(|d| d.get(&f.id))))
                             .collect(),
-                        partner: slot.pair_with.as_ref().map(ToString::to_string),
-                        paired: def
-                            .slots
-                            .iter()
-                            .any(|s| s.enabled && s.pair_with.as_ref() == Some(&slot.id)),
+                        row: placement(def, slot).0.to_string(),
+                        column: placement(def, slot).1.map(ToString::to_string),
+                        section: slot.section.as_ref().map(ToString::to_string),
+                        assignable: slot.assignable,
                     });
                 }
             }
@@ -1831,6 +1860,31 @@ impl Core {
                             })
                             .collect(),
                     })
+                })
+                .collect(),
+            sections: def
+                .sections
+                .iter()
+                .map(|x| SectionView {
+                    id: x.id.to_string(),
+                    label: t.get(x.label.as_str()),
+                    color: x.color.clone(),
+                })
+                .collect(),
+            columns: def
+                .options
+                .iter()
+                .filter(|o| {
+                    o.enabled
+                        && def.slots.iter().any(|s| {
+                            def.slot_active(s)
+                                && s.beside.is_some()
+                                && s.option.as_ref() == Some(&o.id)
+                        })
+                })
+                .map(|o| Choice {
+                    id: o.id.to_string(),
+                    label: t.get(o.label.as_str()),
                 })
                 .collect(),
             cells,
@@ -2635,5 +2689,69 @@ impl UnitsOf for core_engine::AuthState {
             .filter_map(|u| self.org.units.get(&u).map(|x| x.name.clone()))
             .collect();
         (!names.is_empty()).then(|| names.join(", "))
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod layout_tests {
+    use super::*;
+    use core_model::config::ProgramTypeDef;
+
+    fn def(aux_on: bool) -> ProgramTypeDef {
+        serde_json::from_value(serde_json::json!({
+            "id": "weekly", "label": "p.weekly", "event_type": "session", "period": "month",
+            "owner_role": "lead", "publish_audience": "all",
+            "options": [ { "id": "second_room", "label": "o.second", "enabled": aux_on } ],
+            "slots": [
+                { "id": "part", "label": "s.part", "repeat": { "count": 2 }, "pair_with": "helper" },
+                { "id": "helper", "label": "s.helper", "repeat": { "count": 2 } },
+                { "id": "part_2", "label": "s.part_2", "option": "second_room", "beside": "part",
+                  "repeat": { "count": 2 }, "pair_with": "helper_2" },
+                { "id": "helper_2", "label": "s.helper_2", "option": "second_room", "repeat": { "count": 2 } },
+                { "id": "lead", "label": "s.lead" },
+                { "id": "reader", "label": "s.reader", "with": "lead" },
+                { "id": "number", "label": "s.number", "assignable": false }
+            ]
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn slots_are_placed_in_rows_and_columns() {
+        let d = def(true);
+        let at = |id: &str| {
+            let s = d.slots.iter().find(|s| s.id.as_str() == id).unwrap();
+            let (row, col) = placement(&d, s);
+            (row.to_string(), col.map(ToString::to_string))
+        };
+        assert_eq!(at("part"), ("part".into(), None));
+        assert_eq!(at("helper"), ("part".into(), None));
+        assert_eq!(at("part_2"), ("part".into(), Some("second_room".into())));
+        assert_eq!(at("helper_2"), ("part".into(), Some("second_room".into())));
+        assert_eq!(at("reader"), ("lead".into(), None));
+        assert_eq!(at("number"), ("number".into(), None));
+    }
+
+    #[test]
+    fn an_option_off_hides_its_slots() {
+        let off = def(false);
+        let active: Vec<_> = off
+            .slots
+            .iter()
+            .filter(|s| off.slot_active(s))
+            .map(|s| s.id.as_str())
+            .collect();
+        assert!(
+            !active.contains(&"part_2") && !active.contains(&"helper_2"),
+            "{active:?}"
+        );
+        let on = def(true);
+        assert!(
+            on.slots
+                .iter()
+                .filter(|s| on.slot_active(s))
+                .any(|s| s.id.as_str() == "part_2")
+        );
     }
 }

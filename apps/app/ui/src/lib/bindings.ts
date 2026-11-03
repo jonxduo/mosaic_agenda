@@ -787,6 +787,9 @@ export type ProgramEditor_Deserialize = {
 	occurrences: string[],
 	groups: ProgramGroup_Deserialize[],
 	cells: SlotCell_Deserialize[],
+	sections: SectionView_Deserialize[],
+	/**  Extra columns (the options on that have slots beside others). */
+	columns: Choice[],
 	can_edit: boolean,
 	/**  The draft differs from what was last sent. */
 	unsent: boolean,
@@ -807,6 +810,9 @@ export type ProgramEditor_Serialize = {
 	occurrences: string[],
 	groups: ProgramGroup_Serialize[],
 	cells: SlotCell_Serialize[],
+	sections: SectionView_Serialize[],
+	/**  Extra columns (the options on that have slots beside others). */
+	columns: Choice[],
 	can_edit: boolean,
 	/**  The draft differs from what was last sent. */
 	unsent: boolean,
@@ -954,6 +960,23 @@ export type ResourceRow_Serialize = {
 	status: string,
 };
 
+/**  A heading of the program editor. */
+export type SectionView = SectionView_Serialize | SectionView_Deserialize;
+
+/**  A heading of the program editor. */
+export type SectionView_Deserialize = {
+	id: string,
+	label: string,
+	color?: string | null,
+};
+
+/**  A heading of the program editor. */
+export type SectionView_Serialize = {
+	id: string,
+	label: string,
+	color: string | null,
+};
+
 export type Settings = {
 	auto_lock_minutes: number,
 	mobile_data_photos: boolean,
@@ -976,10 +999,14 @@ export type SlotCell_Deserialize = {
 	per_event: boolean,
 	/**  The slot's extra fields (title, minutes…) with their values. */
 	details: Field_Deserialize[],
-	/**  The slot chosen together with this one (`pair_with`), shown inside it. */
-	partner?: string | null,
-	/**  This cell is the partner of another: the editor shows it there. */
-	paired: boolean,
+	/**  The slot whose row shows this cell (itself for a row of its own). */
+	row: string,
+	/**  The option whose column shows this cell; none for the main column. */
+	column?: string | null,
+	/**  Section of the slot (`ProgramEditor::sections`). */
+	section?: string | null,
+	/**  Takes a person (else it only holds details). */
+	assignable: boolean,
 };
 
 export type SlotCell_Serialize = {
@@ -995,10 +1022,14 @@ export type SlotCell_Serialize = {
 	per_event: boolean,
 	/**  The slot's extra fields (title, minutes…) with their values. */
 	details: Field_Serialize[],
-	/**  The slot chosen together with this one (`pair_with`), shown inside it. */
-	partner: string | null,
-	/**  This cell is the partner of another: the editor shows it there. */
-	paired: boolean,
+	/**  The slot whose row shows this cell (itself for a row of its own). */
+	row: string,
+	/**  The option whose column shows this cell; none for the main column. */
+	column: string | null,
+	/**  Section of the slot (`ProgramEditor::sections`). */
+	section: string | null,
+	/**  Takes a person (else it only holds details). */
+	assignable: boolean,
 };
 
 /**  One slot choice of the program editor (an empty `person` empties it). */

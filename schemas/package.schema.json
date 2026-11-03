@@ -1678,6 +1678,26 @@
       ],
       "type": "object"
     },
+    "ProgramOptionDef": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "default": false,
+          "type": "boolean"
+        },
+        "id": {
+          "$ref": "#/$defs/Slug"
+        },
+        "label": {
+          "$ref": "#/$defs/TextKey"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "type": "object"
+    },
     "ProgramPeriod": {
       "enum": [
         "week",
@@ -1712,6 +1732,14 @@
         "notify": {
           "$ref": "#/$defs/NotifyOn",
           "default": "send"
+        },
+        "options": {
+          "default": [],
+          "description": "Switches that the administrators turn on or off (e.g. a second room):\na slot with `option` is active only while it is on.",
+          "items": {
+            "$ref": "#/$defs/ProgramOptionDef"
+          },
+          "type": "array"
         },
         "owner_role": {
           "$ref": "#/$defs/Slug"
@@ -1760,6 +1788,14 @@
           "$ref": "#/$defs/Rotation",
           "default": "occurrence",
           "description": "Assignments shared by the events of the same week or month."
+        },
+        "sections": {
+          "default": [],
+          "description": "Headings that group the slots, in the order of the slots.",
+          "items": {
+            "$ref": "#/$defs/SectionDef"
+          },
+          "type": "array"
         },
         "slots": {
           "items": {
@@ -2416,6 +2452,30 @@
       "pattern": "^(organization|unit:[a-z][a-z0-9_]*)$",
       "type": "string"
     },
+    "SectionDef": {
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "default": null,
+          "description": "`#rrggbb` background of the heading.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "$ref": "#/$defs/Slug"
+        },
+        "label": {
+          "$ref": "#/$defs/TextKey"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "type": "object"
+    },
     "Selector": {
       "description": "Audience selector. Combinators: `union`, `intersect`, `except`\n(`except: [base, removed...]` = base minus the union of the others).",
       "oneOf": [
@@ -2599,6 +2659,23 @@
           "default": false,
           "type": "boolean"
         },
+        "assignable": {
+          "default": true,
+          "description": "Takes a person; when false the slot only holds details (e.g. a number).",
+          "type": "boolean"
+        },
+        "beside": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Slug"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Shown in the row of that slot (same position), in the column of its\n`option` (e.g. a second room)."
+        },
         "count": {
           "default": 1,
           "description": "Persons per slot.",
@@ -2628,6 +2705,18 @@
         },
         "label": {
           "$ref": "#/$defs/TextKey"
+        },
+        "option": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Slug"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Active only while this option of the program type is on."
         },
         "pair_with": {
           "anyOf": [
@@ -2661,6 +2750,30 @@
             }
           ],
           "default": null
+        },
+        "section": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Slug"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Section of the program (see `ProgramTypeDef::sections`): a heading is\nshown where the section changes."
+        },
+        "with": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Slug"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Shown in the row of that slot, under its person (e.g. a reader)."
         }
       },
       "required": [

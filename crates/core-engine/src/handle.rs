@@ -1128,6 +1128,7 @@ fn program_updated(proj: &mut Projection, h: &H<'_>, u: &ProgramUpdated) -> Resu
             "slot position out of range",
         )?;
         check_values(&slot.extra_fields, &a.extra, false)?;
+        ensure(slot.assignable, "this slot takes no person")?;
         match &a.assignee {
             Assignee::Person(person) => {
                 ensure(h.auth.person_exists(*person), "unknown person")?;

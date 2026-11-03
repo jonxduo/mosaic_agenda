@@ -108,6 +108,87 @@ impl<'a> Validator<'a> {
 
     // ----- helpers -------------------------------------------------------
 
+    /// Options, sections and the rows the slots are shown in.
+    fn layout(&mut self, t: &ProgramTypeDef, p: &str) {
+        self.unique(
+            PROGRAMS,
+            "option",
+            t.options
+                .iter()
+                .enumerate()
+                .map(|(i, o)| (&o.id, format!("{p}.options[{i}].id"))),
+        );
+        self.unique(
+            PROGRAMS,
+            "section",
+            t.sections
+                .iter()
+                .enumerate()
+                .map(|(i, x)| (&x.id, format!("{p}.sections[{i}].id"))),
+        );
+        for (i, o) in t.options.iter().enumerate() {
+            self.text_key(&o.label, PROGRAMS, format!("{p}.options[{i}].label"));
+        }
+        for (i, x) in t.sections.iter().enumerate() {
+            self.text_key(&x.label, PROGRAMS, format!("{p}.sections[{i}].label"));
+            let ok = x.color.as_ref().is_none_or(|c| {
+                c.len() == 7 && c.starts_with('#') && c[1..].chars().all(|h| h.is_ascii_hexdigit())
+            });
+            if !ok {
+                self.err(
+                    PROGRAMS,
+                    format!("{p}.sections[{i}].color"),
+                    "a colour is written #rrggbb",
+                );
+            }
+        }
+        for (j, s) in t.slots.iter().enumerate() {
+            let sp = format!("{p}.slots[{j}]");
+            if let Some(x) = &s.section {
+                if !t.sections.iter().any(|d| &d.id == x) {
+                    self.err(
+                        PROGRAMS,
+                        format!("{sp}.section"),
+                        format!("unknown section `{x}`"),
+                    );
+                }
+            }
+            if let Some(x) = &s.option {
+                if !t.options.iter().any(|d| &d.id == x) {
+                    self.err(
+                        PROGRAMS,
+                        format!("{sp}.option"),
+                        format!("unknown option `{x}`"),
+                    );
+                }
+            }
+            for (what, target) in [("beside", &s.beside), ("with", &s.with)] {
+                let Some(x) = target else { continue };
+                if x == &s.id || !t.slots.iter().any(|d| &d.id == x) {
+                    self.err(
+                        PROGRAMS,
+                        format!("{sp}.{what}"),
+                        format!("`{x}` is not another slot of this program"),
+                    );
+                }
+            }
+            if s.beside.is_some() && s.option.is_none() {
+                self.err(
+                    PROGRAMS,
+                    format!("{sp}.beside"),
+                    "a slot beside another needs an `option`: its column",
+                );
+            }
+            if !s.assignable && (s.requires.is_some() || s.pair_with.is_some()) {
+                self.err(
+                    PROGRAMS,
+                    format!("{sp}.assignable"),
+                    "a slot without a person has no requirements or pair",
+                );
+            }
+        }
+    }
+
     /// Address, expressions and targets of a program type's prefill.
     fn prefill(&mut self, t: &ProgramTypeDef, pf: &PrefillDef, p: &str) {
         if !pf.url.starts_with("https://") {
@@ -1411,6 +1492,7 @@ impl<'a> Validator<'a> {
             if let Some(pf) = &t.prefill {
                 self.prefill(t, pf, &p);
             }
+            self.layout(t, &p);
             let slot_ids: BTreeSet<&Slug> = t.slots.iter().map(|s| &s.id).collect();
             for (j, s) in t.slots.iter().enumerate() {
                 let sp = format!("{p}.slots[{j}]");
