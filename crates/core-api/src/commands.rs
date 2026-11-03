@@ -653,6 +653,33 @@ impl Core {
             }
             (None, _) => None,
         };
+        // A qualification it excludes, held by the person on `start` (even if
+        // it ended later), is closed on `start`: the new one replaces it from
+        // that day, so they never overlap. One that starts later still clashes.
+        let clashing: Vec<Id> = {
+            let auth = &v.proj.auth;
+            let excluded = |x: &Slug| {
+                def.excludes.contains(x)
+                    || cfg
+                        .qualification(x)
+                        .is_some_and(|d| d.excludes.contains(&q))
+            };
+            auth.qualification_ids
+                .iter()
+                .filter_map(|(gid, i)| auth.org.qualification_grants.get(*i).map(|g| (gid, g)))
+                .filter(|(_, g)| {
+                    g.person == p
+                        && excluded(&g.qualification)
+                        && g.period.start < start
+                        && g.period.end.is_none_or(|e| e > start)
+                })
+                .map(|(gid, _)| *gid)
+                .collect()
+        };
+        drop(v);
+        for g in clashing {
+            self.act_events(|c| c.end_qualification(g, start))?;
+        }
         self.act(|c| c.grant_qualification(p, &q, start, end))
             .map(|_| ())
     }

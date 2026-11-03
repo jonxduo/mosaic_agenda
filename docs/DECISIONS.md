@@ -810,3 +810,10 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   processo, e un bundle ricompilato dai sorgenti (modello cambiato) si ricorda per contenuto.
   Prima ogni modifica ricompilava tutte le versioni della configurazione dello storico (minuti
   in debug con 9 versioni).
+
+## 2026-11-03 — Nomine che si sostituiscono
+
+- `grant_qualification` da una data D chiude in D le qualifiche escluse (nei due sensi) che la
+  persona aveva in D, anche se erano già state chiuse dopo (es. servitore chiuso oggi e anziano
+  retrodatato in un salvataggio successivo): la nuova sostituisce la vecchia da quel giorno e
+  non si sovrappongono. Una qualifica esclusa che comincia dopo D resta un errore.
