@@ -292,6 +292,10 @@
             </li>
           {/each}
         </ul>
+        <form class="external" onsubmit={(e) => { e.preventDefault(); if (external.trim()) addExternal(); }}>
+          <input aria-label={t('add_external')} placeholder={t('add_external')} bind:value={external} />
+          <button class="btn small" type="submit" disabled={!external.trim()}>{t('add')}</button>
+        </form>
       </aside>
     {/if}
     </div>
@@ -304,8 +308,9 @@
       {#if p.can_prefill}<button class="btn" disabled={busy || reading} onclick={() => prefill()}>{t('prefill')}</button>{/if}
       {#if changed}<span class="muted" role="status">{t('unsaved_changes').replace('{n}', String(changed))}</span>{/if}
     </div>
+    <!-- With the side list it sits at its bottom (here only where the list is hidden). -->
     {#if p.can_edit}
-      <div class="row">
+      <div class="row" class:narrow-only={side}>
         <input aria-label={t('add_external')} placeholder={t('add_external')} bind:value={external} style="max-width: 280px" />
         <button class="btn" disabled={!external.trim()} onclick={addExternal}>{t('add')}</button>
       </div>
@@ -354,7 +359,10 @@
   .overlay { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; min-height: 0; }
   .clear { position: absolute; top: 2px; right: 4px; z-index: 2; border: none; background: none; color: var(--muted); font-size: 16px; cursor: pointer; line-height: 1; padding: 2px 4px; }
   .zbadge { position: absolute; bottom: -8px; right: 6px; font-size: 10px; padding: 0 6px; pointer-events: none; }
-  @media (max-width: 1000px) { .editor.side { grid-template-columns: minmax(0, 1fr); } .people { display: none; } }
+  .external { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .external input { min-height: 38px; font-size: 14px; }
+  .narrow-only { display: none; }
+  @media (max-width: 1000px) { .editor.side { grid-template-columns: minmax(0, 1fr); } .people { display: none; } .narrow-only { display: flex; } }
   .mini { font-size: 12px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .mini.phone { display: none; }
   /* Parts in rows: 4/5 the part, 1/5 per room. */
