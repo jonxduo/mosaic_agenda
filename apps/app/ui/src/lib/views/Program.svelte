@@ -359,7 +359,8 @@
   /* As tall as a menu, so the name and the first choice share a line. */
   .name { font-weight: 500; min-height: 64px; display: flex; align-items: center; }
   .part.inline .details input.num { width: 72px; }
-  .who { display: flex; flex-direction: column; justify-content: flex-start; gap: 8px; min-width: 0; }
+  /* Boxes sit at the bottom of their row, level with the part's last field. */
+  .who { display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; min-width: 0; }
   @media (max-width: 760px) {
     .rows { grid-template-columns: minmax(0, 1fr); }
     .rows > .head { display: none; }
