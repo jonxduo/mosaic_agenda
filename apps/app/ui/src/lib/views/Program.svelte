@@ -381,13 +381,15 @@
     .whead { grid-template-columns: minmax(0, 1fr); top: 0; }
     .whead .head { display: none; }
     .mini.phone { display: inline; }
-    .rows > .who { border-bottom: none; padding-top: 0; }
+    .rows > .who { border-bottom: none; padding-top: 0; padding-left: 0; }
     .rows > .who:empty { display: none; }
     .rows > .part { border-bottom: none; }
   }
   .details input.num { width: 84px; flex: none; }
   .details.changed input { border-color: var(--primary); }
-  .actions { position: sticky; bottom: 12px; background: var(--page); padding: 8px 0; }
-  @media (max-width: 640px) { .actions { bottom: 96px; } }
+  /* Down to the window's edge, so nothing shows below the buttons. */
+  .actions { position: sticky; bottom: 0; z-index: 5; background: var(--page); padding: 10px 0 18px; }
+  /* Phone: the bar's background runs behind the floating menu. */
+  @media (max-width: 760px) { .actions { padding-bottom: calc(100px + var(--inset-bottom, env(safe-area-inset-bottom, 0px))); } }
   .day { margin-top: 10px; font-size: 14px; color: var(--muted); font-weight: 600; }
 </style>
