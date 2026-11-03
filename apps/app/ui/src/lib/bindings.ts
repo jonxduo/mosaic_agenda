@@ -976,6 +976,10 @@ export type SlotCell_Deserialize = {
 	per_event: boolean,
 	/**  The slot's extra fields (title, minutes…) with their values. */
 	details: Field_Deserialize[],
+	/**  The slot chosen together with this one (`pair_with`), shown inside it. */
+	partner?: string | null,
+	/**  This cell is the partner of another: the editor shows it there. */
+	paired: boolean,
 };
 
 export type SlotCell_Serialize = {
@@ -991,6 +995,10 @@ export type SlotCell_Serialize = {
 	per_event: boolean,
 	/**  The slot's extra fields (title, minutes…) with their values. */
 	details: Field_Serialize[],
+	/**  The slot chosen together with this one (`pair_with`), shown inside it. */
+	partner: string | null,
+	/**  This cell is the partner of another: the editor shows it there. */
+	paired: boolean,
 };
 
 /**  One slot choice of the program editor (an empty `person` empties it). */

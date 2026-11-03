@@ -93,33 +93,53 @@
   }
 </script>
 
+{#snippet choice(c: Cell, pair = false)}
+  <div class="list-row" class:pair>
+    <span class="grow">{c.label}</span>
+    {#if p?.can_edit}
+      <select aria-label={c.label} class:changed={keyOf(c) in pending} value={valueOf(c)} onchange={(e) => choose(c, e.currentTarget.value)} style="max-width: 260px">
+        <option value="">{t('unassigned')}</option>
+        {#each c.candidates as o (o.id)}<option value={o.id}>{o.label}</option>{/each}
+      </select>
+    {:else}<span>{c.assignee_name ?? '—'}</span>{/if}
+    {#if c.assignee && !(keyOf(c) in pending)}<span class="badge" class:ok={c.response === 'accepted'}>{t(`response_${c.response}` as never)}</span>{/if}
+  </div>
+{/snippet}
+
 {#snippet cell(c: Cell)}
   <div class="slot">
-    <div class="list-row">
-      <span class="grow">{c.label}</span>
-      {#if p?.can_edit}
-        <select aria-label={c.label} class:changed={keyOf(c) in pending} value={valueOf(c)} onchange={(e) => choose(c, e.currentTarget.value)} style="max-width: 260px">
-          <option value="">{t('unassigned')}</option>
-          {#each c.candidates as o (o.id)}<option value={o.id}>{o.label}</option>{/each}
-        </select>
-      {:else}<span>{c.assignee_name ?? '—'}</span>{/if}
-      {#if c.assignee && !(keyOf(c) in pending)}<span class="badge" class:ok={c.response === 'accepted'}>{t(`response_${c.response}` as never)}</span>{/if}
-    </div>
+    {@render choice(c)}
+    <!-- Who is chosen together with this slot (e.g. a householder) sits right under it. -->
+    {#if c.partner}
+      {@const mate = p?.cells.find((x) => x.slot === c.partner && x.occurrence === c.occurrence && x.index === c.index)}
+      {#if mate}{@render choice(mate, true)}{/if}
+    {/if}
     {#if c.details.length}
       <div class="details" class:changed={keyOf(c) in details}>
         {#each c.details as f (f.id)}
           {#if p?.can_edit}
-            <input
-              class={f.kind === 'integer' ? 'num' : 'grow'}
-              type={f.kind === 'integer' ? 'number' : 'text'}
-              min={f.min ?? undefined}
-              placeholder={f.label}
-              aria-label={`${c.label} · ${f.label}`}
-              value={detailOf(c, f.id)}
-              oninput={(e) => write(c, f.id, e.currentTarget.value)}
-            />
+            {#if f.kind === 'long_text'}
+              <textarea
+                class="wide"
+                rows="2"
+                placeholder={f.label}
+                aria-label={`${c.label} · ${f.label}`}
+                value={detailOf(c, f.id)}
+                oninput={(e) => write(c, f.id, e.currentTarget.value)}
+              ></textarea>
+            {:else}
+              <input
+                class={f.kind === 'integer' ? 'num' : 'grow'}
+                type={f.kind === 'integer' ? 'number' : 'text'}
+                min={f.min ?? undefined}
+                placeholder={f.label}
+                aria-label={`${c.label} · ${f.label}`}
+                value={detailOf(c, f.id)}
+                oninput={(e) => write(c, f.id, e.currentTarget.value)}
+              />
+            {/if}
           {:else if text(f.value)}
-            <span class="muted">{f.kind === 'integer' ? `${f.value} min` : text(f.value)}</span>
+            <span class="muted" class:wide={f.kind === 'long_text'}>{f.kind === 'integer' ? `${f.value} min` : text(f.value)}</span>
           {/if}
         {/each}
       </div>
@@ -142,13 +162,13 @@
             <h3>{g.label}</h3>
             {#if g.detail}<span class="muted">{g.detail}</span>{/if}
           </div>
-          {#each p.cells.filter((c) => c.occurrence === g.occurrence && !c.per_event) as c (c.slot + c.index)}
+          {#each p.cells.filter((c) => c.occurrence === g.occurrence && !c.per_event && !c.paired) as c (c.slot + c.index)}
             {@render cell(c)}
           {/each}
           {#if p.cells.some((c) => c.per_event && g.days.some((d) => d.occurrence === c.occurrence))}
             {#each g.days as d (d.occurrence)}
               <h4 class="day">{d.label}</h4>
-              {#each p.cells.filter((c) => c.per_event && c.occurrence === d.occurrence) as c (c.slot + c.index)}
+              {#each p.cells.filter((c) => c.per_event && c.occurrence === d.occurrence && !c.paired) as c (c.slot + c.index)}
                 {@render cell(c)}
               {/each}
             {/each}
@@ -182,9 +202,12 @@
     .groups.compact { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
   }
   select.changed { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }
-  .details { display: flex; gap: 8px; padding: 0 0 8px; }
-  .details input { min-height: 34px; font-size: 14px; }
-  .details input.grow { flex: 1 1 auto; min-width: 0; }
+  .details { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 0 8px; }
+  .details input, .details textarea { min-height: 34px; font-size: 14px; }
+  .details input.grow { flex: 1 1 220px; min-width: 0; }
+  .details .wide { flex: 1 1 100%; }
+  .details textarea { resize: vertical; font: inherit; font-size: 14px; }
+  .pair { padding-left: 18px; border-left: 2px solid var(--primary-soft); }
   .details input.num { width: 84px; flex: none; }
   .details.changed input { border-color: var(--primary); }
   .actions { position: sticky; bottom: 12px; background: var(--page); padding: 8px 0; }

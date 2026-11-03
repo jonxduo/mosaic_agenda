@@ -316,8 +316,10 @@ pub fn details_from(
             if u32::from(*index) < capacity {
                 let mut values = Values::new();
                 for (field, template) in &c.rule.set {
+                    // A group that took no part (optional) leaves its place empty.
                     let mut v = template.clone();
-                    for (name, value) in &groups {
+                    for name in core_config::template_names(template) {
+                        let value = groups.get(&name).map_or("", String::as_str);
                         v = v.replace(&format!("{{{name}}}"), value);
                     }
                     let ty = slot

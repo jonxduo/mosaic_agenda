@@ -25,7 +25,9 @@ program_types:
         - { section: "TESORI", heading: '^1\. (?<title>.+)$', slot: treasures_talk, set: { title: "{title}" } }
         - { section: "TESORI", heading: "Gemme spirituali" }
         - { section: "TESORI", heading: "Lettura biblica", text: '\(\d+ min\) (?<passage>[^(\n]+?) *(\(|$)', slot: bible_reading, set: { passage: "{passage}" } }
-        - { section: "MINISTERO", heading: '^\d+\. (?<title>.+)$', text: '\((?<min>\d+) min\)', slot: student_part, set: { title: "{title}", minutes: "{min}" } }
+        # (3 min) Sinossi della parte. (lezione tra parentesi, in fondo)
+        - { section: "MINISTERO", heading: '^\d+\. (?<title>.+)$', text: '(?m)\((?<min>\d+) min\)\s*(?<synopsis>.*?)\s*(?:\((?<lesson>[^()]*)\))?\s*$',
+            slot: student_part, set: { title: "{title}", minutes: "{min}", synopsis: "{synopsis}", lesson: "{lesson}" } }
         - { section: "VITA CRISTIANA", heading: "Studio biblico di congregazione", text: '\(\d+ min\) (?<what>[^\n]+)', slot: cbs_conductor, set: { material: "{what}" } }
         - { section: "VITA CRISTIANA", heading: '^\d+\. (?<title>.+)$', text: '\((?<min>\d+) min\)', slot: living_part, set: { title: "{title}", minutes: "{min}" } }
     slots:                               # ⚙ struttura da verificare con il sorvegliante; requisiti modificabili
@@ -36,7 +38,8 @@ program_types:
       - { id: bible_reading, label: s.bible_reading, requires: { has_qualification: can_bible_reading },
           extra_fields: [ { id: passage, type: text } ] }
       - { id: student_part, label: s.student_part, repeat: { count: 4 }, requires: { has_qualification: can_student },
-          extra_fields: [ { id: title, type: text }, { id: minutes, type: integer, min: 0 } ], pair_with: student_assistant }
+          extra_fields: [ { id: title, type: text }, { id: minutes, type: integer, min: 0 }, { id: synopsis, type: long_text },
+                          { id: lesson, type: text } ], pair_with: student_assistant }
       - { id: student_assistant, label: s.student_assistant, repeat: { count: 4 }, requires: { has_qualification: can_student } }
       - { id: living_part, label: s.living_part, repeat: { count: 2 }, requires: { has_qualification: can_living },
           extra_fields: [ { id: title, type: text }, { id: minutes, type: integer, min: 0 } ] }

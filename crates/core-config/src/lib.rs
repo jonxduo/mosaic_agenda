@@ -20,7 +20,7 @@ pub use compile::{
 pub use issue::{Issue, Severity};
 pub use loader::{PACKAGE_FILES, load_files, load_package, source_files};
 pub use migrate::{Change, check_migrations, diff, renames};
-pub use validate::validate;
+pub use validate::{template_names, validate};
 
 use std::path::Path;
 

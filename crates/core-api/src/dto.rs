@@ -328,6 +328,10 @@ pub struct SlotCell {
     pub per_event: bool,
     /// The slot's extra fields (title, minutes…) with their values.
     pub details: Vec<Field>,
+    /// The slot chosen together with this one (`pair_with`), shown inside it.
+    pub partner: Option<String>,
+    /// This cell is the partner of another: the editor shows it there.
+    pub paired: bool,
 }
 
 /// The details of one slot written in the editor: field → text, an empty

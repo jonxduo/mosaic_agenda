@@ -730,3 +730,14 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   ruoli e qualifiche. Le chiavi dei canali già esistenti arrivano da `complete_channels`, come
   per ogni nuovo membro. Conseguenza voluta: i root leggono anche i dati personali (rapporti).
 - Scenario 10: l'amministratore senza ruoli legge la bozza e prepara un programma.
+
+## 2026-11-03 — Parti degli studenti: sinossi, lezione, interlocutore
+
+- Congregazione: `student_part` ha due campi in più, `synopsis` (testo lungo) e `lesson`. La
+  regola della Guida legge "(N min) sinossi (lezione)": la parentesi finale è la lezione, il
+  resto la sinossi. Nei modelli di `set` un gruppo facoltativo che non ha preso nulla diventa
+  vuoto (prima restava `{nome}`).
+- Editor (core + UI): ogni cella dice `partner` (lo slot di `pair_with`) e `paired` (è il
+  partner di un'altra). La scelta del partner (l'interlocutore) compare dentro la parte, subito
+  sotto la sua scelta, non più in fondo alla sezione. I campi `long_text` sono aree di testo a
+  tutta larghezza.

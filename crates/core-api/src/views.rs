@@ -1762,6 +1762,11 @@ impl Core {
                             .iter()
                             .map(|f| field_dto(&t, f, details.get(&key).and_then(|d| d.get(&f.id))))
                             .collect(),
+                        partner: slot.pair_with.as_ref().map(ToString::to_string),
+                        paired: def
+                            .slots
+                            .iter()
+                            .any(|s| s.enabled && s.pair_with.as_ref() == Some(&slot.id)),
                     });
                 }
             }
