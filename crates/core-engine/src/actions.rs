@@ -374,10 +374,12 @@ impl<'a> Client<'a> {
         Ok((person, ev))
     }
 
+    /// Sets `attributes` and removes `cleared` ones.
     pub fn update_person(
         &self,
         person: PersonId,
         attributes: Values,
+        cleared: Vec<Slug>,
     ) -> Result<Vec<SignedEvent>, ActionError> {
         self.person_event(
             EventKind::PersonUpdated,
@@ -386,7 +388,7 @@ impl<'a> Client<'a> {
                 person,
                 display_name: None,
                 attributes,
-                cleared: Vec::new(),
+                cleared,
             },
         )
     }

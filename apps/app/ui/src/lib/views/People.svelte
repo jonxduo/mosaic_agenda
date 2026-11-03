@@ -20,6 +20,7 @@
   let dates = $state<Record<string, string>>({});
   let appts = $state<Record<string, { on: boolean; from: string }>>({});
   let saving = $state(false);
+  const NO_UNIT = '-';
   const today = () => new Date().toLocaleDateString('sv');
   let unit = $state(''); let unitFrom = $state('');
   let invite = $state<Invitation | null>(null);
@@ -99,7 +100,9 @@
         if (roles[r.id] && r.unit_type) {
           where = r.choose_unit
             ? supervised[r.id] || null
-            : (unit && data.units.some((u) => u.id === unit) ? unit : null) ?? person.unit_ids.find((u) => u.unit_type === r.unit_type)?.unit_id ?? null;
+            : unit === NO_UNIT
+              ? null
+              : (unit && data.units.some((u) => u.id === unit) ? unit : null) ?? person.unit_ids.find((u) => u.unit_type === r.unit_type)?.unit_id ?? null;
           if (!where) return toast(t(r.choose_unit ? 'role_needs_supervised' : 'role_needs_unit').replace('{name}', r.label), true);
         }
         const keep = roles[r.id] && held.some((h) => (h.unit ?? null) === where);
@@ -111,7 +114,9 @@
     try {
       if (data.can_manage) await run(api.updatePerson(id, null, editAttrs));
       for (const f of [...ends, ...grants]) await f();
-      if (data.can_manage && unit) await run(api.setMembership(id, unit, unitFrom || null));
+      if (data.can_manage && unit === NO_UNIT) {
+        for (const m of person.unit_ids) await run(api.endGrant('membership', m.membership_id, unitFrom || null));
+      } else if (data.can_manage && unit) await run(api.setMembership(id, unit, unitFrom || null));
       for (const f of [...roleEnds, ...roleGrants]) await f();
       toast(t('saved'));
     } catch (e) {
@@ -266,7 +271,11 @@
                 {#if data.can_manage}
                   <div class="stack small">
                     <label for="pu">{t('unit')}</label>
-                    <select id="pu" bind:value={unit}><option value="">{p.unit ?? '—'}</option>{#each data.units as x (x.id)}<option value={x.id}>{x.label}</option>{/each}</select>
+                    <select id="pu" bind:value={unit}>
+                      <option value="">{p.unit ?? '—'}</option>
+                      {#if p.unit_ids.length}<option value={NO_UNIT}>{t('no_unit')}</option>{/if}
+                      {#each data.units as x (x.id)}<option value={x.id}>{x.label}</option>{/each}
+                    </select>
                   </div>
                   <div class="stack small">
                     <label for="puf">{t('from')}</label>

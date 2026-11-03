@@ -1182,6 +1182,8 @@ export type SyncStatus_Serialize = {
 export type UnitRef = {
 	unit_id: string,
 	unit_type: string,
+	/**  The membership, to end it. */
+	membership_id: string,
 };
 
 export type UnitView = {

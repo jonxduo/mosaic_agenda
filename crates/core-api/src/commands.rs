@@ -603,9 +603,27 @@ impl Core {
         if let Some(n) = name.filter(|n| !n.trim().is_empty()) {
             self.act_events(|c| c.rename_person(p, &n))?;
         }
+        // An empty value clears an attribute the person has.
+        let cleared: Vec<Slug> = {
+            let v = self.view()?;
+            let had = v
+                .proj
+                .auth
+                .org
+                .persons
+                .get(&p)
+                .map(|r| r.attributes.clone())
+                .unwrap_or_default();
+            attributes
+                .iter()
+                .filter(|(_, x)| x.is_null() || **x == serde_json::Value::String(String::new()))
+                .filter_map(|(k, _)| Slug::new(k).ok())
+                .filter(|k| had.contains_key(k))
+                .collect()
+        };
         let vals = values(attributes)?;
-        if !vals.is_empty() {
-            self.act_events(|c| c.update_person(p, vals))?;
+        if !vals.is_empty() || !cleared.is_empty() {
+            self.act_events(|c| c.update_person(p, vals, cleared))?;
         }
         Ok(())
     }

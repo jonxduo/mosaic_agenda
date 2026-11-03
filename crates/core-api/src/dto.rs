@@ -501,6 +501,8 @@ pub struct HeldRole {
 pub struct UnitRef {
     pub unit_id: String,
     pub unit_type: String,
+    /// The membership, to end it.
+    pub membership_id: String,
 }
 
 /// A role in the person form: a unit role is held in the person's own unit

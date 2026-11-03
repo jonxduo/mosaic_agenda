@@ -2342,12 +2342,15 @@ impl Core {
                         })
                         .collect(),
                     unit_ids: auth
-                        .org
-                        .units_of(*p, now)
-                        .filter_map(|u| {
-                            auth.org.units.get(&u).map(|x| UnitRef {
-                                unit_id: u.to_string(),
+                        .membership_ids
+                        .iter()
+                        .filter_map(|(gid, i)| auth.org.memberships.get(*i).map(|m| (gid, m)))
+                        .filter(|(_, m)| m.person == *p && m.period.contains(now))
+                        .filter_map(|(gid, m)| {
+                            auth.org.units.get(&m.unit).map(|x| UnitRef {
+                                unit_id: m.unit.to_string(),
                                 unit_type: x.unit_type.to_string(),
+                                membership_id: gid.to_string(),
                             })
                         })
                         .collect(),
