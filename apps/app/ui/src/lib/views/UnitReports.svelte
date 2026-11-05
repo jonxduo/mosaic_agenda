@@ -4,8 +4,8 @@
   import type { UnitReports_Serialize as Data, PersonView_Serialize as Person } from '../bindings';
   import { api, run } from '../api';
   import { t } from '../i18n';
-  import { fail } from '../toast.svelte';
-  import BatchCard from '../components/BatchCard.svelte';
+  import { go } from '../router.svelte';
+  import { fail, toast } from '../toast.svelte';
 
   let { workflow, unitType, onchange }: { workflow: string; unitType: string; onchange: () => void } = $props();
   let data = $state<Data | null>(null);
@@ -38,8 +38,30 @@
   load();
 
   const unit = $derived(data?.units.find((u) => u.unit_id === unitId) ?? null);
-  // The collection card below already counts who handed in for that month.
-  const collecting = $derived(!!unit?.summary && unit.batches.some((b) => b.period_label === unit.summary?.period_label));
+  // The month shown: 0 is the newest (the one being collected); the arrows
+  // move through the months, the table follows.
+  let mi = $state(0);
+  $effect(() => {
+    void unitId;
+    mi = 0;
+  });
+  const month = $derived(unit?.months[Math.min(mi, (unit?.months.length ?? 1) - 1)] ?? null);
+  const batch = $derived(unit?.batches.find((b) => b.period === month?.period) ?? null);
+  let busy = $state(false);
+  async function step(id: string) {
+    if (!batch) return;
+    busy = true;
+    try {
+      await run(api.batchStep(batch.form, batch.unit_id, batch.period, id));
+      toast(t('saved'));
+      await load();
+      onchange();
+    } catch (e) {
+      fail(e);
+    } finally {
+      busy = false;
+    }
+  }
   const fmt = (n: number | null) => (n === null ? '—' : Number.isInteger(n) ? String(n) : n.toLocaleString('it', { maximumFractionDigits: 1 }));
   const columns = (rows: { values: { label: string }[] }[]) => [...new Set(rows.flatMap((r) => r.values.map((v) => v.label)))];
   const cell = (r: { values: { label: string; value: string }[] }, c: string) => r.values.find((v) => v.label === c)?.value ?? '';
@@ -91,49 +113,73 @@
           {/each}
         </section>
       {:else}
-        {#if unit.summary}
-          {@const s = unit.summary}
+        {#if month}
+          {@const m = month}
           <section class="card stack">
             <div class="spread">
-              <h3 class="cap">{t('unit_summary')} · {s.period_label}</h3>
-              {#if !collecting}<strong>{t('unit_received_of').replace('{n}', String(s.received)).replace('{m}', String(s.expected))}</strong>{/if}
+              <h3 class="cap">{t('unit_summary')}</h3>
+              <nav class="months" aria-label={t('period')}>
+                <button class="arrow" aria-label={t('previous')} disabled={mi >= unit.months.length - 1} onclick={() => mi++}>‹</button>
+                <strong class="cap">{m.period_label}</strong>
+                <button class="arrow" aria-label={t('next')} disabled={mi === 0} onclick={() => mi--}>›</button>
+              </nav>
             </div>
-            {#if !collecting}
-              <div class="progress" aria-hidden="true"><div style={`width: ${s.expected ? Math.round((s.received / s.expected) * 100) : 0}%`}></div></div>
-            {/if}
-            {#if s.totals.length}
+            <div class="stack tight">
+              <strong>{t('unit_received_of').replace('{n}', String(m.received)).replace('{m}', String(m.expected))}</strong>
+              <div class="progress" aria-hidden="true"><div style={`width: ${m.expected ? Math.round((m.received / m.expected) * 100) : 0}%`}></div></div>
+            </div>
+            {#if m.totals.length}
               <table class="totals"><tbody>
-                {#each s.totals as m (m.label)}<tr><td>{m.label}</td><td class="num">{fmt(m.value)}</td></tr>{/each}
+                {#each m.totals as x (x.label)}<tr><td>{x.label}</td><td class="num">{fmt(x.value)}</td></tr>{/each}
               </tbody></table>
             {/if}
           </section>
-        {/if}
-        {#each unit.batches as b (b.period)}
-          <BatchCard {b} showUnit={false} ondone={() => { load(); onchange(); }} />
-        {/each}
-        {#each unit.months as m (m.period)}
+
           <section class="card month">
-            <h3 class="cap">{m.period_label}</h3>
-            <div class="scroll">
-              <table>
-                <thead><tr>
-                  <th><span class="h">{t('name')}</span></th>
-                  {#each columns(m.rows) as c (c)}<th title={c}><span class="h">{c}</span></th>{/each}
-                  <th><span class="h">{t('state')}</span></th>
-                </tr></thead>
-                <tbody>
-                  {#each m.rows as r (r.document_id)}
-                    <tr>
-                      <td class="who">{r.subject_name}{#if r.variant_label}<span class="muted variant">{r.variant_label}</span>{/if}</td>
-                      {#each columns(m.rows) as c (c)}<td>{cell(r, c)}</td>{/each}
-                      <td><span class="badge">{r.state_label}</span></td>
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
+            <div class="spread box-head">
+              <h3>{data.title}</h3>
+              {#if batch?.actions.length}
+                <div class="row">
+                  {#each batch.actions as a (a.id)}<button class="btn primary" disabled={busy || a.disabled} onclick={() => step(a.id)}>{a.label}</button>{/each}
+                </div>
+              {/if}
             </div>
+            {#if batch?.hint}<p class="muted hint">{batch.hint}</p>{/if}
+            {#if m.rows.length}
+              <div class="scroll">
+                <table>
+                  <thead><tr>
+                    <th><span class="h">{t('name')}</span></th>
+                    {#each columns(m.rows) as c (c)}<th title={c}><span class="h">{c}</span></th>{/each}
+                    <th><span class="h">{t('state')}</span></th>
+                  </tr></thead>
+                  <tbody>
+                    {#each m.rows as r (r.document_id)}
+                      <tr>
+                        <td class="who">{r.subject_name}{#if r.variant_label}<span class="muted variant">{r.variant_label}</span>{/if}</td>
+                        {#each columns(m.rows) as c (c)}<td>{cell(r, c)}</td>{/each}
+                        <td><span class="badge">{r.state_label}</span></td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            {/if}
+            {#if batch?.missing.length}
+              <div class="missing">
+                <h4 class="warn-title">{t('missing')} · {batch.missing.length}</h4>
+                {#each batch.missing as p (p.person_id)}
+                  <div class="list-row">
+                    <span class="grow">{p.name}</span>
+                    {#if batch.can_fill_on_behalf}<button class="btn small" onclick={() => go('form', { form: batch.form, subject: p.person_id, period: batch.period })}>{t('fill_on_behalf')}</button>{/if}
+                  </div>
+                {/each}
+              </div>
+            {:else if !m.rows.length}
+              <p class="muted hint">{t('reports_none')}</p>
+            {/if}
           </section>
-        {/each}
+        {/if}
       {/if}
     {/if}
   </div>
@@ -159,10 +205,21 @@
   .pad { padding: 12px 20px; }
   .cap { margin: 0; }
   .cap::first-letter { text-transform: uppercase; }
+  .tight { gap: 6px; }
+  .months { display: flex; align-items: center; gap: 8px; }
+  .months strong { font-size: 16px; min-width: 130px; text-align: center; }
+  .arrow { flex: none; width: 32px; height: 40px; border-radius: 8px; border: none; background: none; color: var(--primary); font-size: 32px; line-height: 1; cursor: pointer; display: grid; place-items: center; padding: 0 0 4px; }
+  .arrow:hover:not(:disabled) { color: var(--primary-strong); background: var(--primary-soft); }
+  .arrow:disabled { color: var(--border); cursor: default; }
+  .box-head { padding: 0 20px 8px; align-items: center; }
+  .box-head h3 { margin: 0; }
+  .hint { margin: 0; padding: 0 20px 8px; font-size: 14px; }
+  .missing { padding: 8px 20px 12px; }
+  .missing h4 { margin: 8px 0; font-size: 15px; }
+  .warn-title { color: var(--warn); }
   .totals td { padding: 8px 0; }
   .totals .num { text-align: right; font-variant-numeric: tabular-nums; }
   .month { padding: 16px 0 6px; }
-  .month h3 { padding: 0 20px 8px; }
   .scroll { overflow-x: auto; }
   .month table { border-collapse: collapse; width: 100%; font-size: 15px; }
   .month th { text-align: left; font-size: 13px; font-weight: 600; color: var(--muted); padding: 8px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }

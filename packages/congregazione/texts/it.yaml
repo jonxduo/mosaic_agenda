@@ -63,7 +63,7 @@ r.board_manager: "Responsabile della bacheca"
 r.app_admin: "Amministratore dell'app"
 
 # --- moduli e campi ---
-f.service_report: "S-21"
+f.service_report: "Rapporti di servizio"
 fld.participated: "Hai partecipato al ministero?"
 fld.hours: "Ore"
 fld.extra_hours: "Ore extra"

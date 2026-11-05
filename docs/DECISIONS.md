@@ -1060,3 +1060,7 @@ Piano di F11:
 - I totali sono generici: somma dei campi numerici (durate in ore) e conteggio dei sì.
 - La scheda della raccolta è ora un componente (`BatchCard`) usato anche dalla coda di lavoro.
 - Nel pacchetto "Il mio gruppo" usa la nuova vista.
+- Rapporti: in cima "Resoconto" con il mese a destra e le frecce; il mese scelto guida anche il
+  riquadro sotto ("Rapporti di servizio": tabella dei rapporti del mese, chi manca, invio). Ogni
+  mese porta con sé conteggio e totali; si parte dal mese in raccolta.
+- Nome del modulo nel pacchetto: "Rapporti di servizio" (prima "S-21").

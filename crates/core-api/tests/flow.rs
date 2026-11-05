@@ -195,11 +195,10 @@ async fn run_flow(network: Network) {
     assert!(unit.members.len() >= 2, "{:?}", unit.members.len());
     let month = unit.months.iter().find(|m| m.period == period).unwrap();
     assert_eq!(month.rows.len(), 2);
-    if let Some(s) = unit.summary.as_ref().filter(|s| s.received == 2) {
-        // Totals of the period being collected: counts summed, yes counted.
-        let count = s.totals.iter().find(|m| m.label.to_lowercase().contains("count"));
-        assert_eq!(count.map(|m| m.value), Some(3.0), "{:?}", s.totals);
-    }
+    // Totals of the month: counts summed.
+    assert_eq!(month.received, 2);
+    let count = month.totals.iter().find(|m| m.label.to_lowercase().contains("count"));
+    assert_eq!(count.map(|m| m.value), Some(3.0), "{:?}", month.totals);
     assert!(
         b.unit_reports("log".into(), "team".into())
             .is_ok_and(|r| r.units.is_empty()),

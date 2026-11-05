@@ -294,25 +294,19 @@ pub struct UnitPanel {
     pub members: Vec<PersonView>,
     /// Collections in progress (received, missing, steps), as in the work queue.
     pub batches: Vec<BatchView>,
-    /// The period being collected: how many came in and the totals.
-    pub summary: Option<PeriodSummary>,
-    /// Documents of past periods, newest first.
+    /// Periods newest first: the one being collected, then those with
+    /// documents. Each with its totals and documents.
     pub months: Vec<MonthReports>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct PeriodSummary {
-    pub period_label: String,
-    pub received: u32,
-    pub expected: u32,
-    /// Sums of the numeric fields, count of the yes answers.
-    pub totals: Vec<Measure>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct MonthReports {
     pub period: String,
     pub period_label: String,
+    pub received: u32,
+    pub expected: u32,
+    /// Sums of the numeric fields, count of the yes answers.
+    pub totals: Vec<Measure>,
     pub rows: Vec<DocumentRow>,
 }
 

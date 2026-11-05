@@ -669,12 +669,20 @@ export type MonthReports = MonthReports_Serialize | MonthReports_Deserialize;
 export type MonthReports_Deserialize = {
 	period: string,
 	period_label: string,
+	received: number,
+	expected: number,
+	/**  Sums of the numeric fields, count of the yes answers. */
+	totals: Measure[],
 	rows: DocumentRow_Deserialize[],
 };
 
 export type MonthReports_Serialize = {
 	period: string,
 	period_label: string,
+	received: number,
+	expected: number,
+	/**  Sums of the numeric fields, count of the yes answers. */
+	totals: Measure[],
 	rows: DocumentRow_Serialize[],
 };
 
@@ -778,14 +786,6 @@ export type People_Serialize = {
 	/**  Attributes edited with the devices (`ui.people.with_devices`). */
 	with_devices: string[],
 	role_options: RoleOption_Serialize[],
-};
-
-export type PeriodSummary = {
-	period_label: string,
-	received: number,
-	expected: number,
-	/**  Sums of the numeric fields, count of the yes answers. */
-	totals: Measure[],
 };
 
 /**  Everything this device holds in clear about a person. */
@@ -1409,9 +1409,10 @@ export type UnitPanel_Deserialize = {
 	members: PersonView_Deserialize[],
 	/**  Collections in progress (received, missing, steps), as in the work queue. */
 	batches: BatchView_Deserialize[],
-	/**  The period being collected: how many came in and the totals. */
-	summary?: PeriodSummary | null,
-	/**  Documents of past periods, newest first. */
+	/**
+	 *  Periods newest first: the one being collected, then those with
+	 *  documents. Each with its totals and documents.
+	 */
 	months: MonthReports_Deserialize[],
 };
 
@@ -1422,9 +1423,10 @@ export type UnitPanel_Serialize = {
 	members: PersonView_Serialize[],
 	/**  Collections in progress (received, missing, steps), as in the work queue. */
 	batches: BatchView_Serialize[],
-	/**  The period being collected: how many came in and the totals. */
-	summary: PeriodSummary | null,
-	/**  Documents of past periods, newest first. */
+	/**
+	 *  Periods newest first: the one being collected, then those with
+	 *  documents. Each with its totals and documents.
+	 */
 	months: MonthReports_Serialize[],
 };
 

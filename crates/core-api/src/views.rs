@@ -1571,34 +1571,29 @@ impl Core {
                     d.content.form == form.id && d.content.unit == Some(*uid) && d.state != wf.initial
                 })
                 .collect();
-            let in_period: Vec<&Document> = docs
-                .iter()
-                .filter(|(_, d)| d.content.period == current)
-                .map(|(_, d)| *d)
-                .collect();
-            let expected = expected_subjects(&v.proj.auth, cfg, form, &current, Some(*uid)).len();
-            let summary = Some(PeriodSummary {
-                period_label: t.period(&current),
-                received: u32::try_from(in_period.len()).unwrap_or(u32::MAX),
-                expected: u32::try_from(expected.max(in_period.len())).unwrap_or(u32::MAX),
-                totals: form_totals(&t, form, &in_period),
-            });
-            let mut periods: BTreeMap<PeriodKey, Vec<DocumentRow>> = BTreeMap::new();
+            let mut periods: BTreeMap<PeriodKey, Vec<(&core_model::Id, &Document)>> =
+                BTreeMap::from([(current, Vec::new())]);
             for (did, d) in &docs {
-                periods
-                    .entry(d.content.period)
-                    .or_default()
-                    .push(self.document_row(&v, &t, did, d));
+                periods.entry(d.content.period).or_default().push((did, d));
             }
             let months = periods
                 .into_iter()
                 .rev()
-                .take(12)
-                .map(|(p, mut rows)| {
+                .take(24)
+                .map(|(p, ds)| {
+                    let expected = expected_subjects(&v.proj.auth, cfg, form, &p, Some(*uid)).len();
+                    let plain: Vec<&Document> = ds.iter().map(|(_, d)| *d).collect();
+                    let mut rows: Vec<DocumentRow> = ds
+                        .iter()
+                        .map(|(did, d)| self.document_row(&v, &t, did, d))
+                        .collect();
                     rows.sort_by(|a, b| a.subject_name.cmp(&b.subject_name));
                     MonthReports {
                         period: p.to_string(),
                         period_label: t.period(&p),
+                        received: u32::try_from(ds.len()).unwrap_or(u32::MAX),
+                        expected: u32::try_from(expected.max(ds.len())).unwrap_or(u32::MAX),
+                        totals: form_totals(&t, form, &plain),
                         rows,
                     }
                 })
@@ -1608,7 +1603,6 @@ impl Core {
                 unit_name: unit.name.clone(),
                 members,
                 batches,
-                summary,
                 months,
             });
         }
