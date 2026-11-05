@@ -6,3 +6,4 @@ qualifications:
   - { id: junior, label: q.junior, duration: permanent, implies: [member], excludes: [senior] }
   - { id: temp, label: q.temp, duration: fixed_period, fixed_period_unit: month, sets: [extra],
       requires: { has_qualification: member } }
+  - { id: joined, label: q.joined, duration: permanent, self_service: true }

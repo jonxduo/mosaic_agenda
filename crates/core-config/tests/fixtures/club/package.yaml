@@ -13,5 +13,6 @@ files: [qualifications.yaml, units.yaml, roles.yaml, audiences.yaml, forms.yaml,
 person_attributes:
   - { id: level, type: integer, read_audience: all_members }
   - { id: size, type: choice, options: [s, l], read_audience: all_members }
+  - { id: phone, type: text, read_audience: all_members, self_edit: true }
 privacy_notice: privacy/en.md
 domain_terms: [forbiddenword]

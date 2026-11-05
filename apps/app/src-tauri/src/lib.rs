@@ -89,6 +89,9 @@ cmd!(program(program: String) -> ProgramEditor => |c| c.program(program));
 cmd!(program_dates(program_type: String, period: Option<String>) -> core_api::schedule::ProgramDates => |c| c.program_dates(program_type, period));
 cmd!(draft_program(program_type: String, dates: Vec<String>) -> String => |c| c.draft_program(program_type, dates));
 cmd!(assign_slots(program: String, changes: Vec<core_api::dto::SlotChange>, details: Vec<core_api::dto::DetailChange>, parts: Vec<core_api::dto::PartChange>) -> ProgramEditor => |c| c.assign_slots(program, changes, details, parts));
+cmd!(profile() -> core_api::profile::Profile => |c| c.profile());
+cmd!(save_profile(given_name: Option<String>, family_name: Option<String>, attributes: Map, dated: BTreeMap<String, String>) -> core_api::profile::Profile => |c| c.save_profile(given_name, family_name, attributes.0, dated));
+cmd!(address_search(query: String) -> Vec<String> => |c| c.address_search(query).await);
 cmd!(prefill_program(program: String, occurrences: Option<Vec<u32>>) -> ProgramEditor => |c| c.prefill_program(program, occurrences).await);
 cmd!(assign_slot(program: String, occurrence: u32, slot: String, index: u32, person: String) -> ProgramEditor => |c| c.assign_slot(program, occurrence, slot, index, person));
 cmd!(send_program(program: String) -> ProgramEditor => |c| c.send_program(program));
@@ -172,6 +175,9 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         assign_slot,
         assign_slots,
         prefill_program,
+        profile,
+        save_profile,
+        address_search,
         send_program,
         publish_program,
         respond,

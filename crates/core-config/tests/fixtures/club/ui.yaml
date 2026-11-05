@@ -5,3 +5,7 @@ menu:
   # Management views: shown only to who holds the permission to act there.
   - { label: menu.logs, view: people }
   - { label: menu.logs, view: qualification_matrix, params: { qualifications: [member, senior] } }
+
+profile:
+  fields: [phone]
+  dated_qualifications: [joined]

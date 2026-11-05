@@ -8,7 +8,7 @@ c(){ curl -sf -X POST "$API/$1" -H 'content-type: application/json' -d "$2"; }
 g(){ c grant_qualification "{\"person\":\"$1\",\"qualification\":\"$2\",\"from\":${3:-null},\"until\":null}" >/dev/null; }
 
 c accept_privacy '{}' >/dev/null
-c create_org '{"name":"Congregazione Centro","myName":"Francesco Monti"}' >/dev/null
+c create_org '{"name":"Congregazione Centro","myName":"Monti Francesco"}' >/dev/null
 me=$(c people '{}' | python3 -c "import sys,json; print(json.load(sys.stdin)['persons'][0]['person_id'])")
 c update_person "{\"person\":\"$me\",\"name\":null,\"attributes\":{\"sex\":\"m\",\"birth_date\":\"1982-04-14\",\"hope\":\"other_sheep\"}}" >/dev/null
 g "$me" publisher '"1995-01-01"'; g "$me" baptized '"1996-07-20"'; g "$me" ministerial_servant '"2010-03-01"'

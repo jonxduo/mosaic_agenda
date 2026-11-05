@@ -90,6 +90,12 @@ fld.birth_date: "Nascita"
 fld.hope: "Speranza"
 fld.phone: "Telefono"
 fld.email: "Email"
+fld.given_name: "Nome"
+fld.family_name: "Cognome"
+fld.address: "Indirizzo"
+fld.emergency_name: "Contatto di emergenza"
+fld.emergency_phone: "Telefono del contatto"
+fld.emergency_notes: "Note sul contatto"
 fld.uses_app: "Usa l'app"
 
 # --- opzioni e risposte ---

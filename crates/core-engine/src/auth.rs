@@ -255,7 +255,18 @@ impl AuthState {
                 self.check_attributes(cfg, &p.attributes)
             }
             Op::PersonUpdated(p) => {
-                req(P::PeopleManage)?;
+                // Their own name and the attributes marked `self_edit`: anyone.
+                let own = author == p.person
+                    && p.attributes.keys().chain(p.cleared.iter()).all(|k| {
+                        cfg.package()
+                            .manifest
+                            .person_attributes
+                            .iter()
+                            .any(|a| &a.id == k && a.self_edit)
+                    });
+                if !own {
+                    req(P::PeopleManage)?;
+                }
                 ensure(self.org.persons.contains_key(&p.person), "unknown person")?;
                 self.check_attributes(cfg, &p.attributes)
             }
@@ -277,15 +288,29 @@ impl AuthState {
                 )
             }
             Op::QualificationGranted(g) => {
-                req(P::QualificationsManage)?;
+                let own = author == g.person
+                    && cfg
+                        .qualification(&g.qualification)
+                        .is_some_and(|d| d.self_service);
+                if !own {
+                    req(P::QualificationsManage)?;
+                }
                 self.check_qualification_grant(cfg, g)
             }
             Op::QualificationEnded(e) => {
-                req(P::QualificationsManage)?;
                 let i = *self
                     .qualification_ids
                     .get(&e.grant)
                     .ok_or_else(|| Denied("unknown grant".into()))?;
+                let own = self.org.qualification_grants.get(i).is_some_and(|g| {
+                    g.person == author
+                        && cfg
+                            .qualification(&g.qualification)
+                            .is_some_and(|d| d.self_service)
+                });
+                if !own {
+                    req(P::QualificationsManage)?;
+                }
                 ensure(
                     self.org
                         .qualification_grants

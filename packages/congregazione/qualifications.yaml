@@ -6,7 +6,8 @@ x-req:
 sets: [full_time]
 qualifications:
   - { id: publisher, label: q.publisher, duration: permanent, visibility: congregation }
-  - { id: baptized, label: q.baptized, duration: permanent, implies: [publisher], visibility: elders }
+  # La data del battesimo la può indicare anche la persona, dal suo profilo.
+  - { id: baptized, label: q.baptized, duration: permanent, implies: [publisher], visibility: elders, self_service: true }
   - id: elder
     label: q.elder
     duration: permanent

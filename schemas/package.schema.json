@@ -1593,6 +1593,11 @@
           "$ref": "#/$defs/Slug",
           "description": "Who can read this attribute (it is encrypted for this audience)."
         },
+        "self_edit": {
+          "default": false,
+          "description": "The person may change it themselves (their profile).",
+          "type": "boolean"
+        },
         "type": {
           "$ref": "#/$defs/FieldType"
         }
@@ -1684,6 +1689,72 @@
       "required": [
         "heading"
       ],
+      "type": "object"
+    },
+    "ProfileUi": {
+      "additionalProperties": false,
+      "description": "The profile: what a person changes about themselves. Attributes must be\n`self_edit`, qualifications `self_service`.",
+      "properties": {
+        "address": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Slug"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Attribute filled with address suggestions (OpenStreetMap)."
+        },
+        "countries": {
+          "default": [],
+          "description": "ISO country codes the address suggestions are limited to.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "dated_qualifications": {
+          "default": [],
+          "description": "Qualifications edited as a date (e.g. baptism).",
+          "items": {
+            "$ref": "#/$defs/Slug"
+          },
+          "type": "array"
+        },
+        "family_name": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Slug"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "fields": {
+          "default": [],
+          "description": "The other attributes of the profile, in order.",
+          "items": {
+            "$ref": "#/$defs/Slug"
+          },
+          "type": "array"
+        },
+        "given_name": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Slug"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Attributes holding the given name and the family name: the person's\nname becomes \"family given\"."
+        }
+      },
       "type": "object"
     },
     "ProgramOptionDef": {
@@ -1908,6 +1979,11 @@
             }
           ],
           "default": null
+        },
+        "self_service": {
+          "default": false,
+          "description": "The person may grant it to themselves and correct its date (their\nprofile), e.g. a date they know best.",
+          "type": "boolean"
         },
         "sets": {
           "default": [],
@@ -3156,6 +3232,18 @@
             "with_devices": []
           },
           "description": "What the people list shows on each person's row."
+        },
+        "profile": {
+          "$ref": "#/$defs/ProfileUi",
+          "default": {
+            "address": null,
+            "countries": [],
+            "dated_qualifications": [],
+            "family_name": null,
+            "fields": [],
+            "given_name": null
+          },
+          "description": "The personal area where everyone edits their own data."
         }
       },
       "type": "object"

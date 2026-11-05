@@ -23,6 +23,7 @@
   import Program from './views/Program.svelte';
   import Board from './views/Board.svelte';
   import BoardPost from './views/BoardPost.svelte';
+  import Profile from './views/Profile.svelte';
   import Resources from './views/Resources.svelte';
   import Resource from './views/Resource.svelte';
   import MyResources from './views/MyResources.svelte';
@@ -65,7 +66,7 @@
   let showApps = $state(false);
   let tick = $state(0);
   let seen = -1;
-  const EDITING = ['form', 'config', 'schedule', 'qualification_matrix', 'program_editor', 'people', 'roles', 'settings', 'resource_detail', 'units'];
+  const EDITING = ['form', 'profile', 'config', 'schedule', 'qualification_matrix', 'program_editor', 'people', 'roles', 'settings', 'resource_detail', 'units'];
 
   applyInsets();
 
@@ -162,6 +163,7 @@
   const work = $derived(menu.filter((m) => sectionOf(m) === 'work'));
   const admin = $derived(menu.filter((m) => sectionOf(m) === 'admin'));
   const settings = $derived(menu.find((m) => m.view === 'settings'));
+  const profileItem = $derived(menu.find((m) => m.view === 'profile'));
   const inAdmin = $derived(admin.some((m) => m.view === route.view));
 </script>
 
@@ -171,10 +173,16 @@
                   <Icon name={m.view} /><span>{m.label}</span>
                 </a>
               {/each}
-              {#if work.length && (admin.length || settings)}<hr />{/if}
+              {#if work.length && (admin.length || settings || profileItem)}<hr />{/if}
               {#if admin.length}
                 <a href={`#/${admin[0].view}`} role="menuitem" class="item" aria-current={inAdmin ? 'page' : undefined} onclick={(e) => { e.preventDefault(); showApps = false; navigate(admin[0]); }}>
                   <Icon name="admin" /><span>{t('nav_admin')}</span>
+                </a>
+              {/if}
+              {#if profileItem}
+                {@const pr = profileItem}
+                <a href={`#/${pr.view}`} role="menuitem" class="item" aria-current={isActive(pr) ? 'page' : undefined} onclick={(e) => { e.preventDefault(); showApps = false; navigate(pr); }}>
+                  <Icon name={pr.view} /><span>{pr.label}</span>
                 </a>
               {/if}
               {#if settings}
@@ -261,6 +269,7 @@
         {:else if route.view === 'program_editor'}<Program program={params.program} />
         {:else if route.view === 'board'}<Board />
         {:else if route.view === 'board_post'}<BoardPost post={params.post} />
+        {:else if route.view === 'profile'}<Profile />
         {:else if route.view === 'resource_list'}<Resources resourceType={params.resource_type} />
         {:else if route.view === 'resource_detail'}<Resource resource={params.resource} />
         {:else if route.view === 'my_resources'}<MyResources resourceType={params.resource_type} />

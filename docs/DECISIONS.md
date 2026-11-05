@@ -863,3 +863,19 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
 - Congregazione: studenti 3 di norma (fino a 4), Vita cristiana 1 (fino a 3), senza nome e senza
   numeri; nei riquadri "Studente" e "Assistente"; "Studio biblico di congregazione". I riquadri
   pieni mostrano il nome abbreviato ("Rossi P."), intero al passaggio del mouse.
+
+## 2026-11-05 — Il mio profilo
+
+- Voce di menu del core "Il mio profilo" per tutti, quando il pacchetto ha `ui.profile`: nome e
+  cognome (due attributi; il nome mostrato diventa "Cognome Nome"), gli attributi `fields` e le
+  qualifiche "con data" `dated_qualifications`.
+- Permessi nel motore: una persona può cambiare il proprio nome e i propri attributi marcati
+  `self_edit` (`PersonAttributeDef`), e concedersi o correggere le qualifiche `self_service`
+  (`QualificationDef`, es. il battesimo); tutto il resto resta a chi ha `people.manage` o
+  `qualifications.manage`. La validazione del pacchetto controlla che il profilo usi solo
+  attributi e qualifiche modificabili dalla persona.
+- Indirizzo: suggerimenti da OpenStreetMap (Nominatim) mentre si scrive (dopo 4 caratteri, 0,7 s
+  di pausa, al massimo 6, paesi da `ui.profile.countries`); la richiesta parte dal core con un
+  User-Agent generico, senza dati della persona oltre al testo digitato.
+- Congregazione: nome, cognome, nascita, telefono, email, indirizzo, contatto di emergenza
+  (nominativo, telefono, note) e data del battesimo; i contatti li legge `contacts_readers`.

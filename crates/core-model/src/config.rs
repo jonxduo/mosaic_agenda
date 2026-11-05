@@ -84,6 +84,9 @@ pub struct PersonAttributeDef {
     pub max_length: Option<u32>,
     /// Who can read this attribute (it is encrypted for this audience).
     pub read_audience: Slug,
+    /// The person may change it themselves (their profile).
+    #[serde(default)]
+    pub self_edit: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -269,6 +272,10 @@ pub struct QualificationDef {
     /// Audience that sees that a person has this qualification.
     #[serde(default)]
     pub visibility: Option<Slug>,
+    /// The person may grant it to themselves and correct its date (their
+    /// profile), e.g. a date they know best.
+    #[serde(default)]
+    pub self_service: bool,
 }
 
 /// `units.yaml`.
@@ -1118,6 +1125,9 @@ pub struct UiFile {
     /// What the people list shows on each person's row.
     #[serde(default)]
     pub people: PeopleUi,
+    /// The personal area where everyone edits their own data.
+    #[serde(default)]
+    pub profile: ProfileUi,
 }
 
 /// The summary on a person's row: attributes, qualifications shown with
@@ -1135,6 +1145,31 @@ pub struct PeopleUi {
     /// (e.g. whether they use the app), saved as soon as they change.
     #[serde(default)]
     pub with_devices: Vec<Slug>,
+}
+
+/// The profile: what a person changes about themselves. Attributes must be
+/// `self_edit`, qualifications `self_service`.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ProfileUi {
+    /// Attributes holding the given name and the family name: the person's
+    /// name becomes "family given".
+    #[serde(default)]
+    pub given_name: Option<Slug>,
+    #[serde(default)]
+    pub family_name: Option<Slug>,
+    /// The other attributes of the profile, in order.
+    #[serde(default)]
+    pub fields: Vec<Slug>,
+    /// Qualifications edited as a date (e.g. baptism).
+    #[serde(default)]
+    pub dated_qualifications: Vec<Slug>,
+    /// Attribute filled with address suggestions (OpenStreetMap).
+    #[serde(default)]
+    pub address: Option<Slug>,
+    /// ISO country codes the address suggestions are limited to.
+    #[serde(default)]
+    pub countries: Vec<String>,
 }
 
 /// Generic views of the core (PROGETTO.md §12.2) and home widgets.

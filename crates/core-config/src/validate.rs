@@ -50,6 +50,7 @@ pub fn validate(pkg: &PackageConfig, dir: Option<&Path>) -> Vec<Issue> {
     v.board();
     v.notifications();
     v.ui();
+    v.profile();
     v.texts();
     let mut issues = v.issues;
     issues.sort();
@@ -1805,6 +1806,66 @@ impl<'a> Validator<'a> {
             .collect();
         for (path, q) in quals {
             self.qual_ref(&q, UI, path);
+        }
+    }
+
+    fn profile(&mut self) {
+        let pr = self.pkg.ui.profile.clone();
+        let attrs: Vec<(String, Slug)> = pr
+            .given_name
+            .iter()
+            .map(|a| ("profile.given_name".to_owned(), a.clone()))
+            .chain(
+                pr.family_name
+                    .iter()
+                    .map(|a| ("profile.family_name".to_owned(), a.clone())),
+            )
+            .chain(
+                pr.address
+                    .iter()
+                    .map(|a| ("profile.address".to_owned(), a.clone())),
+            )
+            .chain(
+                pr.fields
+                    .iter()
+                    .enumerate()
+                    .map(|(i, a)| (format!("profile.fields[{i}]"), a.clone())),
+            )
+            .collect();
+        for (path, a) in attrs {
+            match self
+                .pkg
+                .manifest
+                .person_attributes
+                .iter()
+                .find(|x| x.id == a)
+            {
+                None => self.err(UI, path, format!("unknown person attribute `{a}`")),
+                Some(x) if !x.self_edit => self.err(
+                    UI,
+                    path,
+                    format!("`{a}` is not `self_edit`: the person could not save it"),
+                ),
+                Some(_) => {}
+            }
+        }
+        for (i, q) in pr.dated_qualifications.iter().enumerate() {
+            let path = format!("profile.dated_qualifications[{i}]");
+            match self
+                .pkg
+                .qualifications
+                .qualifications
+                .iter()
+                .find(|x| &x.id == q)
+            {
+                None => self.err(UI, path, format!("unknown qualification `{q}`")),
+                Some(x) if !x.self_service => self.err(
+                    UI,
+                    path,
+                    format!("`{q}` is not `self_service`: the person could not save it"),
+                ),
+                Some(_) => {}
+            }
         }
     }
 

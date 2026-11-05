@@ -37,3 +37,12 @@ people:
   # Nella riga come etichette, nel modulo come caselle con data.
   qualifications: [elder, ministerial_servant, auxiliary_pioneer, regular_pioneer, special_pioneer, field_missionary]
   with_devices: [uses_app]
+
+# "Il mio profilo": ciò che ognuno può cambiare di sé.
+profile:
+  given_name: given_name
+  family_name: family_name
+  fields: [birth_date, phone, email, address, emergency_name, emergency_phone, emergency_notes]
+  dated_qualifications: [baptized]
+  address: address
+  countries: [it]

@@ -45,6 +45,9 @@ export const commands = {
 	assignSlot: (program: string, occurrence: number, slot: string, index: number, person: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("assign_slot", { program, occurrence, slot, index, person })),
 	assignSlots: (program: string, changes: SlotChange[], details: DetailChange[], parts: PartChange[]) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("assign_slots", { program, changes, details, parts })),
 	prefillProgram: (program: string, occurrences: number[] | null) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("prefill_program", { program, occurrences })),
+	profile: () => typedError<Profile_Serialize, ApiError>(__TAURI_INVOKE("profile")),
+	saveProfile: (givenName: string | null, familyName: string | null, attributes: JsonMap, dated: { [key in string]: string }) => typedError<Profile_Serialize, ApiError>(__TAURI_INVOKE("save_profile", { givenName, familyName, attributes, dated })),
+	addressSearch: (query: string) => typedError<string[], ApiError>(__TAURI_INVOKE("address_search", { query })),
 	sendProgram: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("send_program", { program })),
 	publishProgram: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("publish_program", { program })),
 	respond: (program: string, programType: string, occurrence: number, slot: string, index: number, accept: boolean, note: string | null, assignee: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("respond", { program, programType, occurrence, slot, index, accept, note, assignee })),
@@ -869,6 +872,48 @@ export type PersonView_Serialize = {
 	held_roles: HeldRole_Serialize[],
 	/**  The units the person belongs to today. */
 	unit_ids: UnitRef[],
+};
+
+export type Profile = Profile_Serialize | Profile_Deserialize;
+
+export type ProfileDate = ProfileDate_Serialize | ProfileDate_Deserialize;
+
+export type ProfileDate_Deserialize = {
+	id: string,
+	label: string,
+	/**  YYYY-MM-DD, none if not held. */
+	date?: string | null,
+};
+
+export type ProfileDate_Serialize = {
+	id: string,
+	label: string,
+	/**  YYYY-MM-DD, none if not held. */
+	date: string | null,
+};
+
+export type Profile_Deserialize = {
+	/**  The name as shown everywhere ("family given"). */
+	name: string,
+	/**  Given and family name, when the package keeps them apart. */
+	given_name?: string | null,
+	family_name?: string | null,
+	fields: Field_Deserialize[],
+	dated: ProfileDate_Deserialize[],
+	/**  The field filled with address suggestions. */
+	address?: string | null,
+};
+
+export type Profile_Serialize = {
+	/**  The name as shown everywhere ("family given"). */
+	name: string,
+	/**  Given and family name, when the package keeps them apart. */
+	given_name: string | null,
+	family_name: string | null,
+	fields: Field_Serialize[],
+	dated: ProfileDate_Serialize[],
+	/**  The field filled with address suggestions. */
+	address: string | null,
 };
 
 /**  The dates proposed for a new program of a type. */

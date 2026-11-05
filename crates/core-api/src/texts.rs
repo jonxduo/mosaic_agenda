@@ -54,6 +54,7 @@ fn core_texts(locale: &str) -> &'static [(&'static str, &'static str)] {
             ("core.total", "Totale"),
             ("core.menu.config", "Configurazione"),
             ("core.menu.schedule", "Calendario e turni"),
+            ("core.menu.profile", "Il mio profilo"),
             ("core.work.open", "Apri"),
             ("core.work.fill", "Compila"),
             (
@@ -117,6 +118,7 @@ fn core_texts(locale: &str) -> &'static [(&'static str, &'static str)] {
             ("core.total", "Total"),
             ("core.menu.config", "Configuration"),
             ("core.menu.schedule", "Calendar and rotations"),
+            ("core.menu.profile", "My profile"),
             ("core.work.open", "Open"),
             ("core.work.fill", "Fill in"),
             (

@@ -53,6 +53,9 @@ pub const COMMANDS: &[&str] = &[
     "assign_slot",
     "assign_slots",
     "prefill_program",
+    "profile",
+    "save_profile",
+    "address_search",
     "send_program",
     "publish_program",
     "respond",
@@ -269,6 +272,11 @@ pub async fn dispatch(core: &Arc<Core>, cmd: &str, input: Value) -> ApiResult<Va
         "alerts" => json(core.alerts()?),
         "sync_status" => json(core.sync_status().await?),
         "sync_now" => json(core.sync_now().await?),
+        "profile" => json(core.profile()?),
+        "save_profile" => {
+            call!({ given_name: Option<String>, family_name: Option<String>, attributes: Map, dated: std::collections::BTreeMap<String, String> } => core.save_profile(given_name, family_name, attributes, dated)?)
+        }
+        "address_search" => call!({ query: String } => core.address_search(query).await?),
         "prefill_program" => {
             call!({ program: String, occurrences: Option<Vec<u32>> } => core.prefill_program(program, occurrences).await?)
         }

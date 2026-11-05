@@ -77,6 +77,31 @@ pub(crate) fn field_dto(t: &Texts, f: &FieldDef, value: Option<&Scalar>) -> Fiel
     }
 }
 
+/// A person attribute as a form field, with its value.
+pub(crate) fn attribute_field(
+    t: &Texts,
+    a: &core_model::config::PersonAttributeDef,
+    value: Option<&Scalar>,
+) -> Field {
+    let f = FieldDef {
+        id: a.id.clone(),
+        ty: a.ty,
+        label: a.label.clone(),
+        required: false,
+        min: None,
+        max: None,
+        step: None,
+        unit: None,
+        max_length: a.max_length,
+        options: a.options.clone(),
+        filter: None,
+        max_count: None,
+        keep_exif: false,
+        expr: None,
+    };
+    field_dto(t, &f, value)
+}
+
 pub(crate) fn state_label(t: &Texts, state: &Slug) -> String {
     let key = format!("state.{state}");
     let s = t.get(&key);
@@ -497,6 +522,15 @@ impl Core {
                 params: params_map(&m.params),
             })
             .collect();
+        // Core view: everyone's own data, when the package has a profile.
+        let pr = &cfg.package().ui.profile;
+        if !pr.fields.is_empty() || pr.given_name.is_some() || !pr.dated_qualifications.is_empty() {
+            items.push(MenuItem {
+                label: t.get("core.menu.profile"),
+                view: "profile".into(),
+                params: Default::default(),
+            });
+        }
         // Core view: the configuration editor, for who may publish (§12.4).
         let may_configure = holds_any(
             &v,
@@ -2596,25 +2630,7 @@ impl Core {
                 .manifest
                 .person_attributes
                 .iter()
-                .map(|a| {
-                    let f = FieldDef {
-                        id: a.id.clone(),
-                        ty: a.ty,
-                        label: a.label.clone(),
-                        required: false,
-                        min: None,
-                        max: None,
-                        step: None,
-                        unit: None,
-                        max_length: a.max_length,
-                        options: a.options.clone(),
-                        filter: None,
-                        max_count: None,
-                        keep_exif: false,
-                        expr: None,
-                    };
-                    field_dto(&t, &f, None)
-                })
+                .map(|a| attribute_field(&t, a, None))
                 .collect(),
         })
     }

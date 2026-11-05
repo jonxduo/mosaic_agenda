@@ -23,6 +23,7 @@ const SECTION: Record<string, Section> = {
   schedule: 'admin',
   config: 'admin',
   sync_status: 'system',
+  profile: 'system',
   settings: 'system'
 };
 
@@ -77,5 +78,6 @@ export const ICONS: Record<string, string> = {
   route: 'M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4 M18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4 M8 17h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7',
   speaker: 'M4 4h16v16H4z M12 14a2 2 0 1 0 0-4 M8 8h.01',
   notice: 'M4 4h16v12H5.2L4 17.2z M8 9h8 M8 12h5',
-  plus: 'M12 5v14 M5 12h14'
+  plus: 'M12 5v14 M5 12h14',
+  profile: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1'
 };

@@ -4,12 +4,14 @@ q:
   senior: Senior
   junior: Junior
   temp: Temporary
+  joined: Joined
 u.team: Team
 r.lead: Lead
 r.keeper: Keeper
 f.log: Monthly log
 fld.level: Level
 fld.size: Size
+fld.phone: Phone
 fld.count: Count
 fld.bonus: Bonus
 fld.total: Total
