@@ -1294,6 +1294,8 @@ impl Core {
             subject_name: name_of(&v, subject),
             period: period.to_string(),
             title: format!("{} · {}", t.get(fdef.label.as_str()), t.period(&period)),
+            label: t.get(fdef.label.as_str()),
+            period_label: t.period(&period),
             subtitle: if state.is_none() || state.as_ref() == Some(&wf.initial) {
                 t.fmt("core.due_by", &[("date", t.day_month(due))])
             } else {

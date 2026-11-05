@@ -208,6 +208,9 @@ pub struct FormView {
     pub subject_name: String,
     pub period: String,
     pub title: String,
+    /// The form's name and its period apart, for a page heading.
+    pub label: String,
+    pub period_label: String,
     pub subtitle: String,
     pub state: Option<String>,
     pub state_label: Option<String>,

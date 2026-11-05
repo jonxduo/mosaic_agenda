@@ -483,6 +483,9 @@ export type FormView_Deserialize = {
 	subject_name: string,
 	period: string,
 	title: string,
+	/**  The form's name and its period apart, for a page heading. */
+	label: string,
+	period_label: string,
 	subtitle: string,
 	state?: string | null,
 	state_label?: string | null,
@@ -501,6 +504,9 @@ export type FormView_Serialize = {
 	subject_name: string,
 	period: string,
 	title: string,
+	/**  The form's name and its period apart, for a page heading. */
+	label: string,
+	period_label: string,
 	subtitle: string,
 	state: string | null,
 	state_label: string | null,
