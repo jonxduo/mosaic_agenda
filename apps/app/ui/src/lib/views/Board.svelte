@@ -60,7 +60,9 @@
 <style>
   .wrap { gap: 16px; }
   /* No background: just the month and its arrows. */
-  .months { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  /* As tall as a page heading with its second line (name + period), so the
+     lines match even though the month has one line only. */
+  .months { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; }
   .months strong { font-size: 18px; text-align: center; flex: 1; }
   /* Arrows as the back button: purple, no border, a line apart from the month. */
   .arrow { flex: none; width: 32px; height: 40px; border-radius: 8px; border: none; background: none; color: var(--primary); font-size: 32px; line-height: 1; cursor: pointer; display: grid; place-items: center; padding: 0 0 4px; }
