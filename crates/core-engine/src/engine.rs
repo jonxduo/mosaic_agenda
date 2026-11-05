@@ -535,7 +535,8 @@ fn merge(
 }
 
 /// Last day a record ending on `end` is kept; `None` = kept forever.
-fn expires(end: Date, retention: Retention) -> Option<Date> {
+/// The day a retention period started on `end` runs out (`None`: never).
+pub fn expires(end: Date, retention: Retention) -> Option<Date> {
     match retention {
         Retention::Forever(_) => None,
         Retention::Days(n) => Some(crate::time::add_days(end, i64::from(n))),

@@ -6,13 +6,16 @@
 //! ids (by the store), the organization, and the devices allowed to
 //! connect, computed from the public device events.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use core_crypto::{ChannelKeyring, DeviceKeys, DevicePublicKey, SecretStore, SecretStoreError};
+use core_engine::config::Cfg;
 use core_engine::ops::Op;
-use core_events::{DbKey, EventKind, EventStore, OrgId, SignedEvent};
+use core_engine::time::date_of;
+use core_events::{DbKey, EventHash, EventKind, EventStore, ObjectType, OrgId, SignedEvent};
+use core_model::{Id, PersonId};
 use core_sync::blobs::DirBlobStore;
 use core_sync::local::LocalLog;
 use core_sync::net::{ConfirmFuture, Network, Node, NodeState, PairConfirm, Shared};
@@ -120,6 +123,123 @@ pub fn authorized(events: &[SignedEvent]) -> Option<BTreeSet<DevicePublicKey>> {
     genesis.then_some(allowed)
 }
 
+/// Events whose content the node drops (§14), from what is in clear: the
+/// root administrators' erasure and retention events, the object headers
+/// and the published configuration.
+///
+/// - Erasure of a person: the events about the person. Their documents
+///   name them only inside the encrypted content, so they stay here as
+///   ciphertext; every device that receives them erases them on arrival.
+/// - Retention: documents and programs whose last event is older than the
+///   retention period of their form or program type. The devices count from
+///   the period's last day, which comes before the last event: the node
+///   never drops something earlier than they do.
+/// - Later events of an object already erased.
+pub fn erasure_targets(events: &[SignedEvent]) -> BTreeSet<EventHash> {
+    let mut ordered: Vec<&SignedEvent> = events.iter().collect();
+    ordered.sort_by_key(|e| (e.body.depth, e.id));
+    let mut roots: BTreeSet<PersonId> = BTreeSet::new();
+    let mut person_of: BTreeMap<DevicePublicKey, PersonId> = BTreeMap::new();
+    let mut cfg: Option<(u32, Cfg)> = None;
+    let mut persons: BTreeSet<PersonId> = BTreeSet::new();
+    let mut before = None;
+    for e in &ordered {
+        let root = person_of
+            .get(&e.body.author)
+            .is_some_and(|p| roots.contains(p));
+        match public_op(e) {
+            Some(Op::Genesis(g)) => {
+                for a in &g.root_admins {
+                    roots.insert(a.person);
+                    for d in &a.devices {
+                        person_of.insert(d.signing, a.person);
+                    }
+                }
+                if let Ok(c) = core_config::decode(&g.config_bundle) {
+                    cfg = Some((1, Cfg::new(1, c)));
+                }
+            }
+            Some(Op::DeviceAdded(d)) => {
+                person_of.insert(d.device.signing, d.person);
+            }
+            Some(Op::OrgSettingsChanged(s)) if root => {
+                roots.extend(s.add_root_admins.iter().copied());
+                for p in &s.remove_root_admins {
+                    if roots.len() > 1 {
+                        roots.remove(p);
+                    }
+                }
+            }
+            Some(Op::ConfigPublished(c)) if cfg.as_ref().is_none_or(|(v, _)| c.version > *v) => {
+                if let Ok(compiled) = core_config::decode(&c.bundle) {
+                    cfg = Some((c.version, Cfg::new(c.version, compiled)));
+                }
+            }
+            Some(Op::ErasureRequested(r)) if root => {
+                persons.insert(r.person);
+            }
+            Some(Op::RetentionApplied(r)) if root => before = before.max(Some(r.before)),
+            _ => {}
+        }
+    }
+    let header = |e: &SignedEvent| e.payload().ok().and_then(|p| p.object);
+    let mut objects: BTreeSet<(ObjectType, Id)> = events
+        .iter()
+        .filter(|e| e.is_erased())
+        .filter_map(|e| header(e).map(|h| (h.object, h.id)))
+        .collect();
+    objects.extend(persons.iter().map(|p| (ObjectType::Person, p.0)));
+    if let (Some(before), Some((_, cfg))) = (before, &cfg) {
+        // Last event of every document and program, with its form or type.
+        let mut last: BTreeMap<(ObjectType, Id), (Option<core_model::Slug>, i64)> = BTreeMap::new();
+        for e in events {
+            let Some(h) = header(e) else { continue };
+            if !matches!(h.object, ObjectType::Document | ObjectType::Program) {
+                continue;
+            }
+            let entry = last.entry((h.object, h.id)).or_insert((None, i64::MIN));
+            if entry.0.is_none() {
+                entry.0 = h.config.clone();
+            }
+            entry.1 = entry.1.max(e.body.declared_time);
+        }
+        for ((object, id), (config, time)) in last {
+            let retention = config.as_ref().and_then(|c| match object {
+                ObjectType::Document => cfg.form(c).and_then(|f| f.retention),
+                _ => cfg.program_type(c).and_then(|t| t.retention),
+            });
+            let expired = retention
+                .and_then(|r| core_engine::engine::expires(date_of(time), r))
+                .is_some_and(|end| end < before);
+            if expired {
+                objects.insert((object, id));
+            }
+        }
+    }
+    let programs: Vec<Id> = objects
+        .iter()
+        .filter(|(t, _)| *t == ObjectType::Program)
+        .map(|(_, id)| *id)
+        .collect();
+    objects.extend(programs.into_iter().map(|id| (ObjectType::Assignment, id)));
+    events
+        .iter()
+        .filter(|e| !e.is_erased())
+        .filter(|e| {
+            header(e).is_some_and(|h| {
+                matches!(
+                    h.object,
+                    ObjectType::Person
+                        | ObjectType::Document
+                        | ObjectType::Program
+                        | ObjectType::Assignment
+                ) && objects.contains(&(h.object, h.id))
+            })
+        })
+        .map(|e| e.id)
+        .collect()
+}
+
 /// Every attachment of the events still holding their content.
 pub fn attachments(events: &[SignedEvent]) -> BTreeSet<[u8; 32]> {
     events
@@ -145,12 +265,7 @@ fn dir_size(dir: &Path) -> u64 {
 struct NoPairing;
 
 impl PairConfirm for NoPairing {
-    fn confirm(
-        &self,
-        _: core_model::PersonId,
-        _: core_crypto::DeviceIdentity,
-        _: String,
-    ) -> ConfirmFuture {
+    fn confirm(&self, _: PersonId, _: core_crypto::DeviceIdentity, _: String) -> ConfirmFuture {
         Box::pin(async { false })
     }
 }
@@ -222,10 +337,21 @@ impl BlindNode {
             .state
             .lock()
             .map_err(|_| Error::Config("state poisoned".into()))?;
-        let events = match &st.store {
-            LocalLog::Open(s) => s.all_events()?,
-            LocalLog::Locked(_) => return Ok(()),
+        let st = &mut *st;
+        let LocalLog::Open(store) = &mut st.store else {
+            return Ok(());
         };
+        // Erasure first (§14): shells instead of contents, attachments gone.
+        let targets = erasure_targets(&store.all_events()?);
+        for id in &targets {
+            if let Some(e) = store.get(id)? {
+                for b in &e.body.attachments {
+                    let _ = st.blobs.remove(&b.0);
+                }
+            }
+            store.erase(id)?;
+        }
+        let events = store.all_events()?;
         st.allowed = authorized(&events);
         st.wanted_blobs = if dir_size(&self.blobs_dir) < self.quota_bytes {
             attachments(&events)
@@ -233,6 +359,18 @@ impl BlindNode {
             BTreeSet::new()
         };
         Ok(())
+    }
+
+    /// Every event kept, as stored (erased ones as shells).
+    pub fn all_events(&self) -> Result<Vec<SignedEvent>, Error> {
+        let st = self
+            .state
+            .lock()
+            .map_err(|_| Error::Config("state poisoned".into()))?;
+        match &st.store {
+            LocalLog::Open(s) => Ok(s.all_events()?),
+            LocalLog::Locked(_) => Ok(Vec::new()),
+        }
     }
 
     /// Number of events kept.

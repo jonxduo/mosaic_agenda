@@ -1028,3 +1028,16 @@ Piano di F11:
   finché c'è quota (⚙ `BLIND_QUOTA_GB`, predefinito 5).
 - Test: un dispositivo lascia tutto al nodo, un estraneo viene respinto, un altro dispositivo
   dell'organizzazione che non ha mai incontrato il primo riceve tutto dal nodo.
+
+### F11 passo 3 (cancellazione e conservazione sul nodo), fatto
+- Il nodo calcola da sé, senza chiavi, cosa svuotare: gli eventi pubblici di cancellazione e di
+  conservazione degli amministratori radice (radice riconosciute da genesi, `device.added` e
+  `org.settings_changed`, tutti in chiaro), le intestazioni degli oggetti e la configurazione
+  pubblicata (in chiaro). Svuota gli eventi (guscio, stesso id) e cancella i loro allegati.
+- Cancellazione di una persona: gli eventi sulla persona. I suoi documenti la nominano solo nel
+  contenuto cifrato: restano sul nodo come dati cifrati, e ogni dispositivo che li riceve li
+  svuota all'arrivo (ha le chiavi e vede la richiesta). Limite accettato.
+- Conservazione: documenti e programmi il cui ultimo evento supera la durata del modulo o del tipo
+  di programma. I dispositivi contano dall'ultimo giorno del periodo, che viene prima: il nodo
+  non toglie mai prima di loro. Poi gli eventi successivi di oggetti già svuotati.
+- `core_engine::engine::expires` ora pubblico, usato anche dal nodo.

@@ -198,3 +198,90 @@ async fn devices_never_online_together_meet_through_the_node() {
         .unwrap();
     assert_eq!(count(&later), w.events.len() as u64);
 }
+
+fn shells(n: &BlindNode, events: &[SignedEvent]) -> usize {
+    let _ = n;
+    events.iter().filter(|e| e.is_erased()).count()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn erasure_and_retention_are_applied_on_the_node() {
+    let mut w = world();
+    let a = w.person("a").unwrap();
+    // Erasure of a: the events about a go; b's log stays.
+    w.act(ADMIN, |c| c.request_erasure(a)).unwrap();
+    let targets = blind_node::erasure_targets(&w.events);
+    let about_a: Vec<_> = w
+        .events
+        .iter()
+        .filter(|e| {
+            e.payload()
+                .ok()
+                .and_then(|p| p.object)
+                .is_some_and(|h| h.object == core_events::ObjectType::Person && h.id == a.0)
+        })
+        .map(|e| e.id)
+        .collect();
+    assert!(!about_a.is_empty());
+    assert!(about_a.iter().all(|id| targets.contains(id)), "{targets:?}");
+    let docs = |events: &[SignedEvent], t: &BTreeSet<core_events::EventHash>| {
+        events
+            .iter()
+            .filter(|e| t.contains(&e.id))
+            .filter(|e| {
+                e.payload()
+                    .ok()
+                    .and_then(|p| p.object)
+                    .is_some_and(|h| h.object == core_events::ObjectType::Document)
+            })
+            .count()
+    };
+    assert_eq!(
+        docs(&w.events, &targets),
+        0,
+        "documents name their subject only inside"
+    );
+
+    // Retention: logs kept one year (published configuration, in clear),
+    // applied two years later: every log goes.
+    let dir =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates/core-config/tests/fixtures/club");
+    let mut files = core_config::source_files(&dir).unwrap();
+    let forms = files.get_mut("forms.yaml").unwrap();
+    *forms = forms.replacen(
+        "    workflow: log\n",
+        "    workflow: log\n    retention: { years: 1 }\n",
+        1,
+    );
+    let v2 = core_config::compile_with_sources(core_config::load_files(&files).unwrap(), files)
+        .unwrap()
+        .bytes;
+    w.act(ADMIN, |c| c.publish_config(2, v2)).unwrap();
+    w.act(ADMIN, |c| {
+        c.apply_retention(parse_date("2028-12-01").unwrap())
+    })
+    .unwrap();
+    let targets = blind_node::erasure_targets(&w.events);
+    assert!(docs(&w.events, &targets) > 0);
+
+    // On the node: the targets become shells, ids stay.
+    let dir = tempfile::tempdir().unwrap();
+    let blind = BlindNode::start(Config {
+        data: dir.path().to_path_buf(),
+        org: core_events::OrgId(w.events[0].id.0),
+        network: Network::Local,
+        quota_bytes: 1 << 20,
+    })
+    .await
+    .unwrap();
+    let first = device(store_with(&w.events)).await;
+    first.learn(blind.node.addr());
+    tokio::time::timeout(Duration::from_secs(20), first.sync_with(&blind.id()))
+        .await
+        .unwrap()
+        .unwrap();
+    blind.refresh().unwrap();
+    let kept = blind.all_events().unwrap();
+    assert_eq!(kept.len(), w.events.len());
+    assert_eq!(shells(&blind, &kept), targets.len());
+}

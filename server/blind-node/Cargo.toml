@@ -15,6 +15,7 @@ core-crypto.workspace = true
 core-events.workspace = true
 core-engine.workspace = true
 core-sync.workspace = true
+core-config.workspace = true
 core-model.workspace = true
 tokio.workspace = true
 hex.workspace = true
@@ -23,7 +24,6 @@ zeroize.workspace = true
 
 [dev-dependencies]
 core-testkit.workspace = true
-core-config.workspace = true
 tempfile.workspace = true
 
 [lints]
