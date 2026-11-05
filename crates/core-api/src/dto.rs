@@ -319,6 +319,11 @@ pub struct Measure {
     /// Heading of the rows it belongs to.
     pub section: Option<String>,
     pub strong: bool,
+    /// A cell of a table (row and column labels), a box, or a note.
+    pub row: Option<String>,
+    pub column: Option<String>,
+    pub tile: bool,
+    pub note: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

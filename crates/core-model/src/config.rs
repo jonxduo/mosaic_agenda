@@ -658,6 +658,17 @@ pub struct MeasureDef {
     /// Shown in bold.
     #[serde(default)]
     pub strong: bool,
+    /// Shown as a cell of a table: its row and its column (both set).
+    #[serde(default)]
+    pub row: Option<TextKey>,
+    #[serde(default)]
+    pub column: Option<TextKey>,
+    /// Shown as a box with a large number, below the tables.
+    #[serde(default)]
+    pub tile: bool,
+    /// Shown apart, as a note.
+    #[serde(default)]
+    pub note: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]

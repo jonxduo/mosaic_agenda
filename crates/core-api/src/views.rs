@@ -170,6 +170,10 @@ fn measure_row(
         display,
         section: m.section.as_ref().map(|s| t.get(s.as_str())),
         strong: m.strong,
+        row: m.row.as_ref().map(|s| t.get(s.as_str())),
+        column: m.column.as_ref().map(|s| t.get(s.as_str())),
+        tile: m.tile,
+        note: m.note,
     }
 }
 
@@ -208,6 +212,10 @@ fn form_totals(t: &Texts, form: &core_model::config::FormDef, docs: &[&Document]
                 value,
                 section: None,
                 strong: false,
+                row: None,
+                column: None,
+                tile: false,
+                note: false,
             });
         }
     }

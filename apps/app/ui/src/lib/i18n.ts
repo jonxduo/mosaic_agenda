@@ -49,7 +49,7 @@ const it = {
   backup_export: 'Esporta backup', backup_saved: 'Backup salvato', backup_restore: 'Ripristina da un backup', backup_file: 'File di backup (.orgbackup)',
   backup_restore_btn: 'Ripristina', restart_title: 'Backup ripristinato', restart_text: "Chiudi e riapri l'app per usare il dispositivo ripristinato.",
   g_mode: 'Modo di modifica', g_guided: 'Guidato', g_sections: 'Parti della configurazione', g_roles: 'Incarichi', g_audiences: 'Pubblici', g_fields: 'Campi dei moduli',
-  g_slots: 'Slot dei programmi', g_reminders: 'Promemoria', g_measures: 'Resoconti', g_op: 'Calcolo', g_value: 'Valore (per «constant»)', g_field: 'Campo', g_of: 'Somma di (per «total»)', g_section: 'Sezione', g_strong: 'In grassetto', g_texts: 'Testi', g_locale: 'Lingua', g_id: 'Identificativo', g_label: 'Etichetta',
+  g_slots: 'Slot dei programmi', g_reminders: 'Promemoria', g_measures: 'Resoconti', g_op: 'Calcolo', g_value: 'Valore (per «constant»)', g_field: 'Campo', g_of: 'Somma di (per «total»)', g_section: 'Sezione', g_strong: 'In grassetto', g_row: 'Riga della tabella', g_column: 'Colonna della tabella', g_tile: 'Riquadro', g_note: 'Nota a parte', g_texts: 'Testi', g_locale: 'Lingua', g_id: 'Identificativo', g_label: 'Etichetta',
   g_scope: 'Ambito', g_requires: 'Requisiti', g_holders_min: 'Titolari minimi', g_holders_max: 'Titolari massimi', g_unlimited: 'senza limite',
   g_priority: 'Priorità', g_permissions: 'Permessi', g_substitute_for: 'Sostituisce', g_assistant_of: 'Assistente di', g_supervises: 'Supervisiona',
   g_exclusive_with: 'Incompatibile con', g_mandatory: 'Obbligatorio quando', g_select: 'Chi ne fa parte', g_type: 'Tipo', g_required: 'Obbligatorio',

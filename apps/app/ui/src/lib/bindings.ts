@@ -670,6 +670,11 @@ export type Measure_Deserialize = {
 	/**  Heading of the rows it belongs to. */
 	section?: string | null,
 	strong: boolean,
+	/**  A cell of a table (row and column labels), a box, or a note. */
+	row?: string | null,
+	column?: string | null,
+	tile: boolean,
+	note: boolean,
 };
 
 export type Measure_Serialize = {
@@ -680,6 +685,11 @@ export type Measure_Serialize = {
 	/**  Heading of the rows it belongs to. */
 	section: string | null,
 	strong: boolean,
+	/**  A cell of a table (row and column labels), a box, or a note. */
+	row: string | null,
+	column: string | null,
+	tile: boolean,
+	note: boolean,
 };
 
 export type MenuItem = {

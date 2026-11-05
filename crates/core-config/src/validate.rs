@@ -1340,6 +1340,18 @@ impl<'a> Validator<'a> {
                 if let Some(s) = &m.section {
                     self.text_key(s, AGGREGATES, format!("{mp}.section"));
                 }
+                if let Some(r) = &m.row {
+                    self.text_key(r, AGGREGATES, format!("{mp}.row"));
+                }
+                if let Some(c) = &m.column {
+                    self.text_key(c, AGGREGATES, format!("{mp}.column"));
+                }
+                if m.row.is_some() != m.column.is_some() {
+                    self.err(AGGREGATES, mp.clone(), "a table cell needs both `row` and `column`");
+                }
+                if [m.row.is_some(), m.tile, m.note].iter().filter(|x| **x).count() > 1 {
+                    self.err(AGGREGATES, mp.clone(), "a measure is a table cell, a tile or a note");
+                }
                 match m.op {
                     MeasureOp::Constant if m.value.is_none() => {
                         self.err(AGGREGATES, mp.clone(), "a constant measure needs `value`");

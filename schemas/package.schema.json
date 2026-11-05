@@ -1111,6 +1111,17 @@
     "MeasureDef": {
       "additionalProperties": false,
       "properties": {
+        "column": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TextKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "field": {
           "anyOf": [
             {
@@ -1149,6 +1160,11 @@
           "default": null,
           "description": "Defaults to `msr.<id>`."
         },
+        "note": {
+          "default": false,
+          "description": "Shown apart, as a note.",
+          "type": "boolean"
+        },
         "of": {
           "default": [],
           "description": "The measures a `total` adds up (defined before it).",
@@ -1159,6 +1175,18 @@
         },
         "op": {
           "$ref": "#/$defs/MeasureOp"
+        },
+        "row": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TextKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Shown as a cell of a table: its row and its column (both set)."
         },
         "section": {
           "anyOf": [
@@ -1175,6 +1203,11 @@
         "strong": {
           "default": false,
           "description": "Shown in bold.",
+          "type": "boolean"
+        },
+        "tile": {
+          "default": false,
+          "description": "Shown as a box with a large number, below the tables.",
           "type": "boolean"
         },
         "value": {

@@ -158,7 +158,11 @@
         { key: ['filter'], label: t('g_filter'), kind: 'yaml', placeholder: '{ has_qualification: … }' },
         { key: ['of'], label: t('g_of'), kind: 'yaml', placeholder: '[ … ]' },
         { key: ['section'], label: t('g_section'), kind: 'label' },
-        { key: ['strong'], label: t('g_strong'), kind: 'bool' }
+        { key: ['strong'], label: t('g_strong'), kind: 'bool' },
+        { key: ['row'], label: t('g_row'), kind: 'label' },
+        { key: ['column'], label: t('g_column'), kind: 'label' },
+        { key: ['tile'], label: t('g_tile'), kind: 'bool' },
+        { key: ['note'], label: t('g_note'), kind: 'bool' }
       ]
     },
     {

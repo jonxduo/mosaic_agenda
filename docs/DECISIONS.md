@@ -1080,3 +1080,8 @@ Piano di F11:
   in Configurazione → Resoconti e la pubblica con la configurazione.
 - Il resoconto di "Il mio gruppo" usa lo stesso resoconto ristretto al gruppo (attesi e
   mancanti del gruppo, rapporti consegnati anche non ancora registrati).
+- Disposizione delle misure, sempre dal pacchetto: `row` + `column` (cella di una tabella a
+  incrocio, "–" dove manca), `tile` (riquadro con numero grande), `note` (riga a parte). Il
+  resoconto mensile: attivi nel mese; tabella pionieri regolari / ausiliari / proclamatori ×
+  partecipato / ore / studi; nota "consenso GDPR negato"; quattro riquadri (ricevuti, non fatto,
+  ore PR + PA, studi).
