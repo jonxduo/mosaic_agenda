@@ -268,7 +268,7 @@
         {:else if route.view === 'program_list'}<Programs types={params.types} />
         {:else if route.view === 'program_editor'}<Program program={params.program} />
         {:else if route.view === 'board'}<Board />
-        {:else if route.view === 'board_post'}<BoardPost post={params.post} />
+        {:else if route.view === 'board_post'}<BoardPost post={params.post} month={params.month} />
         {:else if route.view === 'profile'}<Profile />
         {:else if route.view === 'resource_list'}<Resources resourceType={params.resource_type} />
         {:else if route.view === 'resource_detail'}<Resource resource={params.resource} />

@@ -578,7 +578,7 @@ impl Core {
                 }),
                 ViewKind::Board => sections.push(HomeSection::Board {
                     title: String::new(),
-                    items: self.board_items(&v, &t)?,
+                    items: self.board_items(&v, &t, None)?,
                 }),
                 _ => {}
             }
@@ -926,12 +926,26 @@ impl Core {
         Ok(out)
     }
 
-    fn board_items(&self, v: &View, t: &Texts) -> ApiResult<Vec<BoardItem>> {
+    /// The board today, or (`month`) the programs of a month, old ones
+    /// included, with today's notices when it is the current month.
+    fn board_items(
+        &self,
+        v: &View,
+        t: &Texts,
+        month: Option<&PeriodKey>,
+    ) -> ApiResult<Vec<BoardItem>> {
         let cfg = cfg(v)?;
         let now = today(self);
         let mut out = Vec::new();
         for (id, post) in &v.proj.board {
-            if post.withdrawn || now < post.from || now > post.until {
+            let on_now = !(now < post.from || now > post.until);
+            let shown = match (month, &post.item) {
+                _ if post.withdrawn => false,
+                (None, _) => on_now,
+                (Some(m), PBoardItem::Program(s)) => s.occurrences.iter().any(|d| m.contains(*d)),
+                (Some(m), PBoardItem::Notice { .. }) => on_now && *m == PeriodKey::month_of(now),
+            };
+            if !shown {
                 continue;
             }
             match &post.item {
@@ -1007,10 +1021,19 @@ impl Core {
         Ok(out)
     }
 
-    pub fn board(&self) -> ApiResult<Vec<BoardItem>> {
+    /// `month` (YYYY-MM): the programs of that month, old ones included.
+    pub fn board(&self, month: Option<String>) -> ApiResult<Vec<BoardItem>> {
         self.ensure_unlocked()?;
         let v = self.view()?;
-        self.board_items(&v, &self.texts())
+        let month: Option<PeriodKey> = month
+            .map(|m| m.parse())
+            .transpose()
+            .map_err(ApiError::invalid)?;
+        let mut items = self.board_items(&v, &self.texts(), month.as_ref())?;
+        if month.is_some() {
+            items.sort_by(|a, b| a.title.cmp(&b.title));
+        }
+        Ok(items)
     }
 
     pub fn my_assignments(&self) -> ApiResult<Vec<AssignmentItem>> {

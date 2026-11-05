@@ -8,10 +8,10 @@
   import Icon from '../components/Icon.svelte';
   import Program from './Program.svelte';
 
-  let { post }: { post: string } = $props();
+  let { post, month }: { post: string; month?: string } = $props();
   let item = $state<BoardItem | null>(null);
   let missing = $state(false);
-  run(api.board())
+  run(api.board(month ?? null))
     .then((x) => {
       item = x.find((b) => b.id === post) ?? null;
       missing = !item;

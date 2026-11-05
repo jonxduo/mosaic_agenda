@@ -212,7 +212,7 @@ pub async fn dispatch(core: &Arc<Core>, cmd: &str, input: Value) -> ApiResult<Va
         }
         "add_external" => call!({ name: String } => core.add_external(name)?),
         "my_assignments" => json(core.my_assignments()?),
-        "board" => json(core.board()?),
+        "board" => call!({ month: Option<String> } => core.board(month)?),
         "resources" => call!({ resource_type: String } => core.resources(resource_type)?),
         "resource" => call!({ resource: String } => core.resource(resource)?),
         "my_resources" => {

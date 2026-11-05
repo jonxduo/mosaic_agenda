@@ -899,3 +899,6 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
 - `scripts/seed-dev.sh`: gruppi dal 1° gennaio, rapporti di agosto (registrati) e settembre
   (inoltrati) per tutti, programmi di settembre e ottobre pubblicati per Vita e ministero,
   Adunanza pubblica, Audio/video e Uscieri; ottobre resta da compilare.
+- Bacheca per mese: `board(month)` dà i programmi con almeno un evento nel mese (anche quelli
+  vecchi, non più esposti), più gli avvisi di oggi nel mese corrente. In cima alla pagina il mese
+  con le frecce; il mese scelto resta quando si torna da un programma.
