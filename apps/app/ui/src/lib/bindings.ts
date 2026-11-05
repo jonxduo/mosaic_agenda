@@ -1354,6 +1354,8 @@ export type SyncStatus_Deserialize = {
 	outbox: number,
 	last_sync?: string | null,
 	peers: PeerInfo_Deserialize[],
+	/**  The organization's id (hex), for the blind node's configuration. */
+	org_id?: string | null,
 	/**  Public key of the blind backup node (§10.3), if declared. */
 	backup_node?: string | null,
 	/**  Root administrators set or remove it. */
@@ -1367,6 +1369,8 @@ export type SyncStatus_Serialize = {
 	outbox: number,
 	last_sync: string | null,
 	peers: PeerInfo_Serialize[],
+	/**  The organization's id (hex), for the blind node's configuration. */
+	org_id: string | null,
 	/**  Public key of the blind backup node (§10.3), if declared. */
 	backup_node: string | null,
 	/**  Root administrators set or remove it. */

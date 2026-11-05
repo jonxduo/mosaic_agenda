@@ -2921,12 +2921,16 @@ impl Core {
                     .collect()
             })
             .unwrap_or_default();
-        let (backup_node, can_set_backup_node) = self
+        let (org_id, backup_node, can_set_backup_node) = self
             .view()
             .ok()
             .map(|v| {
                 let root = self.me().is_ok_and(|me| v.proj.auth.is_root(me));
-                (v.proj.auth.backup_node.map(|k| k.to_string()), root)
+                (
+                    Some(v.proj.org.0.iter().map(|b| format!("{b:02x}")).collect::<String>()),
+                    v.proj.auth.backup_node.map(|k| k.to_string()),
+                    root,
+                )
             })
             .unwrap_or_default();
         let last = self.local()?.last_sync.map(|ms| {
@@ -2945,6 +2949,7 @@ impl Core {
             outbox,
             last_sync: last,
             peers,
+            org_id,
             backup_node,
             can_set_backup_node,
         })

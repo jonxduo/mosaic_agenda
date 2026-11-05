@@ -1041,3 +1041,11 @@ Piano di F11:
   di programma. I dispositivi contano dall'ultimo giorno del periodo, che viene prima: il nodo
   non toglie mai prima di loro. Poi gli eventi successivi di oggetti già svuotati.
 - `core_engine::engine::expires` ora pubblico, usato anche dal nodo.
+
+### F11 passo 5 (interfaccia), fatto
+- Sincronizzazione: riquadro "Nodo di backup sul server" con la chiave del nodo e, per gli
+  amministratori radice, l'id dell'organizzazione da mettere nella configurazione del server e
+  il campo per dichiarare o togliere il nodo. Lo stato "Sul server" compare dove si mostra la
+  consegna dei documenti.
+- Resta da fare con un server vero: avvio con `docker compose --profile backup` (Docker non è
+  disponibile sulla macchina di sviluppo) e prova tra telefoni reali.

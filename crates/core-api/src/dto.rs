@@ -662,6 +662,8 @@ pub struct SyncStatus {
     pub outbox: u32,
     pub last_sync: Option<String>,
     pub peers: Vec<PeerInfo>,
+    /// The organization's id (hex), for the blind node's configuration.
+    pub org_id: Option<String>,
     /// Public key of the blind backup node (§10.3), if declared.
     pub backup_node: Option<String>,
     /// Root administrators set or remove it.
