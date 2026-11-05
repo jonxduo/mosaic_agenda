@@ -56,7 +56,7 @@
               <tr onclick={() => go('form', { form: r.form, period: r.period })} class="link" title={t('open')}>
                 <td class="period">{r.period_label}{#if r.variant_label}<span class="muted variant">{r.variant_label}</span>{/if}</td>
                 {#each columns as c (c)}<td>{cell(r, c)}</td>{/each}
-                <td><span class="badge" class:ok={!r.editable}>{r.state_label}</span></td>
+                <td><span class="badge state" class:ok={!r.editable} title={r.state_label}>{r.state_label}</span></td>
               </tr>
             {/each}
           </tbody>
@@ -85,7 +85,11 @@
   /* Phone: the headers do not widen the columns; a long one ends in "…"
      (full text on hover). The table scrolls only if the values do not fit. */
   @media (max-width: 760px) {
-    th { min-width: 64px; }
+    th, td { padding-left: 8px; padding-right: 8px; }
+    th:first-child, td:first-child { padding-left: 16px; }
+    th { min-width: 44px; }
+    .period { white-space: normal; }
+    .state { display: inline-block; max-width: 96px; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
     th .h { display: block; width: 0; min-width: 100%; overflow: hidden; text-overflow: ellipsis; }
   }
   .variant { display: block; font-weight: 400; font-size: 12px; text-transform: none; }
