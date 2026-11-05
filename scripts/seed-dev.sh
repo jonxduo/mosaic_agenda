@@ -17,6 +17,7 @@ c grant_role "{\"person\":\"$me\",\"role\":\"av_manager\",\"unit\":null}" >/dev/
 c grant_role "{\"person\":\"$me\",\"role\":\"attendant_manager\",\"unit\":null}" >/dev/null
 u=$(c create_unit '{"unitType":"group","name":"Gruppo Centro"}' | tr -d '"')
 u2=$(c create_unit '{"unitType":"group","name":"Gruppo Nord"}' | tr -d '"')
+c set_membership "{\"person\":\"$me\",\"unit\":\"$u\",\"from\":\"2026-01-01\"}" >/dev/null
 
 # name|sex|birth|hope|baptism|qualifications from 2015-09-01|group (c/n)
 while IFS='|' read -r name sx birth hope bapt extra unit; do
@@ -24,7 +25,7 @@ while IFS='|' read -r name sx birth hope bapt extra unit; do
   g "$id" publisher '"2000-01-01"'
   [ -n "$bapt" ] && g "$id" baptized "\"$bapt\""
   for q in $extra; do g "$id" "$q" '"2015-09-01"'; done
-  c set_membership "{\"person\":\"$id\",\"unit\":\"$([ "$unit" = n ] && echo "$u2" || echo "$u")\",\"from\":null}" >/dev/null
+  c set_membership "{\"person\":\"$id\",\"unit\":\"$([ "$unit" = n ] && echo "$u2" || echo "$u")\",\"from\":\"2026-01-01\"}" >/dev/null
 done <<'L'
 Andreani Giovanni|m|1958-02-11|other_sheep|1974-08-03|elder can_lmm_chairman can_public_chairman can_prayer can_treasures can_gems can_living can_cbs_conductor can_public_talk can_wt_conductor|c
 Bianchi Marco|m|1990-06-30|other_sheep|2006-04-22|ministerial_servant regular_pioneer can_av can_microphones can_prayer can_bible_reading can_cbs_reader can_wt_reader|c
@@ -49,4 +50,62 @@ for f in files:
     if f["path"] == "programs.yaml":
         f["text"] = f["text"].replace("id: aux_class, label: o.aux_class, enabled: false", "id: aux_class, label: o.aux_class, enabled: true")
 print("configurazione", call("config_publish", {"files": files}))
+PY
+
+# Past months: reports (August registered, September forwarded; October is
+# left to fill) and programs of September and October, filled and published.
+python3 - "$API" <<'PY'
+import json, random, sys, urllib.error, urllib.request
+api = sys.argv[1]
+random.seed(7)
+def call(cmd, body):
+    r = urllib.request.Request(f"{api}/{cmd}", data=json.dumps(body).encode(), headers={"content-type": "application/json"})
+    try:
+        return json.load(urllib.request.urlopen(r, timeout=300))
+    except urllib.error.HTTPError as e:
+        raise SystemExit(f"{cmd}: {e.read().decode()}")
+
+people = call("people", {})["persons"]
+for period in ("2026-08", "2026-09"):
+    for p in people:
+        v = call("form", {"form": "service_report", "subject": p["person_id"], "period": period})
+        ids = {f["id"] for f in v["fields"]}
+        values = {}
+        if "hours" in ids: values["hours"] = random.choice([2700, 3000, 3300, 3600, 4200])
+        if "participated" in ids: values["participated"] = random.random() > 0.1
+        if "bible_studies" in ids: values["bible_studies"] = random.choice([0, 0, 1, 1, 2])
+        v = call("save_document", {"form": "service_report", "subject": p["person_id"], "period": period, "values": values})
+        call("step_document", {"document": v["document_id"], "step": "submit", "note": None})
+    # The work queue lists only the current month: step each group's batch directly.
+    for u in call("people", {})["units"]:
+        call("batch_step", {"form": "service_report", "unit": u["id"], "period": period, "step": "forward"})
+        if period == "2026-08":
+            call("batch_step", {"form": "service_report", "unit": u["id"], "period": period, "step": "register"})
+print("rapporti: agosto registrati, settembre inoltrati")
+
+for ty in ("midweek", "weekend", "av", "attendants"):
+    for period in ("2026-09", "2026-10"):
+        d = call("program_dates", {"programType": ty, "period": period})
+        if not d["dates"] or d["exists"]:
+            continue
+        pid = call("draft_program", {"programType": ty, "dates": d["dates"]})
+        e = call("program", {"program": pid})
+        if e["can_prefill"]:
+            try:
+                e = call("prefill_program", {"program": pid, "occurrences": None})
+            except SystemExit:
+                pass
+        changes, used = [], {}
+        for c in e["cells"]:
+            if not (c["assignable"] and c["shown"] and c["candidates"]) or c["column"]:
+                continue
+            taken = used.setdefault(c["occurrence"], set())
+            free = [o for o in c["candidates"] if o["id"] not in taken] or c["candidates"]
+            pick = random.choice(free)["id"]
+            taken.add(pick)
+            changes.append({"occurrence": c["occurrence"], "slot": c["slot"], "index": c["index"], "person": pick})
+        call("assign_slots", {"program": pid, "changes": changes, "details": [], "parts": []})
+        call("send_program", {"program": pid})
+        call("publish_program", {"program": pid})
+print("programmi: settembre e ottobre pubblicati")
 PY

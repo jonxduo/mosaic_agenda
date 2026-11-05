@@ -5,7 +5,8 @@
   import FieldInput from '../components/FieldInput.svelte';
   import { fail, toast } from '../toast.svelte';
 
-  let { form, subject, period, onchange }: { form: string; subject?: string; period: string; onchange: () => void } = $props();
+  // `embedded`: inside another page (no way back, smaller title).
+  let { form, subject, period, onchange, embedded = false }: { form: string; subject?: string; period: string; onchange: () => void; embedded?: boolean } = $props();
   let view = $state<FormView | null>(null);
   let values = $state<Record<string, unknown>>({});
   let note = $state('');
@@ -53,8 +54,8 @@
 {#if view}
   <form class="stack page" onsubmit={(e) => e.preventDefault()}>
     <header class="stack head">
-      <a href="#/home" onclick={(e) => { e.preventDefault(); history.back(); }}>← {t('back')}</a>
-      <h1>{view.title}</h1>
+      {#if !embedded}<a href="#/home" onclick={(e) => { e.preventDefault(); history.back(); }}>← {t('back')}</a>{/if}
+      {#if embedded}<h2>{view.title}</h2>{:else}<h1>{view.title}</h1>{/if}
       {#if view.subject_name && subject}<p class="muted">{view.subject_name}</p>{/if}
       {#if view.subtitle}<p class="muted">{view.subtitle}</p>{/if}
       {#if view.state_label}<p><span class="badge" data-testid="state">{view.state_label}</span>{#if view.delivery} <span class="muted">· {view.delivery}</span>{/if}</p>{/if}

@@ -238,6 +238,10 @@ pub struct DocumentRow {
     pub state_label: String,
     pub variant_label: String,
     pub delivery: Option<String>,
+    /// The answers, label and value, in the form's order.
+    pub values: Vec<BoardLine>,
+    /// Still in its initial state: it can be changed.
+    pub editable: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

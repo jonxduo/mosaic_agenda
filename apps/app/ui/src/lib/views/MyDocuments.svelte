@@ -1,25 +1,86 @@
 <script lang="ts">
+  // My reports: the next one to fill always on top, the ones before in a table.
   import type { DocumentRow_Serialize as Row } from '../bindings';
   import { api, run } from '../api';
+  import { t } from '../i18n';
   import { go } from '../router.svelte';
   import { fail } from '../toast.svelte';
+  import Form from './Form.svelte';
 
   let { form }: { form?: string } = $props();
   let rows = $state<Row[]>([]);
-  run(api.myDocuments(form ?? null)).then((r) => (rows = r)).catch(fail);
+  let next = $state<string | null>(null);
+  let loaded = $state(false);
+
+  async function load() {
+    try {
+      rows = await run(api.myDocuments(form ?? null));
+      next = form ? await run(api.nextPeriod(form)) : null;
+    } catch (e) {
+      fail(e);
+    } finally {
+      loaded = true;
+    }
+  }
+  load();
+
+  const past = $derived(rows.filter((r) => r.period !== next));
+  // Columns: the answers' labels, in the order they first appear.
+  const columns = $derived([...new Set(past.flatMap((r) => r.values.map((v) => v.label)))]);
+  const cell = (r: Row, label: string) => r.values.find((v) => v.label === label)?.value ?? '';
 </script>
 
-<div class="stack">
-  {#each rows as r (r.document_id)}
-    <a class="card spread link" href="#/form" onclick={(e) => { e.preventDefault(); go('form', { form: r.form, period: r.period }); }}>
-      <div class="stack tight grow"><h3>{r.period_label}</h3>{#if r.variant_label}<span class="muted">{r.variant_label}</span>{/if}</div>
-      <span class="badge">{r.state_label}</span>
-      {#if r.delivery}<span class="muted">{r.delivery}</span>{/if}
-    </a>
-  {/each}
+<div class="stack page">
+  {#if form && next}
+    {#key next}
+      <section class="card next">
+        <Form {form} period={next} embedded onchange={load} />
+      </section>
+    {/key}
+  {/if}
+
+  {#if past.length}
+    <section class="card table-card">
+      <h3>{t('reports_previous')}</h3>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>{t('report_period')}</th>
+              {#each columns as c (c)}<th>{c}</th>{/each}
+              <th>{t('state')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each past as r (r.document_id)}
+              <tr onclick={() => go('form', { form: r.form, period: r.period })} class="link" title={t('open')}>
+                <td class="period">{r.period_label}{#if r.variant_label}<span class="muted variant">{r.variant_label}</span>{/if}</td>
+                {#each columns as c (c)}<td>{cell(r, c)}</td>{/each}
+                <td><span class="badge" class:ok={!r.editable}>{r.state_label}</span></td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {:else if loaded && !next}
+    <p class="muted">{t('reports_none')}</p>
+  {/if}
 </div>
 
 <style>
-  .tight { gap: 4px; }
-  .link { color: var(--text); text-decoration: none; }
+  .page { gap: 18px; }
+  .next :global(.page) { gap: 12px; }
+  .table-card { padding: 16px 0 6px; }
+  .table-card h3 { padding: 0 20px 8px; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th { text-align: left; font-size: 13px; font-weight: 600; color: var(--muted); padding: 8px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th:first-child, td:first-child { padding-left: 20px; }
+  tr:last-child td { border-bottom: none; }
+  .link { cursor: pointer; }
+  .link:hover td { background: var(--primary-soft); }
+  .period { font-weight: 600; text-transform: capitalize; }
+  .variant { display: block; font-weight: 400; font-size: 12px; text-transform: none; }
 </style>

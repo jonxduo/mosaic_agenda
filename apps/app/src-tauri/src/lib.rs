@@ -86,6 +86,7 @@ cmd!(generate_aggregate(aggregate: String, period: String, note: Option<String>)
 cmd!(distribute_aggregate(aggregate: String, period: String) -> AggregateView => |c| c.distribute_aggregate(aggregate, period));
 cmd!(programs(types: Option<String>) -> ProgramList => |c| c.programs(types));
 cmd!(program(program: String) -> ProgramEditor => |c| c.program(program));
+cmd!(next_period(form: String) -> Option<String> => |c| c.next_period(form));
 cmd!(published_program(program: String) -> ProgramEditor => |c| c.published_program(program));
 cmd!(program_dates(program_type: String, period: Option<String>) -> core_api::schedule::ProgramDates => |c| c.program_dates(program_type, period));
 cmd!(draft_program(program_type: String, dates: Vec<String>) -> String => |c| c.draft_program(program_type, dates));
@@ -172,6 +173,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         programs,
         program,
         published_program,
+        next_period,
         program_dates,
         draft_program,
         assign_slot,

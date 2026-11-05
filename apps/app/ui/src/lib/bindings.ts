@@ -41,6 +41,7 @@ export const commands = {
 	programs: (types: string | null) => typedError<ProgramList_Serialize, ApiError>(__TAURI_INVOKE("programs", { types })),
 	program: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("program", { program })),
 	publishedProgram: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("published_program", { program })),
+	nextPeriod: (form: string) => typedError<string | null, ApiError>(__TAURI_INVOKE("next_period", { form })),
 	programDates: (programType: string, period: string | null) => typedError<ProgramDates, ApiError>(__TAURI_INVOKE("program_dates", { programType, period })),
 	draftProgram: (programType: string, dates: string[]) => typedError<string, ApiError>(__TAURI_INVOKE("draft_program", { programType, dates })),
 	assignSlot: (program: string, occurrence: number, slot: string, index: number, person: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("assign_slot", { program, occurrence, slot, index, person })),
@@ -381,6 +382,10 @@ export type DocumentRow_Deserialize = {
 	state_label: string,
 	variant_label: string,
 	delivery?: string | null,
+	/**  The answers, label and value, in the form's order. */
+	values: BoardLine[],
+	/**  Still in its initial state: it can be changed. */
+	editable: boolean,
 };
 
 export type DocumentRow_Serialize = {
@@ -393,6 +398,10 @@ export type DocumentRow_Serialize = {
 	state_label: string,
 	variant_label: string,
 	delivery: string | null,
+	/**  The answers, label and value, in the form's order. */
+	values: BoardLine[],
+	/**  Still in its initial state: it can be changed. */
+	editable: boolean,
 };
 
 export type DueDocument = {

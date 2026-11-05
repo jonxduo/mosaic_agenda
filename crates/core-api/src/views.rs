@@ -1075,7 +1075,75 @@ impl Core {
                 variant_label
             },
             delivery: self.doc_delivery(v, id),
+            values: cfg(v)
+                .ok()
+                .and_then(|c| c.form(&d.content.form))
+                .and_then(|f| f.variants.iter().find(|x| x.id == d.content.variant))
+                .map(|var| {
+                    var.fields
+                        .iter()
+                        .filter_map(|f| {
+                            let val = d.content.values.get(&f.id)?;
+                            let value = match (f.ty, val) {
+                                (FieldType::Duration, Scalar::Int(m)) => {
+                                    if m % 60 == 0 {
+                                        format!("{} h", m / 60)
+                                    } else {
+                                        format!("{} h {} min", m / 60, m % 60)
+                                    }
+                                }
+                                (_, Scalar::Str(s)) if f.options.is_some() => {
+                                    t.get(&core_model::config::default_label::option(s))
+                                }
+                                (_, other) => display_value(other),
+                            };
+                            Some(BoardLine {
+                                label: field_dto(t, f, None).label,
+                                value,
+                            })
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
+            editable: cfg(v)
+                .ok()
+                .and_then(|c| c.form(&d.content.form).and_then(|f| c.form_workflow(f)))
+                .is_some_and(|w| w.initial == d.state),
         }
+    }
+
+    /// The period of `form` this user fills next: the one due if not handed
+    /// in yet, else the current one (none for forms without periods).
+    pub fn next_period(&self, form: String) -> ApiResult<Option<String>> {
+        self.ensure_unlocked()?;
+        let v = self.view()?;
+        let me = self.me()?;
+        let c = cfg(&v)?;
+        let f = c
+            .form(&Slug::new(&form).map_err(ApiError::invalid)?)
+            .ok_or_else(|| ApiError::not_found("form"))?;
+        if f.periodicity == Periodicity::None {
+            return Ok(None);
+        }
+        let initial = c.form_workflow(f).map(|w| w.initial.clone());
+        let handed_in = |p: &PeriodKey| {
+            v.proj.documents.values().any(|d| {
+                d.content.subject == me
+                    && d.content.form == f.id
+                    && &d.content.period == p
+                    && Some(&d.state) != initial.as_ref()
+            })
+        };
+        let now = today(self);
+        let due = last_period(f.periodicity, now);
+        let current = match f.periodicity {
+            Periodicity::Weekly => PeriodKey::week_of(now),
+            _ => PeriodKey::month_of(now),
+        };
+        Ok([due, current]
+            .into_iter()
+            .find(|p| !handed_in(p))
+            .map(|p| p.to_string()))
     }
 
     /// The form of a subject for a period: existing document or a blank one.

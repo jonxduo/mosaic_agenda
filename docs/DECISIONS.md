@@ -890,3 +890,12 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   pagina di un programma in bacheca usa la stessa disposizione dell'editor (settimane, fasce,
   colonne delle sale) con testi al posto dei campi e nomi al posto dei riquadri; mostra solo le
   righe con una persona o un testo.
+
+## 2026-11-05 — Pagina dei propri documenti; dati di prova con storico
+
+- `my_documents` (es. "Rapporti"): in cima il modulo del prossimo documento da compilare
+  (`next_period`: quello dovuto se non ancora consegnato, altrimenti il periodo in corso), sotto
+  una tabella dei precedenti con le risposte (`DocumentRow.values`) e lo stato.
+- `scripts/seed-dev.sh`: gruppi dal 1° gennaio, rapporti di agosto (registrati) e settembre
+  (inoltrati) per tutti, programmi di settembre e ottobre pubblicati per Vita e ministero,
+  Adunanza pubblica, Audio/video e Uscieri; ottobre resta da compilare.
