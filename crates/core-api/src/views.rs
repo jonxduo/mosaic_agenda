@@ -113,6 +113,44 @@ pub(crate) fn today(core: &Core) -> Date {
 }
 
 /// The last complete period of a periodicity, relative to `today`.
+/// Totals of a set of documents: sum of each numeric field (durations in
+/// hours), count of the yes answers, in the order of the form's fields.
+fn form_totals(t: &Texts, form: &core_model::config::FormDef, docs: &[&Document]) -> Vec<Measure> {
+    let mut seen = BTreeSet::new();
+    let mut out = Vec::new();
+    for f in form.variants.iter().flat_map(|v| v.fields.iter()) {
+        if !seen.insert(f.id.clone()) {
+            continue;
+        }
+        let values = docs.iter().filter_map(|d| d.content.values.get(&f.id));
+        let total: Option<f64> = match f.ty {
+            FieldType::Integer => Some(values.filter_map(|x| match x {
+                Scalar::Int(n) => Some(*n as f64),
+                _ => None,
+            }).sum()),
+            FieldType::Decimal => Some(values.filter_map(|x| match x {
+                Scalar::Int(n) => Some(*n as f64),
+                Scalar::Num(n) => Some(*n),
+                _ => None,
+            }).sum()),
+            FieldType::Duration => Some(values.filter_map(|x| match x {
+                Scalar::Int(m) => Some(*m as f64 / 60.0),
+                _ => None,
+            }).sum()),
+            FieldType::Boolean => Some(values.filter(|x| matches!(x, Scalar::Bool(true))).count() as f64),
+            _ => None,
+        };
+        if let Some(value) = total {
+            out.push(Measure {
+                label: field_dto(t, f, None).label,
+                // An empty float sum is -0.0.
+                value: value + 0.0,
+            });
+        }
+    }
+    out
+}
+
 pub(crate) fn last_period(p: Periodicity, today: Date) -> PeriodKey {
     match p {
         Periodicity::Monthly => PeriodKey::month_of(add_days(
@@ -1461,6 +1499,123 @@ impl Core {
             title,
             batches,
             documents,
+        })
+    }
+
+    /// The units of `unit_type` whose documents of `workflow` this user may
+    /// read: members, collections in progress, totals of the period being
+    /// collected and the documents month by month.
+    pub fn unit_reports(&self, workflow: String, unit_type: String) -> ApiResult<UnitReports> {
+        self.ensure_unlocked()?;
+        let v = self.view()?;
+        let me = self.me()?;
+        let t = self.texts();
+        let cfg = cfg(&v)?;
+        let now = today(self);
+        let wf_id = Slug::new(&workflow).map_err(ApiError::invalid)?;
+        let ut = Slug::new(&unit_type).map_err(ApiError::invalid)?;
+        let Some(form) = cfg.forms().iter().find(|f| {
+            f.workflow == wf_id && f.batching.as_ref().is_some_and(|b| b.unit_type == ut)
+        }) else {
+            return Err(ApiError::not_found("form"));
+        };
+        let wf = cfg
+            .workflow(&wf_id)
+            .ok_or_else(|| ApiError::not_found("workflow"))?;
+        let object = ObjectRef {
+            kind: ObjectKind::Form,
+            id: form.id.clone(),
+        };
+        let queue = self.work_queue(workflow.clone(), Some(unit_type.clone()))?;
+        let people = self.people_unchecked()?;
+        let current = last_period(form.periodicity, now);
+        let mut units = Vec::new();
+        for (uid, unit) in v
+            .proj
+            .auth
+            .org
+            .units
+            .iter()
+            .filter(|(_, u)| u.active && u.unit_type == ut)
+        {
+            if !v.proj.auth.is_allowed(
+                cfg,
+                me,
+                Permission::DocumentRead,
+                Some(&object),
+                Some(*uid),
+                now,
+            ) {
+                continue;
+            }
+            let id = uid.to_string();
+            let mut members: Vec<PersonView> = people
+                .persons
+                .iter()
+                .filter(|p| p.unit_ids.iter().any(|u| u.unit_id == id))
+                .cloned()
+                .collect();
+            members.sort_by(|a, b| a.name.cmp(&b.name));
+            let batches: Vec<BatchView> = queue
+                .batches
+                .iter()
+                .filter(|b| b.unit_id == id)
+                .cloned()
+                .collect();
+            // Documents of this unit handed in (past the initial state).
+            let docs: Vec<(&core_model::Id, &Document)> = v
+                .proj
+                .documents
+                .iter()
+                .filter(|(_, d)| {
+                    d.content.form == form.id && d.content.unit == Some(*uid) && d.state != wf.initial
+                })
+                .collect();
+            let in_period: Vec<&Document> = docs
+                .iter()
+                .filter(|(_, d)| d.content.period == current)
+                .map(|(_, d)| *d)
+                .collect();
+            let expected = expected_subjects(&v.proj.auth, cfg, form, &current, Some(*uid)).len();
+            let summary = Some(PeriodSummary {
+                period_label: t.period(&current),
+                received: u32::try_from(in_period.len()).unwrap_or(u32::MAX),
+                expected: u32::try_from(expected.max(in_period.len())).unwrap_or(u32::MAX),
+                totals: form_totals(&t, form, &in_period),
+            });
+            let mut periods: BTreeMap<PeriodKey, Vec<DocumentRow>> = BTreeMap::new();
+            for (did, d) in &docs {
+                periods
+                    .entry(d.content.period)
+                    .or_default()
+                    .push(self.document_row(&v, &t, did, d));
+            }
+            let months = periods
+                .into_iter()
+                .rev()
+                .take(12)
+                .map(|(p, mut rows)| {
+                    rows.sort_by(|a, b| a.subject_name.cmp(&b.subject_name));
+                    MonthReports {
+                        period: p.to_string(),
+                        period_label: t.period(&p),
+                        rows,
+                    }
+                })
+                .collect();
+            units.push(UnitPanel {
+                unit_id: id,
+                unit_name: unit.name.clone(),
+                members,
+                batches,
+                summary,
+                months,
+            });
+        }
+        units.sort_by(|a, b| a.unit_name.cmp(&b.unit_name));
+        Ok(UnitReports {
+            title: t.get(form.label.as_str()),
+            units,
         })
     }
 

@@ -1049,3 +1049,14 @@ Piano di F11:
   consegna dei documenti.
 - Resta da fare con un server vero: avvio con `docker compose --profile backup` (Docker non è
   disponibile sulla macchina di sviluppo) e prova tra telefoni reali.
+
+## 2026-11-05 — "Il mio gruppo": componenti e rapporti
+
+- Nuova vista generica `unit_reports` (`workflow`, `unit_type`): le unità di quel tipo di cui si
+  possono leggere i documenti del flusso (permesso di lettura sull'unità; gli amministratori
+  radice le vedono tutte). Per ognuna: componenti in sola lettura, con i dettagli che si aprono,
+  e i rapporti: raccolta in corso (chi manca, compila per conto, invio), totali del periodo e
+  archivio mese per mese.
+- I totali sono generici: somma dei campi numerici (durate in ore) e conteggio dei sì.
+- La scheda della raccolta è ora un componente (`BatchCard`) usato anche dalla coda di lavoro.
+- Nel pacchetto "Il mio gruppo" usa la nuova vista.

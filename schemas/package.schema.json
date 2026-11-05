@@ -3480,6 +3480,11 @@
           "const": "qualification_matrix",
           "description": "Persons × qualifications, each cell granted or not.",
           "type": "string"
+        },
+        {
+          "const": "unit_reports",
+          "description": "The units of a type one oversees: their members and the documents\nof a workflow, month by month (`workflow`, `unit_type`).",
+          "type": "string"
         }
       ]
     },

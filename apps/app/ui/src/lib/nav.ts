@@ -11,6 +11,7 @@ const SECTION: Record<string, Section> = {
   my_resources: 'me',
   board: 'me',
   work_queue: 'work',
+  unit_reports: 'work',
   batch: 'work',
   aggregate: 'work',
   program_list: 'work',
@@ -39,7 +40,7 @@ export function grouped(menu: MenuItem[]): { section: Section; items: MenuItem[]
 
 /** Up to `n` items for the phone's bottom bar: the most used views first. */
 export function primary(menu: MenuItem[], n: number): MenuItem[] {
-  const rank = ['home', 'my_documents', 'my_assignments', 'work_queue', 'program_list', 'board', 'my_resources'];
+  const rank = ['home', 'my_documents', 'my_assignments', 'unit_reports', 'work_queue', 'program_list', 'board', 'my_resources'];
   return [...menu]
     .filter((m) => rank.includes(m.view))
     .sort((a, b) => rank.indexOf(a.view) - rank.indexOf(b.view))
@@ -56,6 +57,7 @@ export const ICONS: Record<string, string> = {
   resource_list: 'M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z M9 4v14 M15 6v14',
   board: 'M9 3h6v3H9z M7 5H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2 M8 12h8 M8 16h5',
   work_queue: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',
+  unit_reports: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',
   batch: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8',
   aggregate: 'M4 20V10 M10 20V4 M16 20v-7 M22 20H2',
   program_list: 'M8 2v4 M16 2v4 M3 9h18 M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',

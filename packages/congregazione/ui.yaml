@@ -12,7 +12,7 @@ home:
 menu:
   - { label: menu.home, view: home }
   - { label: menu.reports, view: my_documents, params: { form: service_report } }
-  - { label: menu.group, view: work_queue, params: { workflow: service_report, unit_type: group }, visible_to: group_leaders }
+  - { label: menu.group, view: unit_reports, params: { workflow: service_report, unit_type: group }, visible_to: group_leaders }
   - { label: menu.secretariat, view: work_queue, params: { workflow: service_report }, visible_to: secretariat }
   - { label: menu.summary, view: aggregate, params: { aggregate: monthly_summary }, visible_to: elders }
   - { label: menu.programs, view: program_list, params: { types: [midweek, weekend, av, attendants, field_service] } }

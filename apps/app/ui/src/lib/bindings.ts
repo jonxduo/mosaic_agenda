@@ -81,6 +81,7 @@ export const commands = {
 	revokeDevice: (device: string) => typedError<null, ApiError>(__TAURI_INVOKE("revoke_device", { device })),
 	setArchive: (device: string, archive: boolean) => typedError<null, ApiError>(__TAURI_INVOKE("set_archive", { device, archive })),
 	setBackupNode: (node: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("set_backup_node", { node })),
+	unitReports: (workflow: string, unitType: string) => typedError<UnitReports_Serialize, ApiError>(__TAURI_INVOKE("unit_reports", { workflow, unitType })),
 	exportPerson: (person: string) => typedError<PersonExport_Serialize, ApiError>(__TAURI_INVOKE("export_person", { person })),
 	requestErasure: (person: string) => typedError<null, ApiError>(__TAURI_INVOKE("request_erasure", { person })),
 	exportPersonTo: (person: string, path: string) => typedError<null, ApiError>(__TAURI_INVOKE("export_person_to", { person, path })),
@@ -663,6 +664,20 @@ export type MenuItem = {
 	params: { [key in string]: string },
 };
 
+export type MonthReports = MonthReports_Serialize | MonthReports_Deserialize;
+
+export type MonthReports_Deserialize = {
+	period: string,
+	period_label: string,
+	rows: DocumentRow_Deserialize[],
+};
+
+export type MonthReports_Serialize = {
+	period: string,
+	period_label: string,
+	rows: DocumentRow_Serialize[],
+};
+
 export type Notification = {
 	id: string,
 	text: string,
@@ -763,6 +778,14 @@ export type People_Serialize = {
 	/**  Attributes edited with the devices (`ui.people.with_devices`). */
 	with_devices: string[],
 	role_options: RoleOption_Serialize[],
+};
+
+export type PeriodSummary = {
+	period_label: string,
+	received: number,
+	expected: number,
+	/**  Sums of the numeric fields, count of the yes answers. */
+	totals: Measure[],
 };
 
 /**  Everything this device holds in clear about a person. */
@@ -1377,11 +1400,54 @@ export type SyncStatus_Serialize = {
 	can_set_backup_node: boolean,
 };
 
+export type UnitPanel = UnitPanel_Serialize | UnitPanel_Deserialize;
+
+export type UnitPanel_Deserialize = {
+	unit_id: string,
+	unit_name: string,
+	/**  Members today, read only. */
+	members: PersonView_Deserialize[],
+	/**  Collections in progress (received, missing, steps), as in the work queue. */
+	batches: BatchView_Deserialize[],
+	/**  The period being collected: how many came in and the totals. */
+	summary?: PeriodSummary | null,
+	/**  Documents of past periods, newest first. */
+	months: MonthReports_Deserialize[],
+};
+
+export type UnitPanel_Serialize = {
+	unit_id: string,
+	unit_name: string,
+	/**  Members today, read only. */
+	members: PersonView_Serialize[],
+	/**  Collections in progress (received, missing, steps), as in the work queue. */
+	batches: BatchView_Serialize[],
+	/**  The period being collected: how many came in and the totals. */
+	summary: PeriodSummary | null,
+	/**  Documents of past periods, newest first. */
+	months: MonthReports_Serialize[],
+};
+
 export type UnitRef = {
 	unit_id: string,
 	unit_type: string,
 	/**  The membership, to end it. */
 	membership_id: string,
+};
+
+/**  The units one oversees: members and documents month by month. */
+export type UnitReports = UnitReports_Serialize | UnitReports_Deserialize;
+
+/**  The units one oversees: members and documents month by month. */
+export type UnitReports_Deserialize = {
+	title: string,
+	units: UnitPanel_Deserialize[],
+};
+
+/**  The units one oversees: members and documents month by month. */
+export type UnitReports_Serialize = {
+	title: string,
+	units: UnitPanel_Serialize[],
 };
 
 export type UnitView = {

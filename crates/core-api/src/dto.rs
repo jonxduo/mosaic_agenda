@@ -279,6 +279,43 @@ pub struct WorkQueue {
     pub documents: Vec<DocumentRow>,
 }
 
+/// The units one oversees: members and documents month by month.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct UnitReports {
+    pub title: String,
+    pub units: Vec<UnitPanel>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct UnitPanel {
+    pub unit_id: String,
+    pub unit_name: String,
+    /// Members today, read only.
+    pub members: Vec<PersonView>,
+    /// Collections in progress (received, missing, steps), as in the work queue.
+    pub batches: Vec<BatchView>,
+    /// The period being collected: how many came in and the totals.
+    pub summary: Option<PeriodSummary>,
+    /// Documents of past periods, newest first.
+    pub months: Vec<MonthReports>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct PeriodSummary {
+    pub period_label: String,
+    pub received: u32,
+    pub expected: u32,
+    /// Sums of the numeric fields, count of the yes answers.
+    pub totals: Vec<Measure>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct MonthReports {
+    pub period: String,
+    pub period_label: String,
+    pub rows: Vec<DocumentRow>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct Measure {
     pub label: String,

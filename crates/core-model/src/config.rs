@@ -1249,6 +1249,9 @@ pub enum ViewKind {
     Settings,
     /// Persons × qualifications, each cell granted or not.
     QualificationMatrix,
+    /// The units of a type one oversees: their members and the documents
+    /// of a workflow, month by month (`workflow`, `unit_type`).
+    UnitReports,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, JsonSchema)]

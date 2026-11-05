@@ -189,6 +189,22 @@ async fn run_flow(network: Network) {
     let q = a.work_queue("log".into(), None).unwrap();
     let batch = q.batches.iter().find(|x| x.period == period).unwrap();
     assert!(batch.actions.iter().any(|x| x.id == "forward"), "{batch:?}");
+    // The same unit in the overview: members, and the month with both logs.
+    let r = a.unit_reports("log".into(), "team".into()).unwrap();
+    let unit = r.units.iter().find(|u| u.unit_id == team).unwrap();
+    assert!(unit.members.len() >= 2, "{:?}", unit.members.len());
+    let month = unit.months.iter().find(|m| m.period == period).unwrap();
+    assert_eq!(month.rows.len(), 2);
+    if let Some(s) = unit.summary.as_ref().filter(|s| s.received == 2) {
+        // Totals of the period being collected: counts summed, yes counted.
+        let count = s.totals.iter().find(|m| m.label.to_lowercase().contains("count"));
+        assert_eq!(count.map(|m| m.value), Some(3.0), "{:?}", s.totals);
+    }
+    assert!(
+        b.unit_reports("log".into(), "team".into())
+            .is_ok_and(|r| r.units.is_empty()),
+        "a member does not oversee the unit"
+    );
     a.batch_step("log".into(), team.clone(), period.clone(), "forward".into())
         .unwrap();
     a.batch_step("log".into(), team.clone(), period.clone(), "file".into())

@@ -18,6 +18,7 @@
   import Form from './views/Form.svelte';
   import MyDocuments from './views/MyDocuments.svelte';
   import WorkQueue from './views/WorkQueue.svelte';
+  import UnitReports from './views/UnitReports.svelte';
   import Aggregate from './views/Aggregate.svelte';
   import Programs from './views/Programs.svelte';
   import Program from './views/Program.svelte';
@@ -263,6 +264,7 @@
         {#if route.view === 'home'}<Home me={status.me} onchange={refresh} />
         {:else if route.view === 'form'}<Form form={params.form} subject={params.subject} period={params.period} onchange={refresh} />
         {:else if route.view === 'my_documents'}<MyDocuments form={params.form} />
+        {:else if route.view === 'unit_reports'}<UnitReports workflow={params.workflow} unitType={params.unit_type} onchange={refresh} />
         {:else if route.view === 'work_queue' || route.view === 'batch'}<WorkQueue workflow={params.workflow} unitType={params.unit_type} onchange={refresh} />
         {:else if route.view === 'aggregate'}<Aggregate aggregate={params.aggregate} period={params.period} />
         {:else if route.view === 'program_list'}<Programs types={params.types} />
