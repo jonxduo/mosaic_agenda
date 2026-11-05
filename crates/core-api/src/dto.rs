@@ -340,6 +340,10 @@ pub struct SlotCell {
     pub section: Option<String>,
     /// Takes a person (else it only holds details).
     pub assignable: bool,
+    /// Part of this event (else removed, or not added yet).
+    pub shown: bool,
+    /// The editor shows the slot's name on the left of its row.
+    pub row_name: bool,
 }
 
 /// A person in the editor's side list, with how long since their last
@@ -373,6 +377,15 @@ pub struct SectionView {
     pub id: String,
     pub label: String,
     pub color: Option<String>,
+}
+
+/// A part shown or removed in one event (editor).
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct PartChange {
+    pub occurrence: u32,
+    pub slot: String,
+    pub index: u32,
+    pub shown: bool,
 }
 
 /// The details of one slot written in the editor: field → text, an empty

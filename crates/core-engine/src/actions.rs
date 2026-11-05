@@ -956,6 +956,28 @@ impl<'a> Client<'a> {
         self.finish(chain)
     }
 
+    /// Shows or removes parts of a program for single events.
+    pub fn show_program_parts(
+        &self,
+        program: Id,
+        parts: Vec<(SlotKey, bool)>,
+    ) -> Result<Vec<SignedEvent>, ActionError> {
+        let p = self
+            .proj
+            .programs
+            .get(&program)
+            .ok_or_else(|| nf("program"))?;
+        let mut chain = self.chain();
+        self.sealed(
+            &mut chain,
+            EventKind::ProgramPartsShown,
+            &program_draft_descriptor(&p.program_type),
+            Self::header(ObjectType::Program, program, &p.program_type),
+            &ProgramPartsShown { program, parts },
+        )?;
+        self.finish(chain)
+    }
+
     /// Sets the details (extra fields) of slots, assigned or not.
     pub fn set_program_details(
         &self,

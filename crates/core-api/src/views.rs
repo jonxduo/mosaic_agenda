@@ -179,7 +179,7 @@ pub(crate) fn other_slots(v: &View, cfg: &Cfg, t: &Texts, this: &core_model::Id)
                     Some(core_model::config::Repeat::Count(n)) => n,
                     _ => 1,
                 };
-                let slot_label = if slot.count * reps > 1 {
+                let slot_label = if slot.count * reps > 1 && slot.numbered {
                     format!("{} {}", t.get(slot.label.as_str()), it.key.index + 1)
                 } else {
                     t.get(slot.label.as_str())
@@ -1809,6 +1809,12 @@ impl Core {
                     })
                     .unwrap_or_default(),
             };
+        let shown_of = v
+            .proj
+            .programs
+            .get(&id)
+            .map(|p| p.shown.clone())
+            .unwrap_or_default();
         let groups = crate::schedule::groups(def.rotation, &occurrences);
         let mut cells = Vec::new();
         // Slots that change at every event get one cell per event.
@@ -1892,7 +1898,7 @@ impl Core {
                     } else {
                         "pending"
                     };
-                    let label = if slot.count * reps > 1 {
+                    let label = if slot.count * reps > 1 && slot.numbered {
                         format!("{} {}", t.get(slot.label.as_str()), index + 1)
                     } else {
                         t.get(slot.label.as_str())
@@ -1919,6 +1925,11 @@ impl Core {
                         column: placement(def, slot).1.map(ToString::to_string),
                         section: slot.section.as_ref().map(ToString::to_string),
                         assignable: slot.assignable,
+                        shown: shown_of
+                            .get(&key)
+                            .copied()
+                            .unwrap_or_else(|| slot.shown_by_default(index)),
+                        row_name: slot.row_name,
                     });
                 }
             }
@@ -2036,9 +2047,8 @@ impl Core {
                     .programs
                     .get(&id)
                     .is_some_and(|p| p.details.is_empty()),
-            // Notified at publication: "Salva" hands the program over, no send.
+            // "Invia": to the assignees, or, notified at publication, to who publishes.
             can_send: can_edit
-                && !at_publish
                 && v.proj.auth.is_allowed(
                     cfg,
                     me,

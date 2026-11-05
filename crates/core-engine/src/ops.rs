@@ -314,6 +314,13 @@ pub struct ProgramDetailsSet {
     pub details: Vec<(SlotKey, Values)>,
 }
 
+/// Parts of a program shown or removed for one event (`true`: shown).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProgramPartsShown {
+    pub program: Id,
+    pub parts: Vec<(SlotKey, bool)>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Response {
     Accepted,
@@ -474,6 +481,7 @@ pub enum Op {
     ProgramDrafted(ProgramDrafted),
     ProgramUpdated(ProgramUpdated),
     ProgramDetailsSet(ProgramDetailsSet),
+    ProgramPartsShown(ProgramPartsShown),
     ProgramAssignmentsSent(AssignmentsSent),
     AssignmentResponded(AssignmentResponded),
     ProgramPublished(ProgramSnapshot),
@@ -535,6 +543,7 @@ impl Op {
             K::ProgramDrafted => Op::ProgramDrafted(de(bytes)?),
             K::ProgramUpdated => Op::ProgramUpdated(de(bytes)?),
             K::ProgramDetailsSet => Op::ProgramDetailsSet(de(bytes)?),
+            K::ProgramPartsShown => Op::ProgramPartsShown(de(bytes)?),
             K::ProgramAssignmentsSent => Op::ProgramAssignmentsSent(de(bytes)?),
             K::AssignmentResponded => Op::AssignmentResponded(de(bytes)?),
             K::ProgramPublished => Op::ProgramPublished(de(bytes)?),

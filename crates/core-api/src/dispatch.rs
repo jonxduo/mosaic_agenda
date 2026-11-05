@@ -196,7 +196,7 @@ pub async fn dispatch(core: &Arc<Core>, cmd: &str, input: Value) -> ApiResult<Va
             call!({ program: String, occurrence: u32, slot: String, index: u32, person: String } => core.assign_slot(program, occurrence, slot, index, person)?)
         }
         "assign_slots" => {
-            call!({ program: String, changes: Vec<crate::dto::SlotChange>, details: Vec<crate::dto::DetailChange> } => core.assign_slots(program, changes, details)?)
+            call!({ program: String, changes: Vec<crate::dto::SlotChange>, details: Vec<crate::dto::DetailChange>, parts: Vec<crate::dto::PartChange> } => core.assign_slots(program, changes, details, parts)?)
         }
         "send_program" => call!({ program: String } => core.send_program(program)?),
         "publish_program" => call!({ program: String } => core.publish_program(program)?),
@@ -270,7 +270,7 @@ pub async fn dispatch(core: &Arc<Core>, cmd: &str, input: Value) -> ApiResult<Va
         "sync_status" => json(core.sync_status().await?),
         "sync_now" => json(core.sync_now().await?),
         "prefill_program" => {
-            call!({ program: String } => core.prefill_program(program).await?)
+            call!({ program: String, occurrences: Option<Vec<u32>> } => core.prefill_program(program, occurrences).await?)
         }
         "notifications" => json(core.take_notifications()?),
         "settings" => json(core.settings()?),

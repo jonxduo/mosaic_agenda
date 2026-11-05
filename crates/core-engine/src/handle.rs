@@ -231,6 +231,7 @@ pub(crate) fn handle(
         Op::ProgramDrafted(d) => program_drafted(proj, &h, d),
         Op::ProgramUpdated(u) => program_updated(proj, &h, u),
         Op::ProgramDetailsSet(d) => program_details_set(proj, &h, d),
+        Op::ProgramPartsShown(d) => program_parts_shown(proj, &h, d),
         Op::ProgramAssignmentsSent(s) => assignments_sent(proj, &h, s),
         Op::AssignmentResponded(r) => assignment_responded(proj, &h, r),
         Op::ProgramPublished(s) => program_published(proj, &h, s, false),
@@ -1031,8 +1032,57 @@ fn program_drafted(proj: &mut Projection, h: &H<'_>, d: &ProgramDrafted) -> Resu
             status: ProgramStatus::Draft,
             sent_version: 0,
             details: BTreeMap::new(),
+            shown: BTreeMap::new(),
         },
     );
+    Ok(())
+}
+
+fn program_parts_shown(
+    proj: &mut Projection,
+    h: &H<'_>,
+    d: &ProgramPartsShown,
+) -> Result<(), Denied> {
+    let p = proj
+        .programs
+        .get(&d.program)
+        .ok_or_else(|| Denied("unknown program".into()))?;
+    let def = h
+        .cfg
+        .program_type(&p.program_type)
+        .ok_or_else(|| Denied("unknown program type".into()))?;
+    let obj = program_object(&p.program_type);
+    ensure(
+        h.allowed(Permission::ProgramDraft, Some(&obj), None)
+            || h.allowed(Permission::ProgramAssign, Some(&obj), None),
+        "permission program.draft or program.assign required",
+    )?;
+    h.expect_channel(proj, &program_draft_descriptor(&p.program_type))?;
+    for (key, _) in &d.parts {
+        let slot = def
+            .slots
+            .iter()
+            .find(|s| s.id == key.slot)
+            .ok_or_else(|| Denied(format!("unknown slot `{}`", key.slot)))?;
+        ensure(
+            usize::from(key.occurrence) < p.occurrences.len(),
+            "unknown occurrence",
+        )?;
+        let reps = match &slot.repeat {
+            None => 1,
+            Some(Repeat::Count(n)) => *n,
+            Some(Repeat::Field(_)) => 50,
+        };
+        ensure(
+            u32::from(key.index) < slot.count.saturating_mul(reps),
+            "slot position out of range",
+        )?;
+    }
+    if let Some(p) = proj.programs.get_mut(&d.program) {
+        for (key, on) in &d.parts {
+            p.shown.insert(key.clone(), *on);
+        }
+    }
     Ok(())
 }
 

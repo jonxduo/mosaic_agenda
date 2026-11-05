@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ProgramEditor_Serialize as Editor, SlotCell_Serialize as Cell, SlotChange, DetailChange, ProgramGroup } from '../bindings';
+  import type { ProgramEditor_Serialize as Editor, SlotCell_Serialize as Cell, SlotChange, DetailChange, PartChange, ProgramGroup } from '../bindings';
   import { api, run } from '../api';
   import { t } from '../i18n';
   import { fail, toast } from '../toast.svelte';
@@ -15,9 +15,12 @@
   // Choices and details stay here until "Salva" (or "Invia", which saves first).
   let pending = $state<Record<string, SlotChange>>({});
   let details = $state<Record<string, DetailChange>>({});
+  // Parts removed from or added to an event, until saved.
+  let parts = $state<Record<string, PartChange>>({});
   let busy = $state(false);
+  let readingWeek = $state<number | null>(null);
   const keyOf = (c: { occurrence: number; slot: string; index: number }) => `${c.occurrence}|${c.slot}|${c.index}`;
-  const changed = $derived(Object.keys(pending).length + Object.keys(details).length);
+  const changed = $derived(Object.keys(pending).length + Object.keys(details).length + Object.keys(parts).length);
   const valueOf = (c: Cell) => pending[keyOf(c)]?.person ?? c.assignee ?? '';
   const text = (v: unknown) => (v === null || v === undefined ? '' : String(v));
   const detailOf = (c: Cell, id: string) => details[keyOf(c)]?.values[id] ?? text(c.details.find((f) => f.id === id)?.value);
@@ -25,8 +28,37 @@
   const inRow = (top: Cell, column: string | null) =>
     p?.cells.filter((x) => x.occurrence === top.occurrence && x.per_event === top.per_event && x.row === top.slot && x.index === top.index && (x.column ?? null) === column) ?? [];
   const sectionOf = (id: string | null) => p?.sections.find((x) => x.id === id);
+  const shownOf = (c: Cell) => parts[keyOf(c)]?.shown ?? c.shown;
+  // A cell shown in another's row (an assistant) follows that row.
+  const topOf = (c: Cell) =>
+    p?.cells.find((x) => x.occurrence === c.occurrence && x.per_event === c.per_event && x.slot === c.row && x.index === c.index) ?? c;
+  const visible = (c: Cell) => shownOf(topOf(c));
   const rowsOf = (occurrence: number, perEvent: boolean) =>
-    p?.cells.filter((c) => c.occurrence === occurrence && c.per_event === perEvent && isRow(c)) ?? [];
+    p?.cells.filter((c) => c.occurrence === occurrence && c.per_event === perEvent && isRow(c) && shownOf(c)) ?? [];
+  // Rows of a week that can be added: one entry per slot, its first hidden position.
+  const addable = (g: ProgramGroup) => {
+    const occs = occsOf(g);
+    const seen = new Set<string>();
+    return (p?.cells ?? []).filter((c) => {
+      if (!occs.has(c.occurrence) || !isRow(c) || shownOf(c)) return false;
+      const k = `${c.occurrence}|${c.slot}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  };
+  function setShown(c: Cell, on: boolean) {
+    const k = keyOf(c);
+    if (on === c.shown) delete parts[k];
+    else parts[k] = { occurrence: c.occurrence, slot: c.slot, index: c.index, shown: on };
+    // A removed part keeps nobody.
+    if (!on) for (const x of [c, ...(p?.cells ?? []).filter((y) => y !== c && topOf(y) === c)]) if (valueOf(x)) choose(x, '');
+  }
+  // "Rossi Paolo" → "Rossi P.": the box is small, the tooltip has it all.
+  const short = (name: string) => {
+    const w = name.trim().split(/\s+/);
+    return w.length < 2 ? name : `${w[0]} ${w.slice(1).map((x) => `${x[0]}.`).join(' ')}`;
+  };
   const occsOf = (g: ProgramGroup) => new Set([g.occurrence, ...g.days.map((d) => d.occurrence)]);
 
   // The week (group of events) on screen: the side list is about it.
@@ -59,7 +91,7 @@
     if (!p || !g) return [];
     const occs = occsOf(g);
     const from = dayOf(p.dates[g.occurrence] ?? '');
-    const here = p.cells.filter((c) => occs.has(c.occurrence));
+    const here = p.cells.filter((c) => occs.has(c.occurrence) && visible(c));
     const eligible = new Set(here.flatMap((c) => c.candidates.map((o) => o.id)));
     const taken = new Set(here.map(valueOf).filter(Boolean));
     const before = new Map<string, number>();
@@ -120,15 +152,18 @@
   }
   load();
 
-  async function prefill(quiet = false) {
+  /** Reads the pages of all the events, or of one week (`g`). */
+  async function prefill(quiet = false, g?: ProgramGroup) {
     reading = true;
+    readingWeek = g?.occurrence ?? null;
     try {
-      p = await run(api.prefillProgram(program));
+      p = await run(api.prefillProgram(program, g ? [...occsOf(g)] : null));
       if (!quiet) toast(t('prefill_done'));
     } catch (e) {
       if (!quiet) fail(e);
     } finally {
       reading = false;
+      readingWeek = null;
     }
   }
 
@@ -147,12 +182,11 @@
     if (!changed && !p?.unsent) return true;
     busy = true;
     try {
-      // For programs notified at publication, saving also hands the program
-      // to who publishes it on the board.
-      p = await run(api.assignSlots(program, Object.values(pending), Object.values(details)));
+      p = await run(api.assignSlots(program, Object.values(pending), Object.values(details), Object.values(parts)));
       pending = {};
       details = {};
-      if (!quiet) toast(p?.can_send ? t('draft_saved') : t('saved'));
+      parts = {};
+      if (!quiet) toast(t('draft_saved'));
       return true;
     } catch (e) {
       fail(e);
@@ -165,7 +199,7 @@
     if (!(await save(true))) return;
     try {
       p = kind === 'send' ? await run(api.sendProgram(program)) : await run(api.publishProgram(program));
-      toast(t('saved'));
+      toast(kind === 'send' ? t('sent') : t('saved'));
     } catch (e) {
       fail(e);
     }
@@ -226,8 +260,7 @@
       <button type="button" class="tap" aria-label={c.label} onclick={() => { if (narrow()) picking = c; }}></button>
     {/if}
     {#if v}
-      <span class="zlabel">{c.label}</span>
-      <span class="zname">{nameOf(c, v)}</span>
+      <span class="zname" title={nameOf(c, v)}>{short(nameOf(c, v))}</span>
     {:else}
       <span class="zempty">{c.label}</span>
     {/if}
@@ -250,9 +283,12 @@
         {@const sec = sectionOf(c.section)}
         <div class="band" style={sec?.color ? `background: ${sec.color}` : ''}>{sec?.label}</div>
       {/if}
-      <div class="part" class:inline={c.details.every((f) => f.kind === 'integer')}>
-        <span class="name">{c.label}</span>
+      <div class="part" class:inline={c.details.every((f) => f.kind === 'integer')} class:noname={!c.row_name}>
+        {#if c.row_name}<span class="name">{c.label}</span>{/if}
         {@render fields(c)}
+        {#if p?.can_edit}
+          <button class="remove" title={t('part_remove')} aria-label={`${t('part_remove')} · ${c.label}`} onclick={() => setShown(c, false)}>−</button>
+        {/if}
       </div>
       <div class="who">{#each inRow(c, null) as x (x.slot)}{#if x.assignable}{@render zone(x)}{/if}{/each}</div>
       {#each p?.columns ?? [] as col (col.id)}
@@ -278,9 +314,14 @@
           <section class="card stack week">
             <!-- Sticks under the toolbar while the week's rows scroll; leaves with the card. -->
             <div class="whead" style={`--cols: ${1 + p.columns.length}`}>
-              <div class="stack tight">
-                <h3>{g.label}</h3>
-                {#if g.detail}<span class="muted">{g.detail}</span>{/if}
+              <div class="row wtitle">
+                <div class="stack tight">
+                  <h3>{g.label}</h3>
+                  {#if g.detail}<span class="muted">{g.detail}</span>{/if}
+                </div>
+                {#if p.can_prefill}
+                  <button class="btn small" disabled={busy || reading} onclick={() => prefill(false, g)}>{readingWeek === g.occurrence ? t('prefill_reading') : t('prefill')}</button>
+                {/if}
               </div>
               {#if p.columns.length}
                 <div class="head muted">{t('main_column')}</div>
@@ -294,6 +335,12 @@
                 {@render rows(d.occurrence, true)}
               {/if}
             {/each}
+            {#if p.can_edit && addable(g).length}
+              <select class="add-part" aria-label={t('part_add')} value="" onchange={(e) => { const c = addable(g).find((x) => keyOf(x) === e.currentTarget.value); if (c) setShown(c, true); e.currentTarget.value = ''; }}>
+                <option value="">+ {t('part_add')}</option>
+                {#each addable(g) as c (keyOf(c))}<option value={keyOf(c)}>{sectionOf(c.section)?.label ? `${sectionOf(c.section)?.label} · ` : ''}{c.label}</option>{/each}
+              </select>
+            {/if}
           </section>
         {/each}
       </div>
@@ -326,11 +373,10 @@
     </div>
     <div class="row actions">
       {#if p.can_edit}
-        <button class="btn" class:primary={!p.can_send} disabled={busy || (!changed && !p.unsent)} onclick={() => save()}>{t(p.can_send ? 'save' : 'save_plain')}</button>
+        <button class="btn" disabled={busy || !changed} onclick={() => save()}>{t('save')}</button>
       {/if}
-      {#if p.can_send}<button class="btn primary" disabled={busy} onclick={() => act('send')}>{t('send')}</button>{/if}
+      {#if p.can_send}<button class="btn primary" disabled={busy || (!changed && !p.unsent)} onclick={() => act('send')}>{t('send_short')}</button>{/if}
       {#if p.can_publish}<button class="btn" disabled={busy} onclick={() => act('publish')}>{t('publish')}</button>{/if}
-      {#if p.can_prefill}<button class="btn" disabled={busy || reading} onclick={() => prefill()}>{t('prefill')}</button>{/if}
       {#if changed}<span class="muted" role="status">{t('unsaved_changes').replace('{n}', String(changed))}</span>{/if}
     </div>
     {#if picking}
@@ -401,9 +447,8 @@
   .zone.changed { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }
   .zone.can { border-color: var(--ok, #2e7d32); background: color-mix(in srgb, var(--ok, #2e7d32) 10%, transparent); }
   .zone.cannot { opacity: 0.45; }
-  .zempty { font-size: 13px; color: var(--muted); line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; }
-  .zlabel { font-size: 11px; color: var(--muted); line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .zname { font-size: 14px; font-weight: 600; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .zempty { font-size: 12px; color: var(--muted); line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; }
+  .zname { font-size: 13px; font-weight: 600; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .overlay { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; min-height: 0; }
   .clear { position: absolute; top: 2px; right: 4px; z-index: 2; border: none; background: none; color: var(--muted); font-size: 16px; cursor: pointer; line-height: 1; padding: 2px 4px; }
   .zbadge { position: absolute; bottom: -8px; right: 6px; font-size: 10px; padding: 0 6px; pointer-events: none; }
@@ -431,6 +476,14 @@
   .whead { position: sticky; top: 84px; z-index: 3; display: grid; grid-template-columns: minmax(0, 4fr) repeat(var(--cols), minmax(0, 1fr)); align-items: end; background: var(--bg); margin: -18px -20px 0; padding: 18px 20px 10px; border-bottom: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0; }
   .whead .head { padding-left: 14px; }
   .head { font-size: 13px; font-weight: 600; }
+  .wtitle { gap: 12px; align-items: center; flex-wrap: nowrap; }
+  .part { position: relative; padding-right: 30px; }
+  .part.noname { padding-top: 10px; }
+  .remove { position: absolute; top: 8px; right: 2px; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg); color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity 0.1s; padding: 0; }
+  .rows > .part:hover .remove, .remove:focus-visible { opacity: 1; }
+  @media (hover: none) { .remove { opacity: 1; } }
+  .remove:hover { color: var(--danger); border-color: var(--danger); }
+  .add-part { margin-top: 10px; max-width: 320px; font-size: 14px; min-height: 38px; color: var(--muted); }
   .band { grid-column: 1 / -1; background: var(--muted); color: #fff; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; font-size: 14px; padding: 6px 12px; margin-top: 10px; border-radius: 4px; border-bottom: none; }
   .part { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   .part .details { padding: 0; }

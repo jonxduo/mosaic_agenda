@@ -2715,6 +2715,16 @@
           "minimum": 0,
           "type": "integer"
         },
+        "default_shown": {
+          "default": null,
+          "description": "Positions shown in a new program; the others can be added per event\n(and any shown one removed). None: all.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
         "each_event": {
           "default": false,
           "description": "A new person at every event, whatever the program's `rotation`.",
@@ -2737,6 +2747,11 @@
         },
         "label": {
           "$ref": "#/$defs/TextKey"
+        },
+        "numbered": {
+          "default": true,
+          "description": "Repeated positions are labelled 1, 2, 3…",
+          "type": "boolean"
         },
         "option": {
           "anyOf": [
@@ -2782,6 +2797,11 @@
             }
           ],
           "default": null
+        },
+        "row_name": {
+          "default": true,
+          "description": "The editor shows the slot's name on the left of its row (off when\nthe section and the details say it all).",
+          "type": "boolean"
         },
         "section": {
           "anyOf": [

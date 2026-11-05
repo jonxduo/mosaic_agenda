@@ -242,7 +242,7 @@ async fn slot_details_without_assignee() {
         values: [("topic".to_owned(), text.to_owned())].into(),
     };
     let e = a
-        .assign_slots(id.clone(), vec![], vec![change("Patience")])
+        .assign_slots(id.clone(), vec![], vec![change("Patience")], vec![])
         .unwrap();
     assert_eq!(detail(&e), Some(serde_json::json!("Patience")));
     assert!(!e.needs_prefill, "no prefill for this type");
@@ -258,6 +258,7 @@ async fn slot_details_without_assignee() {
                 person: alice,
             }],
             vec![],
+            vec![],
         )
         .unwrap();
     assert_eq!(detail(&e), Some(serde_json::json!("Patience")));
@@ -271,7 +272,9 @@ async fn slot_details_without_assignee() {
     drop(v);
 
     // An empty text clears the field.
-    let e = a.assign_slots(id, vec![], vec![change("  ")]).unwrap();
+    let e = a
+        .assign_slots(id, vec![], vec![change("  ")], vec![])
+        .unwrap();
     assert_eq!(detail(&e), Some(serde_json::Value::Null));
 }
 
@@ -303,6 +306,7 @@ async fn people_by_weeks_since_their_last_slot() {
             person: alice,
         }],
         vec![],
+        vec![],
     )
     .unwrap();
     let next = a
@@ -323,4 +327,42 @@ async fn people_by_weeks_since_their_last_slot() {
             ("Alice".into(), Some(2)),
         ]
     );
+}
+
+/// Parts of a single event removed and added by the editor stay so.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn parts_removed_and_added_per_event() {
+    let dir = tempfile::tempdir().unwrap();
+    let a = core(dir.path());
+    a.create_org("Club".into(), "Alice".into()).await.unwrap();
+    let alice = a.people().unwrap().persons[0].person_id.clone();
+    a.grant_qualification(alice.clone(), "member".into(), None, None)
+        .unwrap();
+    a.grant_role(alice, "keeper".into(), None).unwrap();
+    let id = a
+        .draft_program("weekly_plan".into(), vec!["2026-11-02".into()])
+        .unwrap();
+    let shown = |e: &core_api::dto::ProgramEditor, i: u32| {
+        e.cells
+            .iter()
+            .find(|c| c.slot == "talker" && c.index == i)
+            .unwrap()
+            .shown
+    };
+    let e = a.program(id.clone()).unwrap();
+    assert!(shown(&e, 0) && shown(&e, 1), "all shown by default");
+    let part = |i: u32, on: bool| core_api::dto::PartChange {
+        occurrence: 0,
+        slot: "talker".into(),
+        index: i,
+        shown: on,
+    };
+    let e = a
+        .assign_slots(id.clone(), vec![], vec![], vec![part(1, false)])
+        .unwrap();
+    assert!(shown(&e, 0) && !shown(&e, 1));
+    let e = a
+        .assign_slots(id, vec![], vec![], vec![part(1, true)])
+        .unwrap();
+    assert!(shown(&e, 1));
 }

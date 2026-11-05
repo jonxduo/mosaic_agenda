@@ -386,9 +386,14 @@ async fn outline_for(
 impl Core {
     /// Fills the empty details of a program from its type's `prefill`
     /// pages; events whose page cannot be read are left as they are.
-    pub async fn prefill_program(self: &Arc<Self>, program: String) -> ApiResult<ProgramEditor> {
+    /// `occurrences`: only those events (e.g. one week); all when none.
+    pub async fn prefill_program(
+        self: &Arc<Self>,
+        program: String,
+        only: Option<Vec<u32>>,
+    ) -> ApiResult<ProgramEditor> {
         let id = parse_id(&program)?;
-        let (def, occurrences, filled) = {
+        let (def, occurrences, filled, explicit) = {
             let v = self.view()?;
             let c = cfg(&v)?;
             let p = v
@@ -400,7 +405,12 @@ impl Core {
                 .program_type(&p.program_type)
                 .ok_or_else(|| ApiError::not_found("program type"))?
                 .clone();
-            (def, p.occurrences.clone(), p.details.clone())
+            (
+                def,
+                p.occurrences.clone(),
+                p.details.clone(),
+                p.shown.clone(),
+            )
         };
         let Some(pf) = def.prefill.clone() else {
             return self.program(program);
@@ -412,14 +422,52 @@ impl Core {
             .build()
             .map_err(ApiError::internal)?;
         let mut details: Vec<(SlotKey, Values)> = Vec::new();
+        let mut parts: Vec<(SlotKey, bool)> = Vec::new();
         let mut read = 0;
+        let mut asked = 0;
         for (occ, date) in occurrences.iter().enumerate() {
+            if only.as_ref().is_some_and(|o| {
+                !o.iter()
+                    .any(|x| usize::try_from(*x).is_ok_and(|x| x == occ))
+            }) {
+                continue;
+            }
+            asked += 1;
             let Ok(outline) = outline_for(&client, &pf, *date).await else {
                 continue;
             };
             read += 1;
             let occurrence = u16::try_from(occ).map_err(ApiError::invalid)?;
-            for (slot, index, values) in details_from(&def, &pf.rules, &outline) {
+            let found = details_from(&def, &pf.rules, &outline);
+            // The page says which positions of a filled slot this event has:
+            // show those, remove the others, unless the editor chose already.
+            for slot in def
+                .slots
+                .iter()
+                .filter(|s| found.iter().any(|(x, _, _)| x == &s.id))
+            {
+                let reps = match slot.repeat {
+                    Some(core_model::config::Repeat::Count(n)) => n,
+                    _ => 1,
+                };
+                for index in 0..slot.count.saturating_mul(reps) {
+                    let Ok(index) = u16::try_from(index) else {
+                        continue;
+                    };
+                    let key = SlotKey {
+                        occurrence,
+                        slot: slot.id.clone(),
+                        index,
+                    };
+                    let has = found.iter().any(|(x, i, _)| x == &slot.id && *i == index);
+                    if !explicit.contains_key(&key)
+                        && has != slot.shown_by_default(u32::from(index))
+                    {
+                        parts.push((key, has));
+                    }
+                }
+            }
+            for (slot, index, values) in found {
                 let key = SlotKey {
                     occurrence,
                     slot,
@@ -436,11 +484,14 @@ impl Core {
                 }
             }
         }
-        if read == 0 && !occurrences.is_empty() {
+        if read == 0 && asked > 0 {
             return Err(ApiError::new("network", "the pages could not be read"));
         }
         if !details.is_empty() {
             self.act_events(|c| c.set_program_details(id, details))?;
+        }
+        if !parts.is_empty() {
+            self.act_events(|c| c.show_program_parts(id, parts))?;
         }
         self.program(program)
     }

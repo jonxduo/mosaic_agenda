@@ -43,8 +43,8 @@ export const commands = {
 	programDates: (programType: string, period: string | null) => typedError<ProgramDates, ApiError>(__TAURI_INVOKE("program_dates", { programType, period })),
 	draftProgram: (programType: string, dates: string[]) => typedError<string, ApiError>(__TAURI_INVOKE("draft_program", { programType, dates })),
 	assignSlot: (program: string, occurrence: number, slot: string, index: number, person: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("assign_slot", { program, occurrence, slot, index, person })),
-	assignSlots: (program: string, changes: SlotChange[], details: DetailChange[]) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("assign_slots", { program, changes, details })),
-	prefillProgram: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("prefill_program", { program })),
+	assignSlots: (program: string, changes: SlotChange[], details: DetailChange[], parts: PartChange[]) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("assign_slots", { program, changes, details, parts })),
+	prefillProgram: (program: string, occurrences: number[] | null) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("prefill_program", { program, occurrences })),
 	sendProgram: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("send_program", { program })),
 	publishProgram: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("publish_program", { program })),
 	respond: (program: string, programType: string, occurrence: number, slot: string, index: number, accept: boolean, note: string | null, assignee: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("respond", { program, programType, occurrence, slot, index, accept, note, assignee })),
@@ -672,6 +672,14 @@ export type Pairing = {
 	code: string,
 };
 
+/**  A part shown or removed in one event (editor). */
+export type PartChange = {
+	occurrence: number,
+	slot: string,
+	index: number,
+	shown: boolean,
+};
+
 export type PeerInfo = PeerInfo_Serialize | PeerInfo_Deserialize;
 
 export type PeerInfo_Deserialize = {
@@ -1186,6 +1194,10 @@ export type SlotCell_Deserialize = {
 	section?: string | null,
 	/**  Takes a person (else it only holds details). */
 	assignable: boolean,
+	/**  Part of this event (else removed, or not added yet). */
+	shown: boolean,
+	/**  The editor shows the slot's name on the left of its row. */
+	row_name: boolean,
 };
 
 export type SlotCell_Serialize = {
@@ -1209,6 +1221,10 @@ export type SlotCell_Serialize = {
 	section: string | null,
 	/**  Takes a person (else it only holds details). */
 	assignable: boolean,
+	/**  Part of this event (else removed, or not added yet). */
+	shown: boolean,
+	/**  The editor shows the slot's name on the left of its row. */
+	row_name: boolean,
 };
 
 /**  One slot choice of the program editor (an empty `person` empties it). */

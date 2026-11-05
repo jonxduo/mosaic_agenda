@@ -36,3 +36,17 @@ Esposito Chiara|f|1994-02-08|other_sheep|2010-10-23|can_student|n
 Romano Davide|m|1998-12-01|other_sheep|2014-04-05|can_attendant can_microphones can_bible_reading can_student can_prayer can_wt_reader|n
 L
 echo "ok: $(c people '{}' | python3 -c "import sys,json; print(len(json.load(sys.stdin)['persons']))") persone"
+
+# For testing: the auxiliary class on (it is off in the package).
+python3 - "$API" <<'PY'
+import json, sys, urllib.request
+api = sys.argv[1]
+def call(cmd, body):
+    r = urllib.request.Request(f"{api}/{cmd}", data=json.dumps(body).encode(), headers={"content-type": "application/json"})
+    return json.load(urllib.request.urlopen(r, timeout=150))
+files = call("config_files", {})["files"]
+for f in files:
+    if f["path"] == "programs.yaml":
+        f["text"] = f["text"].replace("id: aux_class, label: o.aux_class, enabled: false", "id: aux_class, label: o.aux_class, enabled: true")
+print("configurazione", call("config_publish", {"files": files}))
+PY

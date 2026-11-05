@@ -85,6 +85,7 @@ kinds! {
     RetentionApplied => "retention.applied", true;
     AdminQuarantineResolved => "admin.quarantine_resolved", true;
     ProgramDetailsSet => "program.details_set", false;
+    ProgramPartsShown => "program.parts_shown", false;
 }
 
 #[cfg(test)]

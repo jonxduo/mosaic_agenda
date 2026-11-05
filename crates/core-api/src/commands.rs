@@ -273,6 +273,7 @@ impl Core {
                 person,
             }],
             Vec::new(),
+            Vec::new(),
         )
     }
 
@@ -282,8 +283,25 @@ impl Core {
         program: String,
         changes: Vec<SlotChange>,
         details: Vec<DetailChange>,
+        parts: Vec<PartChange>,
     ) -> ApiResult<ProgramEditor> {
         let id = parse_id(&program)?;
+        if !parts.is_empty() {
+            let set = parts
+                .into_iter()
+                .map(|p| {
+                    Ok((
+                        SlotKey {
+                            occurrence: u16::try_from(p.occurrence).map_err(ApiError::invalid)?,
+                            slot: slug(&p.slot)?,
+                            index: u16::try_from(p.index).map_err(ApiError::invalid)?,
+                        },
+                        p.shown,
+                    ))
+                })
+                .collect::<ApiResult<Vec<_>>>()?;
+            self.act_events(|c| c.show_program_parts(id, set))?;
+        }
         if !details.is_empty() {
             let set = self.detail_values(id, details)?;
             self.act_events(|c| c.set_program_details(id, set))?;
@@ -307,28 +325,6 @@ impl Core {
         }
         if !specs.is_empty() || !cleared.is_empty() {
             self.act_events(|c| c.update_program(id, specs, cleared))?;
-        }
-        // Notified at publication: saving hands the program to who publishes
-        // it; the assignees hear of it only from the board.
-        let hand_over = {
-            let v = self.view()?;
-            let c = cfg(&v)?;
-            let me = self.me()?;
-            v.proj.programs.get(&id).is_some_and(|p| {
-                crate::views::notified_at_publish(c, &p.program_type)
-                    && crate::views::unsent(&v, &id)
-                    && v.proj.auth.is_allowed(
-                        c,
-                        me,
-                        core_model::Permission::ProgramAssign,
-                        Some(&core_engine::channels::program_object(&p.program_type)),
-                        None,
-                        crate::views::today(self),
-                    )
-            })
-        };
-        if hand_over {
-            self.act_events(|c| c.send_assignments(id))?;
         }
         self.program(program)
     }

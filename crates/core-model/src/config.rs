@@ -872,6 +872,24 @@ pub struct SlotDef {
     /// Takes a person; when false the slot only holds details (e.g. a number).
     #[serde(default = "yes")]
     pub assignable: bool,
+    /// Positions shown in a new program; the others can be added per event
+    /// (and any shown one removed). None: all.
+    #[serde(default)]
+    pub default_shown: Option<u32>,
+    /// Repeated positions are labelled 1, 2, 3…
+    #[serde(default = "yes")]
+    pub numbered: bool,
+    /// The editor shows the slot's name on the left of its row (off when
+    /// the section and the details say it all).
+    #[serde(default = "yes")]
+    pub row_name: bool,
+}
+
+impl SlotDef {
+    /// Whether a position is shown in a program unless the editor says otherwise.
+    pub fn shown_by_default(&self, index: u32) -> bool {
+        self.default_shown.is_none_or(|n| index < n)
+    }
 }
 
 // ---------------------------------------------------------------------------

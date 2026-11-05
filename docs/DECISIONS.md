@@ -848,3 +848,18 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   le stesse feature (`core-api/dev-server`), così controlli, test e server di sviluppo
   condividono una copia sola. La CI resta con `--workspace`. Build mobili solo per provare sul
   telefono, poi `cargo clean`.
+
+## 2026-11-05 — Parti per settimana, bozza e invio
+
+- L'editor ha "Salva bozza" (salva soltanto) e "Invia" (salva e consegna: agli incaricati, o a chi
+  pubblica per i tipi `notify: publish`). Salvare non consegna più da solo.
+- "Precompila" sta nell'intestazione di ogni settimana (`prefill_program` accetta gli eventi).
+  La pagina dice anche quali posizioni di uno slot ripetuto ci sono quella settimana: le mostra
+  e toglie le altre, se l'editor non le ha già scelte lui.
+- Parti per evento: `SlotDef.default_shown` (quante posizioni in un programma nuovo), evento
+  `program.parts_shown` con `Program.shown`. Nell'editor "−" toglie una parte (e chi la svolge),
+  "+ Aggiungi parte" rimette una parte tolta o una posizione in più. `SlotDef.numbered` (numeri
+  1, 2…) e `row_name` (nome a sinistra) per le parti che non ne hanno bisogno.
+- Congregazione: studenti 3 di norma (fino a 4), Vita cristiana 1 (fino a 3), senza nome e senza
+  numeri; nei riquadri "Studente" e "Assistente"; "Studio biblico di congregazione". I riquadri
+  pieni mostrano il nome abbreviato ("Rossi P."), intero al passaggio del mouse.

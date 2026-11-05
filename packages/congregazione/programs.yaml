@@ -55,16 +55,20 @@ program_types:
           extra_fields: [ { id: passage, type: text } ] }
       - { id: aux_bible_reading, label: s.aux_bible_reading, section: treasures, option: aux_class, beside: bible_reading,
           requires: { has_qualification: can_bible_reading } }
-      - { id: student_part, label: s.student_part, section: ministry, repeat: { count: 4 }, requires: { has_qualification: can_student },
+      # Senza nome a sinistra (bastano titolo e sinossi); tre parti di norma, la quarta si aggiunge.
+      - { id: student_part, label: s.student_part, section: ministry, repeat: { count: 4 }, default_shown: 3, numbered: false, row_name: false,
+          requires: { has_qualification: can_student },
           extra_fields: [ { id: title, type: text }, { id: minutes, type: integer, min: 0 }, { id: synopsis, type: long_text },
                           { id: lesson, type: text } ], pair_with: student_assistant }
-      - { id: student_assistant, label: s.student_assistant, section: ministry, repeat: { count: 4 }, requires: { has_qualification: can_student } }
-      - { id: aux_student_part, label: s.aux_student_part, section: ministry, option: aux_class, beside: student_part, repeat: { count: 4 },
+      - { id: student_assistant, label: s.student_assistant, section: ministry, repeat: { count: 4 }, numbered: false, requires: { has_qualification: can_student } }
+      - { id: aux_student_part, label: s.aux_student_part, section: ministry, option: aux_class, beside: student_part, repeat: { count: 4 }, numbered: false,
           requires: { has_qualification: can_student }, pair_with: aux_student_assistant }
-      - { id: aux_student_assistant, label: s.aux_student_assistant, section: ministry, option: aux_class, repeat: { count: 4 },
+      - { id: aux_student_assistant, label: s.aux_student_assistant, section: ministry, option: aux_class, repeat: { count: 4 }, numbered: false,
           requires: { has_qualification: can_student } }
       - { id: middle_song, label: s.song, section: living, assignable: false, extra_fields: [ { id: song, type: integer, min: 1 } ] }
-      - { id: living_part, label: s.living_part, section: living, repeat: { count: 2 }, requires: { has_qualification: can_living },
+      # Di solito una parte; le altre si aggiungono quando servono.
+      - { id: living_part, label: s.living_part, section: living, repeat: { count: 3 }, default_shown: 1, numbered: false, row_name: false,
+          requires: { has_qualification: can_living },
           extra_fields: [ { id: title, type: text }, { id: minutes, type: integer, min: 0 } ] }
       - { id: cbs_conductor, label: s.cbs_conductor, section: living, requires: { has_qualification: can_cbs_conductor },
           extra_fields: [ { id: material, type: text } ] }

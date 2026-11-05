@@ -110,6 +110,8 @@ pub struct Program {
     pub assignments: BTreeMap<SlotKey, (Assignee, Values)>,
     /// Extra fields of slots set apart from the assignee (prefilled titles…).
     pub details: BTreeMap<SlotKey, Values>,
+    /// Parts shown or removed by the editor, over the slots' defaults.
+    pub shown: BTreeMap<SlotKey, bool>,
     pub status: ProgramStatus,
     pub sent_version: u32,
 }
