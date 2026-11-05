@@ -21,6 +21,17 @@ di build. Specifica completa: [`docs/PROGETTO.md`](docs/PROGETTO.md). Decisioni 
 
 ## Comandi
 
+Ogni giorno (stesse opzioni per tutti, così `target/` tiene una sola copia del core; l'app Tauri
+resta fuori, si compila con `-p app`, `--workspace` o i comandi `xtask` che la usano):
+
+```bash
+cargo ck                      # clippy su tutto tranne l'app Tauri
+cargo t                       # test
+cargo devserver               # server di sviluppo per l'interfaccia nel browser
+```
+
+Prima di un rilascio (CI) e quando servono l'app o i binding:
+
 ```bash
 cargo test --workspace
 cargo xtask schema            # rigenera schemas/package.schema.json

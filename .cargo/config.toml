@@ -1,2 +1,7 @@
 [alias]
 xtask = "run --quiet --package xtask --"
+# One feature set for checks, tests and the dev server, so target/ keeps a
+# single copy of the core instead of one per combination.
+ck = "clippy --all-targets --features core-api/dev-server -- -D warnings"
+t = "test --features core-api/dev-server"
+devserver = "build --features core-api/dev-server --bin api-dev-server"

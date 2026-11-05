@@ -15,6 +15,21 @@ members = [
     "apps/app/src-tauri",
     "apps/app/src-tauri/plugins/secret-store",
 ]
+# Everyday checks, tests and the dev server leave out the Tauri app (WebKit
+# and friends): it is built when asked (`-p app`, `--workspace`, xtask).
+default-members = [
+    "crates/core-model",
+    "crates/core-config",
+    "crates/core-crypto",
+    "crates/core-events",
+    "crates/core-engine",
+    "crates/core-sync",
+    "crates/core-api",
+    "crates/core-push",
+    "server/push-service",
+    "crates/core-testkit",
+    "crates/xtask",
+]
 
 [workspace.package]
 version = "0.1.0"
@@ -95,6 +110,14 @@ unwrap_used = "deny"
 expect_used = "deny"
 
 # The PIN key derivation (Argon2id, 64 MiB) is far too slow unoptimized.
+# Debug builds keep line numbers for our crates (readable backtraces) and no
+# debug info for dependencies: most of the size of target/ was debug info.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
 [profile.dev.package.argon2]
 opt-level = 3
 

@@ -838,3 +838,13 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
 - "Programmi" e "Bacheca" mostrano un riquadro per voce (icona grande, nome, mese e anno), quanti
   ne stanno in una riga. Un clic apre il programma (in bacheca, il suo contenuto in una finestra).
   In "Programmi" il riquadro "+" apre "Nuovo programma" in una finestra.
+
+## 2026-11-05 — Spazio delle compilazioni
+
+- `target/` era arrivato a 161 GB (con un worktree in più). Ora: profilo dev con
+  `debug = "line-tables-only"` per i nostri crate e nessuna informazione di debug per le
+  dipendenze; `default-members` senza l'app Tauri e il suo plugin (si compilano con `-p app`,
+  `--workspace`, `xtask dev/build/bindings`); alias `cargo ck`, `cargo t`, `cargo devserver` con
+  le stesse feature (`core-api/dev-server`), così controlli, test e server di sviluppo
+  condividono una copia sola. La CI resta con `--workspace`. Build mobili solo per provare sul
+  telefono, poi `cargo clean`.

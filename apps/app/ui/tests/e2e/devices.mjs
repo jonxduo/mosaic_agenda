@@ -15,7 +15,7 @@ function must(args) {
 }
 
 must(['xtask', 'bundle', '--package', 'crates/core-config/tests/fixtures/club']);
-must(['build', '-p', 'core-api', '--features', 'dev-server', '--bin', 'api-dev-server']);
+must(['devserver']);
 
 const exe = resolve(root, 'target/debug/api-dev-server');
 const bundle = resolve(root, 'target/package/club/bundle.bin');
