@@ -50,6 +50,8 @@ struct H<'a> {
     cfg: Cfg,
     author: PersonId,
     date: Date,
+    /// The event's declared time (ms): when a program was created.
+    time: i64,
     id: EventHash,
     channel: Option<ChannelId>,
 }
@@ -151,6 +153,7 @@ pub(crate) fn handle(
         cfg,
         author,
         date: date_of(e.body.declared_time),
+        time: e.body.declared_time,
         id: e.id,
         channel: match e.body.channel {
             PayloadChannel::Public => None,
@@ -1031,6 +1034,7 @@ fn program_drafted(proj: &mut Projection, h: &H<'_>, d: &ProgramDrafted) -> Resu
             assignments: BTreeMap::new(),
             status: ProgramStatus::Draft,
             sent_version: 0,
+            created: h.time,
             details: BTreeMap::new(),
             shown: BTreeMap::new(),
         },

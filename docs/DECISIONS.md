@@ -952,3 +952,13 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
 - Menu: l'amministratore vede tutte le voci anche se limitate a un pubblico (es. "Territori").
 - Server di sviluppo: richieste fino a 32 MB (foto in base64). Profilo dev: `core-scan`,
   `image`, `imageproc`, `rqrr`, `zune-jpeg` ottimizzati anche in debug (lettura in ~0,4 s).
+
+## 2026-11-05 — Elenco dei programmi
+
+- Il riquadro "+" per un nuovo programma è il primo; seguono i programmi dal più recente
+  per data di creazione (ora dichiarata dell'evento che crea la bozza, salvata nella
+  proiezione come `Program.created`).
+- L'elenco mostra solo i programmi dei tipi che la persona può preparare (`ProgramDraft`):
+  gli altri non sono di sua competenza.
+- Nei programmi titoli delle parti e partecipanti non sono in grassetto; i partecipanti
+  sono in corsivo.

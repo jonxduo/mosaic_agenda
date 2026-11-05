@@ -464,7 +464,7 @@
   .zone.can { border-color: var(--ok, #2e7d32); background: color-mix(in srgb, var(--ok, #2e7d32) 10%, transparent); }
   .zone.cannot { opacity: 0.45; }
   .zempty { font-size: 12px; color: var(--muted); line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; }
-  .zname { font-size: 13px; font-weight: 600; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .zname { font-size: 13px; font-weight: 400; font-style: italic; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .overlay { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; min-height: 0; }
   .clear { position: absolute; top: 2px; right: 4px; z-index: 2; border: none; background: none; color: var(--muted); font-size: 16px; cursor: pointer; line-height: 1; padding: 2px 4px; }
   .zbadge { position: absolute; bottom: -8px; right: 6px; font-size: 10px; padding: 0 6px; pointer-events: none; }
@@ -508,9 +508,10 @@
   .embedded .details { row-gap: 4px; }
   .embedded .details { column-gap: 12px; }
   .lead { font-size: 15px; }
-  .ro-name { min-height: 24px; display: flex; align-items: center; gap: 4px; font-weight: 600; font-size: 15px; }
-  .ro-name.mate { font-size: 13px; font-weight: 500; min-height: 20px; }
-  .ro-name .with { color: var(--muted); font-weight: 400; }
+  /* Participants: plain weight, in italics. */
+  .ro-name { min-height: 24px; display: flex; align-items: center; gap: 4px; font-weight: 400; font-style: italic; font-size: 15px; }
+  .ro-name.mate { font-size: 13px; min-height: 20px; }
+  .ro-name .with { color: var(--muted); font-style: normal; }
   .remove { position: absolute; top: 8px; right: 2px; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg); color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity 0.1s; padding: 0; }
   .rows > .part:hover .remove, .remove:focus-visible { opacity: 1; }
   @media (hover: none) { .remove { opacity: 1; } }
@@ -521,7 +522,8 @@
   .part .details { padding: 0; }
   .part.inline { flex-direction: row; align-items: center; gap: 10px; }
   /* As tall as a menu, so the name and the first choice share a line. */
-  .name { font-weight: 500; min-height: 64px; display: flex; align-items: center; }
+  /* Part titles in plain weight. */
+  .name { font-weight: 400; min-height: 64px; display: flex; align-items: center; }
   .part.inline .details input.num { width: 72px; }
   /* Boxes sit at the bottom of their row, level with the part's last field. */
   .who { display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; min-width: 0; }

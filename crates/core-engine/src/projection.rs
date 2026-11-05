@@ -114,6 +114,8 @@ pub struct Program {
     pub shown: BTreeMap<SlotKey, bool>,
     pub status: ProgramStatus,
     pub sent_version: u32,
+    /// Declared time (ms) of the draft event: lists show the newest first.
+    pub created: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

@@ -1748,13 +1748,36 @@ impl Core {
             .filter(|d| wanted.as_ref().is_none_or(|w| w.contains(d.id.as_str())))
             .collect();
         let now = today(self);
+        // Only the programs of the types this person drafts: the others are
+        // not theirs to handle.
+        let can_draft: Vec<String> = defs
+            .iter()
+            .filter(|d| {
+                v.proj.auth.is_allowed(
+                    cfg,
+                    me,
+                    Permission::ProgramDraft,
+                    Some(&ObjectRef {
+                        kind: ObjectKind::Program,
+                        id: d.id.clone(),
+                    }),
+                    None,
+                    now,
+                )
+            })
+            .map(|d| d.id.to_string())
+            .collect();
+        let defs: Vec<_> = defs
+            .into_iter()
+            .filter(|d| can_draft.iter().any(|c| c == d.id.as_str()))
+            .collect();
         let mut programs = Vec::new();
         let mut seen = BTreeSet::new();
         for (id, p) in &v.proj.programs {
             if defs.iter().any(|d| d.id == p.program_type) {
                 seen.insert(*id);
                 let first = p.occurrences.first().copied().unwrap_or(now);
-                programs.push(ProgramRow {
+                programs.push((p.created, ProgramRow {
                     program_id: id.to_string(),
                     program_type: p.program_type.to_string(),
                     icon: defs
@@ -1771,7 +1794,7 @@ impl Core {
                         |d| t.period(&crate::schedule::period_of(d, first)),
                     ),
                     status: program_status(&v, cfg, id, &p.program_type).into(),
-                });
+                }));
             }
         }
         for (id, s) in v
@@ -1782,7 +1805,8 @@ impl Core {
         {
             if seen.insert(*id) && defs.iter().any(|d| d.id == s.program_type) {
                 let first = s.occurrences.first().copied().unwrap_or(now);
-                programs.push(ProgramRow {
+                // Without its draft the creation time is unknown: listed last.
+                programs.push((i64::MIN, ProgramRow {
                     program_id: id.to_string(),
                     program_type: s.program_type.to_string(),
                     icon: defs
@@ -1799,10 +1823,12 @@ impl Core {
                         |d| t.period(&crate::schedule::period_of(d, first)),
                     ),
                     status: program_status(&v, cfg, id, &s.program_type).into(),
-                });
+                }));
             }
         }
-        programs.sort_by(|a, b| b.subtitle.cmp(&a.subtitle));
+        // Newest first.
+        programs.sort_by_key(|p| std::cmp::Reverse(p.0));
+        let programs = programs.into_iter().map(|(_, row)| row).collect();
         Ok(ProgramList {
             types: defs
                 .iter()
@@ -1811,23 +1837,7 @@ impl Core {
                     label: t.get(d.label.as_str()),
                 })
                 .collect(),
-            can_draft: defs
-                .iter()
-                .filter(|d| {
-                    v.proj.auth.is_allowed(
-                        cfg,
-                        me,
-                        Permission::ProgramDraft,
-                        Some(&ObjectRef {
-                            kind: ObjectKind::Program,
-                            id: d.id.clone(),
-                        }),
-                        None,
-                        now,
-                    )
-                })
-                .map(|d| d.id.to_string())
-                .collect(),
+            can_draft,
             programs,
         })
     }

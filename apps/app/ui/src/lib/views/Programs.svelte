@@ -43,8 +43,14 @@
 
 {#if list}
   <div class="wrap">
-  <!-- One tile per program (icon, name, month); the "+" tile opens a new one. -->
+  <!-- The "+" tile first (opens a new program), then one tile per program
+       (icon, name, month), newest first. -->
   <div class="tiles">
+    {#if list.can_draft.length}
+      <button class="card tile add" aria-label={t('new_program')} onclick={() => { creating = true; propose(null); }}>
+        <span class="icon"><Icon name="plus" size={44} /></span>
+      </button>
+    {/if}
     {#each list.programs as p (p.program_id)}
       <a class="card tile" href="#/program_editor" onclick={(e) => { e.preventDefault(); go('program_editor', { program: p.program_id }); }}>
         <span class="badge state" class:ok={p.status === 'published'}>{label(p.status)}</span>
@@ -53,11 +59,6 @@
         <span class="muted when">{p.subtitle}</span>
       </a>
     {/each}
-    {#if list.can_draft.length}
-      <button class="card tile add" aria-label={t('new_program')} onclick={() => { creating = true; propose(null); }}>
-        <span class="icon"><Icon name="plus" size={44} /></span>
-      </button>
-    {/if}
   </div>
   {#if creating}
     <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->

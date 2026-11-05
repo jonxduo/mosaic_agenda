@@ -366,3 +366,29 @@ async fn parts_removed_and_added_per_event() {
         .unwrap();
     assert!(shown(&e, 1));
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn programs_listed_newest_first() {
+    let dir = tempfile::tempdir().unwrap();
+    let a = core(dir.path());
+    a.create_org("Club".into(), "Alice".into()).await.unwrap();
+    let alice = a.people().unwrap().persons[0].person_id.clone();
+    a.grant_qualification(alice.clone(), "member".into(), None, None)
+        .unwrap();
+    a.grant_role(alice, "keeper".into(), None).unwrap();
+    // Created in a different order from their dates: creation decides.
+    let mut made = Vec::new();
+    for day in ["2026-11-16", "2026-11-02", "2026-11-09"] {
+        made.push(a.draft_program("weekly_plan".into(), vec![day.into()]).unwrap());
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    }
+    let listed: Vec<_> = a
+        .programs(None)
+        .unwrap()
+        .programs
+        .into_iter()
+        .map(|p| p.program_id)
+        .collect();
+    made.reverse();
+    assert_eq!(listed, made);
+}
