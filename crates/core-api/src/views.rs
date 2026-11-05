@@ -2069,6 +2069,7 @@ impl Core {
                             .copied()
                             .unwrap_or_else(|| slot.shown_by_default(index)),
                         row_name: slot.row_name,
+                        prefix: slot.prefix.as_ref().map(|k| t.get(k.as_str())),
                     });
                 }
             }

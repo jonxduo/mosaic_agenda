@@ -48,7 +48,8 @@ program_types:
       - { id: aux_counselor, label: s.aux_counselor, option: aux_class, requires: *elder }
       - { id: opening_prayer, label: s.song_and_prayer, requires: { has_qualification: can_prayer },
           extra_fields: [ { id: song, type: integer, min: 1 } ] }
-      - { id: treasures_talk, label: s.treasures_talk, section: treasures, requires: { has_qualification: can_treasures },
+      # La fascia dice già "Tesori della Parola di Dio": a sinistra basta il tema.
+      - { id: treasures_talk, label: s.treasures_talk, section: treasures, row_name: false, requires: { has_qualification: can_treasures },
           extra_fields: [ { id: title, type: text } ] }
       - { id: spiritual_gems, label: s.spiritual_gems, section: treasures, requires: { has_qualification: can_gems } }
       - { id: bible_reading, label: s.bible_reading, section: treasures, requires: { has_qualification: can_bible_reading },
@@ -60,10 +61,10 @@ program_types:
           requires: { has_qualification: can_student },
           extra_fields: [ { id: title, type: text }, { id: minutes, type: integer, min: 0 }, { id: synopsis, type: long_text },
                           { id: lesson, type: text } ], pair_with: student_assistant }
-      - { id: student_assistant, label: s.student_assistant, section: ministry, repeat: { count: 4 }, numbered: false, requires: { has_qualification: can_student } }
+      - { id: student_assistant, label: s.student_assistant, prefix: pre.with, section: ministry, repeat: { count: 4 }, numbered: false, requires: { has_qualification: can_student } }
       - { id: aux_student_part, label: s.aux_student_part, section: ministry, option: aux_class, beside: student_part, repeat: { count: 4 }, numbered: false,
           requires: { has_qualification: can_student }, pair_with: aux_student_assistant }
-      - { id: aux_student_assistant, label: s.aux_student_assistant, section: ministry, option: aux_class, repeat: { count: 4 }, numbered: false,
+      - { id: aux_student_assistant, label: s.aux_student_assistant, prefix: pre.with, section: ministry, option: aux_class, repeat: { count: 4 }, numbered: false,
           requires: { has_qualification: can_student } }
       - { id: middle_song, label: s.song, section: living, assignable: false, extra_fields: [ { id: song, type: integer, min: 1 } ] }
       # Di solito una parte; le altre si aggiungono quando servono.
@@ -72,7 +73,7 @@ program_types:
           extra_fields: [ { id: title, type: text }, { id: minutes, type: integer, min: 0 } ] }
       - { id: cbs_conductor, label: s.cbs_conductor, section: living, requires: { has_qualification: can_cbs_conductor },
           extra_fields: [ { id: material, type: text } ] }
-      - { id: cbs_reader, label: s.cbs_reader, section: living, with: cbs_conductor, requires: { has_qualification: can_cbs_reader } }
+      - { id: cbs_reader, label: s.cbs_reader, prefix: pre.reader, section: living, with: cbs_conductor, requires: { has_qualification: can_cbs_reader } }
       - { id: closing_song, label: s.song, section: living, assignable: false, extra_fields: [ { id: song, type: integer, min: 1 } ] }
       - { id: closing_prayer, label: s.closing_prayer, section: living, requires: { has_qualification: can_prayer } }
   - id: weekend
@@ -102,7 +103,7 @@ program_types:
       # Una riga: il tema a sinistra, conduttore e lettore a destra.
       - { id: wt_conductor, label: s.wt_conductor, requires: { has_qualification: can_wt_conductor },
           extra_fields: [ { id: wt_theme, type: text } ] }
-      - { id: wt_reader, label: s.wt_reader, with: wt_conductor, requires: { has_qualification: can_wt_reader } }
+      - { id: wt_reader, label: s.wt_reader, prefix: pre.reader, with: wt_conductor, requires: { has_qualification: can_wt_reader } }
       - { id: closing_song, label: s.song, assignable: false, extra_fields: [ { id: song, type: integer, min: 1 } ] }
       - { id: closing_prayer, label: s.closing_prayer, requires: { has_qualification: can_prayer } }
   - id: av

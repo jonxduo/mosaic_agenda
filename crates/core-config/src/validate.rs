@@ -173,6 +173,9 @@ impl<'a> Validator<'a> {
                     );
                 }
             }
+            if let Some(k) = &s.prefix {
+                self.text_key(k, PROGRAMS, format!("{sp}.prefix"));
+            }
             if s.beside.is_some() && s.option.is_none() {
                 self.err(
                     PROGRAMS,

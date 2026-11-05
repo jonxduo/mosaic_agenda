@@ -2852,6 +2852,18 @@
           ],
           "default": null
         },
+        "prefix": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TextKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Word shown before the person's name when the slot sits under another\nin the same row (e.g. \"con\", \"Lettore\")."
+        },
         "repeat": {
           "anyOf": [
             {

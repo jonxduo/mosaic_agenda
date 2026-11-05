@@ -902,3 +902,7 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
 - Bacheca per mese: `board(month)` dà i programmi con almeno un evento nel mese (anche quelli
   vecchi, non più esposti), più gli avvisi di oggi nel mese corrente. In cima alla pagina il mese
   con le frecce; il mese scelto resta quando si torna da un programma.
+- Programma in sola lettura: nomi "Cognome I." allineati in basso, fasce con margine interno,
+  righe più ariose; chi sta sotto un'altra persona nella stessa riga è più piccolo e preceduto
+  da `SlotDef.prefix` (congregazione: "con" per gli assistenti, "Lettore" per i lettori). La riga
+  del discorso dei Tesori non ripete il nome della fascia.

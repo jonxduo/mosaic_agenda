@@ -1253,6 +1253,8 @@ export type SlotCell_Deserialize = {
 	shown: boolean,
 	/**  The editor shows the slot's name on the left of its row. */
 	row_name: boolean,
+	/**  Word before the name under another person in the row (e.g. "con"). */
+	prefix?: string | null,
 };
 
 export type SlotCell_Serialize = {
@@ -1280,6 +1282,8 @@ export type SlotCell_Serialize = {
 	shown: boolean,
 	/**  The editor shows the slot's name on the left of its row. */
 	row_name: boolean,
+	/**  Word before the name under another person in the row (e.g. "con"). */
+	prefix: string | null,
 };
 
 /**  One slot choice of the program editor (an empty `person` empties it). */

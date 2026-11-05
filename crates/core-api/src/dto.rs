@@ -348,6 +348,8 @@ pub struct SlotCell {
     pub shown: bool,
     /// The editor shows the slot's name on the left of its row.
     pub row_name: bool,
+    /// Word before the name under another person in the row (e.g. "con").
+    pub prefix: Option<String>,
 }
 
 /// A person in the editor's side list, with how long since their last

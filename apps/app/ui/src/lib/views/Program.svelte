@@ -249,9 +249,10 @@
 {/snippet}
 
 <!-- A slot as a drop target: dashed when empty, with its label; a click opens the list. -->
-{#snippet zone(c: Cell)}
+<!-- mate: chosen with the row's first person (an assistant): "con …", smaller. -->
+{#snippet zone(c: Cell, mate = false)}
   {#if readonly}
-    {#if c.assignee}<div class="ro-name">{c.assignee_name}</div>{/if}
+    {#if c.assignee}<div class="ro-name" class:mate title={c.assignee_name}>{#if mate}<span class="with">{c.prefix ?? t('with_person')}</span> {/if}{short(c.assignee_name ?? '')}</div>{/if}
   {:else}
   {@const v = valueOf(c)}
   {@const ok = !!dragging && accepts(c, dragging)}
@@ -301,9 +302,9 @@
           <button class="remove" title={t('part_remove')} aria-label={`${t('part_remove')} · ${c.label}`} onclick={() => setShown(c, false)}>−</button>
         {/if}
       </div>
-      <div class="who">{#each inRow(c, null) as x (x.slot)}{#if x.assignable}{@render zone(x)}{/if}{/each}</div>
+      <div class="who">{#each inRow(c, null) as x, k (x.slot)}{#if x.assignable}{@render zone(x, k > 0)}{/if}{/each}</div>
       {#each p?.columns ?? [] as col (col.id)}
-        <div class="who aux">{#each inRow(c, col.id) as x (x.slot)}{@render zone(x)}{/each}</div>
+        <div class="who aux">{#each inRow(c, col.id) as x, k (x.slot)}{@render zone(x, k > 0)}{/each}</div>
       {/each}
     {/each}
   </div>
@@ -496,12 +497,17 @@
   .part.noname { padding-top: 10px; }
   /* Read-only: compact rows, titles in plain text. */
   .embedded .name { min-height: 0; }
-  .embedded .rows > * { padding: 8px 0; }
-  .embedded .who { justify-content: center; }
+  .embedded .rows > * { padding: 12px 0; }
+  .embedded .rows > .band { padding: 6px 12px; }
+  /* Names at the bottom of the row, the assistant right under the student. */
+  .embedded .who { justify-content: flex-end; gap: 0; }
+  .embedded .details { row-gap: 4px; }
   .embedded .part.noname { padding-top: 0; }
-  .embedded .details { gap: 2px 12px; }
+  .embedded .details { column-gap: 12px; }
   .lead { font-size: 15px; }
-  .ro-name { min-height: 28px; display: flex; align-items: center; font-weight: 600; font-size: 15px; }
+  .ro-name { min-height: 24px; display: flex; align-items: center; gap: 4px; font-weight: 600; font-size: 15px; }
+  .ro-name.mate { font-size: 13px; font-weight: 500; min-height: 20px; }
+  .ro-name .with { color: var(--muted); font-weight: 400; }
   .embedded .topcover { display: none; }
   .remove { position: absolute; top: 8px; right: 2px; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg); color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity 0.1s; padding: 0; }
   .rows > .part:hover .remove, .remove:focus-visible { opacity: 1; }

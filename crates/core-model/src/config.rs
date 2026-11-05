@@ -890,6 +890,10 @@ pub struct SlotDef {
     /// the section and the details say it all).
     #[serde(default = "yes")]
     pub row_name: bool,
+    /// Word shown before the person's name when the slot sits under another
+    /// in the same row (e.g. "con", "Lettore").
+    #[serde(default)]
+    pub prefix: Option<TextKey>,
 }
 
 impl SlotDef {
