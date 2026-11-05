@@ -46,9 +46,9 @@
         <table>
           <thead>
             <tr>
-              <th>{t('report_period')}</th>
-              {#each columns as c (c)}<th>{c}</th>{/each}
-              <th>{t('state')}</th>
+              <th title={t('report_period')}><span class="h">{t('report_period')}</span></th>
+              {#each columns as c (c)}<th title={c}><span class="h">{c}</span></th>{/each}
+              <th title={t('state')}><span class="h">{t('state')}</span></th>
             </tr>
           </thead>
           <tbody>
@@ -82,5 +82,11 @@
   .link { cursor: pointer; }
   .link:hover td { background: var(--primary-soft); }
   .period { font-weight: 600; text-transform: capitalize; }
+  /* Phone: the headers do not widen the columns; a long one ends in "…"
+     (full text on hover). The table scrolls only if the values do not fit. */
+  @media (max-width: 760px) {
+    th { min-width: 64px; }
+    th .h { display: block; width: 0; min-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  }
   .variant { display: block; font-weight: 400; font-size: 12px; text-transform: none; }
 </style>
