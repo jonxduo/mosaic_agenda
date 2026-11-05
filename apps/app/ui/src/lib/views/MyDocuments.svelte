@@ -3,7 +3,6 @@
   import type { DocumentRow_Serialize as Row } from '../bindings';
   import { api, run } from '../api';
   import { t } from '../i18n';
-  import { go } from '../router.svelte';
   import { fail } from '../toast.svelte';
   import Form from './Form.svelte';
 
@@ -53,7 +52,7 @@
           </thead>
           <tbody>
             {#each past as r (r.document_id)}
-              <tr onclick={() => go('form', { form: r.form, period: r.period })} class="link" title={t('open')}>
+              <tr>
                 <td class="period">{r.period_label}{#if r.variant_label}<span class="muted variant">{r.variant_label}</span>{/if}</td>
                 {#each columns as c (c)}<td>{cell(r, c)}</td>{/each}
                 <td><span class="badge state" class:ok={!r.editable} title={r.state_label}>{r.state_label}</span></td>
@@ -79,8 +78,6 @@
   td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
   th:first-child, td:first-child { padding-left: 20px; }
   tr:last-child td { border-bottom: none; }
-  .link { cursor: pointer; }
-  .link:hover td { background: var(--primary-soft); }
   .period { font-weight: 600; text-transform: capitalize; }
   /* Phone: the headers do not widen the columns; a long one ends in "…"
      (full text on hover). The table scrolls only if the values do not fit. */
