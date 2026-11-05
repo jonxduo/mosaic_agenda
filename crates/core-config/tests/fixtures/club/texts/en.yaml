@@ -20,6 +20,8 @@ fld.topic: Topic
 fld.name: Name
 fld.kind: Kind
 fld.used_on: Used on
+fld.pic: Picture
+fld.spot: Spot
 opt.s: Small
 opt.l: Large
 opt.a: Kind A

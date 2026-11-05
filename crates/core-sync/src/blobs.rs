@@ -180,6 +180,51 @@ pub fn prepare_photo(
     })
 }
 
+/// A picture of a photo field, encrypted with a key of its own.
+#[derive(Debug, Clone)]
+pub struct SealedAttachment {
+    pub blob: Vec<u8>,
+    pub hash: [u8; 32],
+    pub key: [u8; 32],
+}
+
+fn attachment_aad(org: &OrgId) -> Vec<u8> {
+    let mut aad = b"attachment".to_vec();
+    aad.extend_from_slice(&org.0);
+    aad
+}
+
+/// Resizes like [`prepare_photo`] (EXIF dropped) and encrypts with a fresh
+/// key, which travels in the payload of the events that show the picture:
+/// whoever reads one of them can open it, on any channel.
+pub fn seal_attachment(bytes: &[u8], org: &OrgId) -> Result<SealedAttachment, PhotoError> {
+    let img = ImageReader::new(Cursor::new(bytes))
+        .with_guessed_format()
+        .map_err(|e| PhotoError::Decode(e.to_string()))?
+        .decode()
+        .map_err(|e| PhotoError::Decode(e.to_string()))?;
+    let full = if img.width().max(img.height()) > FULL_SIZE {
+        img.resize(FULL_SIZE, FULL_SIZE, FilterType::Lanczos3)
+    } else {
+        img
+    };
+    let key = ChannelKey::generate()?;
+    let sealed = key.encrypt(&attachment_aad(org), &jpeg(&full, JPEG_QUALITY)?)?;
+    let blob = postcard::to_allocvec(&sealed).map_err(|e| PhotoError::Encode(e.to_string()))?;
+    Ok(SealedAttachment {
+        hash: *blake3::hash(&blob).as_bytes(),
+        blob,
+        key: *key.as_bytes(),
+    })
+}
+
+/// Decrypts an attachment back to its JPEG.
+pub fn open_attachment(blob: &[u8], org: &OrgId, key: &[u8; 32]) -> Result<Vec<u8>, PhotoError> {
+    let sealed: Sealed =
+        postcard::from_bytes(blob).map_err(|e| PhotoError::Decode(e.to_string()))?;
+    Ok(ChannelKey::from_bytes(*key).decrypt(&attachment_aad(org), &sealed)?)
+}
+
 /// Decrypts a blob back to its JPEG.
 pub fn open_blob(
     blob: &[u8],
@@ -190,6 +235,27 @@ pub fn open_blob(
     let sealed: Sealed =
         postcard::from_bytes(blob).map_err(|e| PhotoError::Decode(e.to_string()))?;
     Ok(key.decrypt(&blob_aad(org, channel), &sealed)?)
+}
+
+#[cfg(test)]
+mod attachment_tests {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+    use image::{ImageBuffer, Rgb};
+
+    #[test]
+    fn attachment_round_trip_needs_its_key_and_org() {
+        let img: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::from_pixel(40, 30, Rgb([10, 200, 30]));
+        let mut png = Vec::new();
+        img.write_to(&mut Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
+        let org = OrgId([1; 32]);
+        let a = seal_attachment(&png, &org).unwrap();
+        assert_eq!(a.hash, *blake3::hash(&a.blob).as_bytes());
+        let jpeg = open_attachment(&a.blob, &org, &a.key).unwrap();
+        assert_eq!(image::load_from_memory(&jpeg).unwrap().width(), 40);
+        assert!(open_attachment(&a.blob, &OrgId([2; 32]), &a.key).is_err());
+        assert!(open_attachment(&a.blob, &org, &[0; 32]).is_err());
+    }
 }
 
 #[cfg(test)]

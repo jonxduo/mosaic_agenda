@@ -9,7 +9,8 @@ use core_model::cond::{Cond, Expr};
 use core_model::config::{
     AggregateDef, ChoiceOption, FieldDef, FieldType, FormDef, MeasureOp, PackageConfig, PrefillDef,
     ProgramPeriod, ProgramTypeDef, QualificationDef, QualificationDuration, Repeat,
-    ResourceTypeDef, RoleDef, Rotation, TriggerFilter, ViewParams, WorkflowDef, default_label,
+    ResourceTypeDef, RoleDef, Rotation, ScanDef, ScanRead, TriggerFilter, ViewParams, WorkflowDef,
+    default_label,
 };
 use core_model::strings::{GroupBy, MemberOf, ObjectKind, ObjectRef, ScopeDef};
 use core_model::{Scalar, Slug, TextKey};
@@ -1617,6 +1618,49 @@ impl<'a> Validator<'a> {
                     RESOURCES,
                     format!("{p}.rules.max_per_holder"),
                     "max_per_holder must be at least 1",
+                );
+            }
+            if let Some(scan) = &r.scan {
+                self.scan(scan, &r.attributes, &format!("{p}.scan"));
+            }
+        }
+    }
+
+    /// Each box fills an attribute of a type its reading can produce, and
+    /// lies inside the card.
+    fn scan(&mut self, scan: &ScanDef, attributes: &[FieldDef], p: &str) {
+        if scan.width == 0 || scan.height == 0 {
+            self.err(RESOURCES, p.to_string(), "the card needs a width and a height");
+        }
+        for (i, b) in scan.boxes.iter().enumerate() {
+            let bp = format!("{p}.boxes[{i}]");
+            let [x, y, w, h] = b.at;
+            if w == 0 || h == 0 || x.saturating_add(w) > scan.width || y.saturating_add(h) > scan.height {
+                self.err(RESOURCES, format!("{bp}.at"), "the box must lie inside the card");
+            }
+            let Some(f) = attributes.iter().find(|a| a.id == b.field) else {
+                self.err(
+                    RESOURCES,
+                    format!("{bp}.field"),
+                    format!("unknown attribute `{}`", b.field),
+                );
+                continue;
+            };
+            let fits = match b.read {
+                ScanRead::Line | ScanRead::Text => {
+                    matches!(f.ty, FieldType::Text | FieldType::LongText)
+                }
+                ScanRead::Digits => {
+                    matches!(f.ty, FieldType::Text | FieldType::LongText | FieldType::Integer)
+                }
+                ScanRead::Code => matches!(f.ty, FieldType::Geo | FieldType::Text | FieldType::LongText),
+                ScanRead::Image => f.ty == FieldType::Photos,
+            };
+            if !fits {
+                self.err(
+                    RESOURCES,
+                    format!("{bp}.read"),
+                    format!("reading {:?} cannot fill a field of type {:?}", b.read, f.ty),
                 );
             }
         }

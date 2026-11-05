@@ -124,6 +124,8 @@ pub enum FieldType {
     Person,
     Resource,
     Photos,
+    /// A point on the map: `"lat,lng"` in decimal degrees.
+    Geo,
     Computed,
 }
 
@@ -970,6 +972,49 @@ pub struct ResourceTypeDef {
     pub read_audience: ResourceReadAudience,
     #[serde(default)]
     pub retention: Option<Retention>,
+    /// Printed cards of this type can be read from a photo.
+    #[serde(default)]
+    pub scan: Option<ScanDef>,
+}
+
+/// The layout of a printed card (DECISIONS.md, "Lettura di schede da
+/// foto"): every card is alike, so once straightened to `width` × `height`
+/// each field sits in a known box.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ScanDef {
+    pub width: u32,
+    pub height: u32,
+    /// Text recognition language (Tesseract code, e.g. `ita`).
+    #[serde(default)]
+    pub language: Option<String>,
+    pub boxes: Vec<ScanBox>,
+}
+
+/// One field of the card: `at` is `[x, y, width, height]`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ScanBox {
+    pub field: Slug,
+    pub at: [u32; 4],
+    #[serde(default)]
+    pub read: ScanRead,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ScanRead {
+    /// One line of text, often on a dotted leader.
+    #[default]
+    Line,
+    /// One line of digits.
+    Digits,
+    /// Several lines of text.
+    Text,
+    /// A QR code; a map link in it fills a `geo` field.
+    Code,
+    /// The box itself, as a picture for a `photos` field.
+    Image,
 }
 
 // ---------------------------------------------------------------------------

@@ -911,3 +911,44 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   Torre di Guardia" (verde oliva, tema a sinistra, conduttore e lettore a destra), cantico,
   preghiera finale. Preghiera iniziale e cantico di metà sono spenti (`enabled: false`), non
   tolti, per i programmi già fatti.
+
+## 2026-11-05 — Lettura di schede da foto; foto e posizione delle risorse
+
+- Nuovo crate `core-scan`, deterministico (niente IA): trova la scheda come la zona chiara e
+  senza colore più grande della foto (orientamento EXIF applicato), ne prende i quattro angoli
+  e la raddrizza alla misura del modello. Prova le due rotazioni compatibili (anche capovolta o
+  girata di 90°) e tiene la prima in cui ogni riquadro QR si decodifica. Poi legge i riquadri
+  fissi: testo, QR, ritaglio d'immagine.
+- Il modello sta nel pacchetto: `ResourceTypeDef.scan` = `{ width, height, language, boxes }`,
+  ogni riquadro `{ field, at: [x, y, w, h], read: line | digits | text | code | image }`. Il
+  validatore controlla che il riquadro stia nella scheda e che la lettura possa riempire il
+  campo (`code` → `geo` o testo, `image` → `photos`, testo → testo).
+- Testo con Tesseract da riga di comando, se installato (cercato anche in /opt/homebrew/bin e
+  /usr/local/bin, che un'app avviata dal desktop non ha nel PATH). Senza Tesseract (telefoni)
+  la lettura dà comunque immagine e posizione, e l'interfaccia chiede di compilare a mano il
+  testo. Motivo: un OCR incluso nell'app (es. `ocrs`) pesa ~10 MB di modelli; da valutare se
+  l'importazione da telefono servirà davvero.
+- Pulizia prima del riconoscimento: righe ingrandite 3×, via i puntini delle linee tratteggiate
+  (zone scure più basse di 1/5 del riquadro, salvo trattini); testi su più righe ingranditi 2×
+  (a 3× Tesseract inventa caratteri), via le macchie piccole lontane dalle lettere (graffi della
+  busta), ritagliati alla parte scritta con un margine color carta.
+- Collegamenti di mappe: dal QR si ricava il punto (destinazione di `/dir/`, `q=`/`ll=`,
+  `!3d…!4d…`, infine il centro `@lat,lng`).
+- Nuovo tipo di campo `geo`: `"lat,lng"` in gradi decimali, validato dal motore; nel dettaglio
+  diventa un collegamento a Google Maps.
+- Foto dei campi `photos`: ogni immagine è un blob cifrato con una **chiave propria**; il valore
+  è `"<hash>:<chiave>"` e sta nel payload (già cifrato) dell'evento. Così chi legge l'evento apre
+  l'immagine su qualunque canale lo riceva (anche la copia per il detentore in
+  `ResourceAssigned`) senza ricifrare il blob. Gli eventi `ResourceUpserted` e
+  `ResourceAssigned` elencano i blob in `attachments`, perché i dispositivi li chiedano.
+  L'interfaccia invia le foto nuove come `data:` URL; il core le ridimensiona (2048 px, EXIF
+  tolto), le cifra e le sostituisce col riferimento. `attachment(ref)` le riapre; se il blob non
+  è ancora arrivato lo mette tra quelli da chiedere.
+- Comandi: `scan_resource` (solo chi gestisce le risorse del tipo), `update_resource`,
+  `attachment`. Il dettaglio di una risorsa dà immagini, punti e, a chi la gestisce, i campi
+  modificabili; il titolo usa i primi due campi di testo nell'ordine dichiarato.
+- Congregazione: la cartolina dei territori (1500×1000) riempie località, numero, note,
+  mappa e posizione; il campo "Nome" diventa "Località", la mappa è una sola foto.
+- Menu: l'amministratore vede tutte le voci anche se limitate a un pubblico (es. "Territori").
+- Server di sviluppo: richieste fino a 32 MB (foto in base64). Profilo dev: `core-scan`,
+  `image`, `imageproc`, `rqrr`, `zune-jpeg` ottimizzati anche in debug (lettura in ~0,4 s).

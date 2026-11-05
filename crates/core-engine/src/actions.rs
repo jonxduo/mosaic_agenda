@@ -227,10 +227,25 @@ impl<'a> Client<'a> {
         header: Option<ObjectHeader>,
         payload: &T,
     ) -> Result<(), ActionError> {
+        self.sealed_with(chain, kind, desc, header, payload, Vec::new())
+    }
+
+    /// [`Self::sealed`] naming the blobs the payload refers to, so that
+    /// the devices reading it fetch them.
+    fn sealed_with<T: Serialize>(
+        &self,
+        chain: &mut Chain,
+        kind: EventKind,
+        desc: &ChannelDescriptor,
+        header: Option<ObjectHeader>,
+        payload: &T,
+        attachments: Vec<[u8; 32]>,
+    ) -> Result<(), ActionError> {
         let (r, key) = self.ensure_channel(chain, desc)?;
         let bytes = encode(payload).map_err(|_| ActionError::Encode)?;
         let mut d = self.draft(chain, kind);
         d.object = header;
+        d.attachments = attachments.into_iter().map(core_events::BlobRef).collect();
         let e = d.sign_sealed(&bytes, r, &key, self.keys)?;
         Self::push(chain, e);
         Ok(())
@@ -1187,8 +1202,9 @@ impl<'a> Client<'a> {
             Some(r) => r,
             None => new_id()?,
         };
+        let blobs = self.resource_attachments(resource_type, &attributes)?;
         let mut chain = self.chain();
-        self.sealed(
+        self.sealed_with(
             &mut chain,
             EventKind::ResourceUpserted,
             &resource_descriptor(resource_type, None),
@@ -1198,8 +1214,21 @@ impl<'a> Client<'a> {
                 resource_type: resource_type.clone(),
                 attributes,
             },
+            blobs,
         )?;
         Ok((resource, self.finish(chain)?))
+    }
+
+    fn resource_attachments(
+        &self,
+        resource_type: &Slug,
+        attributes: &Values,
+    ) -> Result<Vec<[u8; 32]>, ActionError> {
+        let def = self
+            .cfg()?
+            .resource_type(resource_type)
+            .ok_or_else(|| nf("resource type"))?;
+        Ok(crate::values::attachments(&def.attributes, attributes))
     }
 
     fn resource(&self, id: Id) -> Result<&crate::projection::Resource, ActionError> {
@@ -1219,13 +1248,16 @@ impl<'a> Client<'a> {
             date: self.date(),
             attributes: r.attributes.clone(),
         };
+        // The holder's copy names the pictures too: their devices fetch them.
+        let blobs = self.resource_attachments(&r.resource_type, &r.attributes)?;
         let mut chain = self.chain();
-        self.sealed(
+        self.sealed_with(
             &mut chain,
             EventKind::ResourceAssigned,
             &resource_descriptor(&r.resource_type, Some(holder)),
             Self::header(ObjectType::Resource, resource, &r.resource_type),
             &payload,
+            blobs,
         )?;
         self.finish(chain)
     }

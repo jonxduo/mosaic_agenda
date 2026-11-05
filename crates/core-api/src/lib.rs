@@ -16,6 +16,7 @@ pub mod prefill;
 pub mod privacy;
 pub mod profile;
 pub mod push;
+pub mod scan;
 pub mod schedule;
 pub mod secrets;
 pub mod texts;

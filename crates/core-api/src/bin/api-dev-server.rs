@@ -77,6 +77,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
     let app = Router::new()
         .route("/api/{cmd}", post(call))
+        // Photos travel as base64: well beyond axum's 2 MB default.
+        .layer(axum::extract::DefaultBodyLimit::max(32 * 1024 * 1024))
         .with_state(core);
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     println!("api-dev-server listening on http://{addr}");

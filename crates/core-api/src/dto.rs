@@ -475,6 +475,8 @@ pub struct ResourceList {
     pub title: String,
     pub can_manage: bool,
     pub can_assign: bool,
+    /// A printed card can be read from a photo to fill the form.
+    pub can_scan: bool,
     pub resources: Vec<ResourceRow>,
     pub attributes: Vec<Field>,
     pub candidates: Vec<Choice>,
@@ -493,6 +495,38 @@ pub struct ResourceDetail {
     pub can_assign: bool,
     pub can_request: bool,
     pub open_request: Option<OpenRequest>,
+    /// The attributes as an editable form, for who manages the resource.
+    pub can_manage: bool,
+    pub fields: Vec<Field>,
+    pub can_scan: bool,
+    pub pictures: Vec<Picture>,
+    pub places: Vec<Place>,
+}
+
+/// A stored picture: `reference` opens it through `attachment`.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct Picture {
+    pub label: String,
+    pub reference: String,
+}
+
+/// A point on the map, with a link that opens it.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct Place {
+    pub label: String,
+    pub lat: f64,
+    pub lng: f64,
+    pub link: String,
+}
+
+/// What a printed card said: values for the form (pictures as `data:`
+/// URLs), whether text could be read on this device, and the fields left
+/// empty.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct ScanResult {
+    pub values: JsonMap,
+    pub text_read: bool,
+    pub missing: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

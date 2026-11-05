@@ -20,6 +20,7 @@ core-events.workspace = true
 core-engine.workspace = true
 core-sync.workspace = true
 core-push.workspace = true
+core-scan.workspace = true
 hex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -39,6 +40,7 @@ rustls.workspace = true
 axum = { workspace = true, optional = true }
 
 [dev-dependencies]
+image.workspace = true
 push-service.workspace = true
 axum.workspace = true
 async-trait = "0.1"

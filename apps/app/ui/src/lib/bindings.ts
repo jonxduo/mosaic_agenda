@@ -60,6 +60,9 @@ export const commands = {
 	resource: (resource: string) => typedError<ResourceDetail_Serialize, ApiError>(__TAURI_INVOKE("resource", { resource })),
 	myResources: (resourceType: string | null) => typedError<HeldResource_Serialize[], ApiError>(__TAURI_INVOKE("my_resources", { resourceType })),
 	createResource: (resourceType: string, attributes: JsonMap) => typedError<string, ApiError>(__TAURI_INVOKE("create_resource", { resourceType, attributes })),
+	updateResource: (resource: string, attributes: JsonMap) => typedError<null, ApiError>(__TAURI_INVOKE("update_resource", { resource, attributes })),
+	scanResource: (resourceType: string, image: string) => typedError<ScanResult, ApiError>(__TAURI_INVOKE("scan_resource", { resourceType, image })),
+	attachment: (reference: string) => typedError<string, ApiError>(__TAURI_INVOKE("attachment", { reference })),
 	assignResource: (resource: string, holder: string) => typedError<null, ApiError>(__TAURI_INVOKE("assign_resource", { resource, holder })),
 	openRequest: (resource: string, request: string) => typedError<null, ApiError>(__TAURI_INVOKE("open_request", { resource, request })),
 	answerRequest: (request: string, answer: string) => typedError<null, ApiError>(__TAURI_INVOKE("answer_request", { request, answer })),
@@ -884,6 +887,20 @@ export type PersonView_Serialize = {
 	unit_ids: UnitRef[],
 };
 
+/**  A stored picture: `reference` opens it through `attachment`. */
+export type Picture = {
+	label: string,
+	reference: string,
+};
+
+/**  A point on the map, with a link that opens it. */
+export type Place = {
+	label: string,
+	lat: number | null,
+	lng: number | null,
+	link: string,
+};
+
 export type Profile = Profile_Serialize | Profile_Deserialize;
 
 export type ProfileDate = ProfileDate_Serialize | ProfileDate_Deserialize;
@@ -1115,6 +1132,12 @@ export type ResourceDetail_Deserialize = {
 	can_assign: boolean,
 	can_request: boolean,
 	open_request?: OpenRequest | null,
+	/**  The attributes as an editable form, for who manages the resource. */
+	can_manage: boolean,
+	fields: Field_Deserialize[],
+	can_scan: boolean,
+	pictures: Picture[],
+	places: Place[],
 };
 
 export type ResourceDetail_Serialize = {
@@ -1128,6 +1151,12 @@ export type ResourceDetail_Serialize = {
 	can_assign: boolean,
 	can_request: boolean,
 	open_request: OpenRequest | null,
+	/**  The attributes as an editable form, for who manages the resource. */
+	can_manage: boolean,
+	fields: Field_Serialize[],
+	can_scan: boolean,
+	pictures: Picture[],
+	places: Place[],
 };
 
 export type ResourceList = ResourceList_Serialize | ResourceList_Deserialize;
@@ -1137,6 +1166,8 @@ export type ResourceList_Deserialize = {
 	title: string,
 	can_manage: boolean,
 	can_assign: boolean,
+	/**  A printed card can be read from a photo to fill the form. */
+	can_scan: boolean,
 	resources: ResourceRow_Deserialize[],
 	attributes: Field_Deserialize[],
 	candidates: Choice[],
@@ -1148,6 +1179,8 @@ export type ResourceList_Serialize = {
 	title: string,
 	can_manage: boolean,
 	can_assign: boolean,
+	/**  A printed card can be read from a photo to fill the form. */
+	can_scan: boolean,
 	resources: ResourceRow_Serialize[],
 	attributes: Field_Serialize[],
 	candidates: Choice[],
@@ -1200,6 +1233,17 @@ export type RoleOption_Serialize = {
 	choose_unit: boolean,
 	/**  Units of the type, when the unit is chosen. */
 	units: Choice[],
+};
+
+/**
+ *  What a printed card said: values for the form (pictures as `data:`
+ *  URLs), whether text could be read on this device, and the fields left
+ *  empty.
+ */
+export type ScanResult = {
+	values: JsonMap,
+	text_read: boolean,
+	missing: string[],
 };
 
 /**  A heading of the program editor. */

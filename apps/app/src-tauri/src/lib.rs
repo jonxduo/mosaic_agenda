@@ -105,6 +105,9 @@ cmd!(board(month: Option<String>) -> Vec<BoardItem> => |c| c.board(month));
 cmd!(resources(resource_type: String) -> ResourceList => |c| c.resources(resource_type));
 cmd!(resource(resource: String) -> ResourceDetail => |c| c.resource(resource));
 cmd!(my_resources(resource_type: Option<String>) -> Vec<HeldResource> => |c| c.my_resources(resource_type));
+cmd!(update_resource(resource: String, attributes: Map) -> () => |c| c.update_resource(resource, attributes.0));
+cmd!(scan_resource(resource_type: String, image: String) -> core_api::dto::ScanResult => |c| c.scan_resource(resource_type, image).await);
+cmd!(attachment(reference: String) -> String => |c| c.attachment(reference));
 cmd!(create_resource(resource_type: String, attributes: Map) -> String => |c| c.create_resource(resource_type, attributes.0));
 cmd!(assign_resource(resource: String, holder: String) -> () => |c| c.assign_resource(resource, holder));
 cmd!(open_request(resource: String, request: String) -> () => |c| c.open_request(resource, request));
@@ -192,6 +195,9 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         resource,
         my_resources,
         create_resource,
+        update_resource,
+        scan_resource,
+        attachment,
         assign_resource,
         open_request,
         answer_request,

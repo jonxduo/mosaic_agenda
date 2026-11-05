@@ -8,6 +8,53 @@ use crate::auth::{Denied, deny};
 use crate::ops::Values;
 use crate::time::parse_date;
 
+/// A photo value: `"<blob hash>:<blob key>"`, both hex. Each attachment
+/// has its own key, carried in the (encrypted) payload: whoever can read the
+/// event can open the picture, whatever channel the event is copied to
+/// (DECISIONS.md, "Lettura di schede da foto").
+pub fn attachment_ref(s: &str) -> Option<([u8; 32], [u8; 32])> {
+    fn hex32(s: &str) -> Option<[u8; 32]> {
+        if s.len() != 64 {
+            return None;
+        }
+        let mut out = [0u8; 32];
+        for (i, b) in out.iter_mut().enumerate() {
+            *b = u8::from_str_radix(s.get(2 * i..2 * i + 2)?, 16).ok()?;
+        }
+        Some(out)
+    }
+    let (hash, key) = s.split_once(':')?;
+    Some((hex32(hash)?, hex32(key)?))
+}
+
+/// The blobs referenced by the photo fields of `values`.
+pub fn attachments(fields: &[FieldDef], values: &Values) -> Vec<[u8; 32]> {
+    let mut out: Vec<[u8; 32]> = fields
+        .iter()
+        .filter(|f| f.ty == FieldType::Photos)
+        .filter_map(|f| values.get(&f.id))
+        .flat_map(|v| match v {
+            Scalar::List(items) => items.clone(),
+            _ => Vec::new(),
+        })
+        .filter_map(|x| match x {
+            Scalar::Str(s) => attachment_ref(&s).map(|(h, _)| h),
+            _ => None,
+        })
+        .collect();
+    out.sort_unstable();
+    out.dedup();
+    out
+}
+
+/// `"lat,lng"` in decimal degrees.
+pub fn parse_geo(s: &str) -> Option<(f64, f64)> {
+    let (lat, lng) = s.split_once(',')?;
+    let lat: f64 = lat.trim().parse().ok()?;
+    let lng: f64 = lng.trim().parse().ok()?;
+    ((-90.0..=90.0).contains(&lat) && (-180.0..=180.0).contains(&lng)).then_some((lat, lng))
+}
+
 fn option_ids(f: &FieldDef) -> Vec<&str> {
     f.options.iter().flatten().map(|o| o.id.as_str()).collect()
 }
@@ -55,10 +102,18 @@ fn check_one(f: &FieldDef, v: &Scalar) -> Result<(), String> {
         (FieldType::Photos, Scalar::List(items)) => {
             if f.max_count.is_some_and(|m| items.len() > m as usize) {
                 Err(format!("`{}`: too many photos", f.id))
-            } else {
+            } else if items
+                .iter()
+                .all(|x| matches!(x, Scalar::Str(s) if attachment_ref(s).is_some()))
+            {
                 Ok(())
+            } else {
+                Err(format!("`{}`: not an attachment", f.id))
             }
         }
+        (FieldType::Geo, Scalar::Str(s)) => parse_geo(s)
+            .map(|_| ())
+            .ok_or_else(|| format!("`{}` is not a point (`lat,lng`)", f.id)),
         (FieldType::Computed, _) => Err(format!("`{}` is computed and cannot be set", f.id)),
         _ => Err(format!("`{}` has the wrong type", f.id)),
     }

@@ -830,6 +830,11 @@
           "const": "duration",
           "description": "Minutes, shown as hours and minutes.",
           "type": "string"
+        },
+        {
+          "const": "geo",
+          "description": "A point on the map: `\"lat,lng\"` in decimal degrees.",
+          "type": "string"
         }
       ]
     },
@@ -2319,6 +2324,18 @@
             "max_per_holder": null,
             "remind_holder_after_no_log": null
           }
+        },
+        "scan": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScanDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Printed cards of this type can be read from a photo."
         }
       },
       "required": [
@@ -2554,6 +2571,99 @@
         "number",
         "string",
         "array"
+      ]
+    },
+    "ScanBox": {
+      "additionalProperties": false,
+      "description": "One field of the card: `at` is `[x, y, width, height]`.",
+      "properties": {
+        "at": {
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "type": "array"
+        },
+        "field": {
+          "$ref": "#/$defs/Slug"
+        },
+        "read": {
+          "$ref": "#/$defs/ScanRead",
+          "default": "line"
+        }
+      },
+      "required": [
+        "field",
+        "at"
+      ],
+      "type": "object"
+    },
+    "ScanDef": {
+      "additionalProperties": false,
+      "description": "The layout of a printed card (DECISIONS.md, \"Lettura di schede da\nfoto\"): every card is alike, so once straightened to `width` × `height`\neach field sits in a known box.",
+      "properties": {
+        "boxes": {
+          "items": {
+            "$ref": "#/$defs/ScanBox"
+          },
+          "type": "array"
+        },
+        "height": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "language": {
+          "default": null,
+          "description": "Text recognition language (Tesseract code, e.g. `ita`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "width": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "width",
+        "height",
+        "boxes"
+      ],
+      "type": "object"
+    },
+    "ScanRead": {
+      "oneOf": [
+        {
+          "const": "line",
+          "description": "One line of text, often on a dotted leader.",
+          "type": "string"
+        },
+        {
+          "const": "digits",
+          "description": "One line of digits.",
+          "type": "string"
+        },
+        {
+          "const": "text",
+          "description": "Several lines of text.",
+          "type": "string"
+        },
+        {
+          "const": "code",
+          "description": "A QR code; a map link in it fills a `geo` field.",
+          "type": "string"
+        },
+        {
+          "const": "image",
+          "description": "The box itself, as a picture for a `photos` field.",
+          "type": "string"
+        }
       ]
     },
     "ScopeDef": {

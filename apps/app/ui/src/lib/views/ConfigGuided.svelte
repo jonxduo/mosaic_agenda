@@ -33,7 +33,7 @@
   };
 
   const SYSTEM_AUDIENCES = ['subject_only', 'subject_or_on_behalf', 'subject_missing', 'assignee', 'resource_holder', 'object_team', 'root_admins'];
-  const FIELD_TYPES = ['integer', 'decimal', 'duration', 'boolean', 'text', 'long_text', 'date', 'period', 'choice', 'multi_choice', 'person', 'resource', 'photos', 'computed'];
+  const FIELD_TYPES = ['integer', 'decimal', 'duration', 'boolean', 'text', 'long_text', 'date', 'period', 'choice', 'multi_choice', 'person', 'resource', 'photos', 'geo', 'computed'];
   const REMINDER_KINDS = ['document.missing_after', 'batch.incomplete_after', 'batch.missing_after', 'event.assignment_before', 'resource.no_log_after', 'request.due_after'];
   const SLUG = /^[a-z][a-z0-9_]*$/;
 

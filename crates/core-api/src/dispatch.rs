@@ -68,6 +68,9 @@ pub const COMMANDS: &[&str] = &[
     "resource",
     "my_resources",
     "create_resource",
+    "update_resource",
+    "scan_resource",
+    "attachment",
     "assign_resource",
     "open_request",
     "answer_request",
@@ -218,6 +221,13 @@ pub async fn dispatch(core: &Arc<Core>, cmd: &str, input: Value) -> ApiResult<Va
         "my_resources" => {
             call!({ resource_type: Option<String> } => core.my_resources(resource_type)?)
         }
+        "update_resource" => {
+            call!({ resource: String, attributes: Map } => core.update_resource(resource, attributes)?)
+        }
+        "scan_resource" => {
+            call!({ resource_type: String, image: String } => core.scan_resource(resource_type, image).await?)
+        }
+        "attachment" => call!({ reference: String } => core.attachment(reference)?),
         "create_resource" => {
             call!({ resource_type: String, attributes: Map } => core.create_resource(resource_type, attributes)?)
         }

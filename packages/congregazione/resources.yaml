@@ -6,7 +6,8 @@ resource_types:
       - { id: name, type: text, label: fld.territory_name, max_length: 120 }
       - { id: kind, type: choice, options: [residential, business, rural, other], label: fld.territory_kind }
       - { id: notes, type: long_text, label: fld.notes, max_length: 2000 }
-      - { id: map, type: photos, max_count: 3, label: fld.map }
+      - { id: map, type: photos, max_count: 1, label: fld.map }
+      - { id: location, type: geo, label: fld.location }
     holder_requires: { has_qualification: publisher }
     manager_role: territory_manager
     assistant_roles: [territory_assistant]
@@ -25,3 +26,15 @@ resource_types:
       history: territory_team
       attachments_holder: true
     retention: { forever: true }                         # storico senza scadenza
+    # La cartolina stampata (tutte uguali): raddrizzata a 1500×1000, ogni
+    # campo sta in un riquadro fisso [x, y, larghezza, altezza].
+    scan:
+      width: 1500
+      height: 1000
+      language: ita
+      boxes:
+        - { field: name, at: [195, 140, 950, 65], read: line }
+        - { field: number, at: [1260, 135, 220, 60], read: digits }
+        - { field: map, at: [20, 230, 1460, 540], read: image }
+        - { field: notes, at: [60, 862, 1100, 90], read: text }
+        - { field: location, at: [1150, 650, 350, 350], read: code }

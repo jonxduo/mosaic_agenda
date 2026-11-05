@@ -626,3 +626,25 @@ fn bundle_recompiled_from_sources_when_the_model_changed() {
     broken.extend(miniz_oxide::deflate::compress_to_vec(&inner, 6));
     assert!(core_config::decode(&broken).is_err());
 }
+
+#[test]
+fn scan_boxes_fit_the_card_and_their_fields() {
+    assert_error(
+        &[("resources.yaml", "at: [450, 250, 150, 150]", "at: [500, 250, 150, 150]")],
+        "resources.yaml",
+        "resource_types[0].scan.boxes[2].at",
+        "inside the card",
+    );
+    assert_error(
+        &[("resources.yaml", "{ field: name, at:", "{ field: nope, at:")],
+        "resources.yaml",
+        "resource_types[0].scan.boxes[0].field",
+        "unknown attribute",
+    );
+    assert_error(
+        &[("resources.yaml", "read: image }", "read: line }")],
+        "resources.yaml",
+        "resource_types[0].scan.boxes[1].read",
+        "cannot fill",
+    );
+}

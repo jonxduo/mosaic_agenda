@@ -511,9 +511,10 @@ impl Core {
             .menu
             .iter()
             .filter(|m| {
-                m.visible_to
-                    .as_ref()
-                    .is_none_or(|a| allowed_in(&v, me, a, today(self)))
+                // The administrator sees every screen (it may do everything).
+                m.visible_to.as_ref().is_none_or(|a| {
+                    v.proj.auth.is_root(me) || allowed_in(&v, me, a, today(self))
+                })
                     && holds_any(&v, me, &view_permissions(m.view, &m.params), self.now())
             })
             .map(|m| MenuItem {
@@ -892,7 +893,7 @@ impl Core {
                 .find(|(_, q)| q.resource == *id && q.answer.is_none() && q.holder == me);
             out.push(HeldResource {
                 resource_id: id.to_string(),
-                title: resource_title(t, def.map(|d| d.label.as_str()), &r.attributes),
+                title: resource_title(t, def, &r.attributes),
                 subtitle: r
                     .holding
                     .as_ref()
@@ -2226,7 +2227,7 @@ impl Core {
             .filter(|(_, r)| r.resource_type == rt && !r.retired)
             .map(|(id, r)| ResourceRow {
                 resource_id: id.to_string(),
-                title: resource_title(&t, Some(def.label.as_str()), &r.attributes),
+                title: resource_title(&t, Some(def), &r.attributes),
                 holder: r.holding.as_ref().map(|h| name_of(&v, h.holder)),
                 status: if r.holding.is_some() {
                     "assigned"
@@ -2255,17 +2256,15 @@ impl Core {
                 label: r.display_name.clone(),
             })
             .collect();
+        let can_manage =
+            v.proj
+                .auth
+                .is_allowed(cfg, me, Permission::ResourceManage, Some(&obj), None, now);
         Ok(ResourceList {
             resource_type,
             title: t.get(def.label.as_str()),
-            can_manage: v.proj.auth.is_allowed(
-                cfg,
-                me,
-                Permission::ResourceManage,
-                Some(&obj),
-                None,
-                now,
-            ),
+            can_manage,
+            can_scan: can_manage && def.scan.is_some(),
             can_assign: v.proj.auth.is_allowed(
                 cfg,
                 me,
@@ -2278,7 +2277,6 @@ impl Core {
             attributes: def
                 .attributes
                 .iter()
-                .filter(|f| f.ty != FieldType::Photos)
                 .map(|f| field_dto(&t, f, None))
                 .collect(),
             candidates,
@@ -2316,6 +2314,7 @@ impl Core {
         let attributes = def
             .attributes
             .iter()
+            .filter(|f| !matches!(f.ty, FieldType::Photos | FieldType::Geo))
             .filter_map(|f| {
                 let value = r.attributes.get(&f.id)?;
                 let dto = field_dto(&t, f, Some(value));
@@ -2348,9 +2347,55 @@ impl Core {
         history.reverse();
         let holder = r.holding.as_ref().map(|h| h.holder);
         let held = self.held_resources(&v, me, &t, Some(&r.resource_type))?;
+        let can_manage =
+            v.proj
+                .auth
+                .is_allowed(cfg, me, Permission::ResourceManage, Some(&obj), None, now);
+        let mut pictures = Vec::new();
+        let mut places = Vec::new();
+        for f in &def.attributes {
+            let Some(value) = r.attributes.get(&f.id) else {
+                continue;
+            };
+            let label = field_dto(&t, f, None).label;
+            match (f.ty, value) {
+                (FieldType::Photos, Scalar::List(items)) => {
+                    pictures.extend(items.iter().filter_map(|x| match x {
+                        Scalar::Str(reference) => Some(Picture {
+                            label: label.clone(),
+                            reference: reference.clone(),
+                        }),
+                        _ => None,
+                    }));
+                }
+                (FieldType::Geo, v) => {
+                    if let Some((lat, lng, link)) = crate::scan::geo_value(v) {
+                        places.push(Place {
+                            label,
+                            lat,
+                            lng,
+                            link,
+                        });
+                    }
+                }
+                _ => {}
+            }
+        }
         Ok(ResourceDetail {
+            fields: if can_manage {
+                def.attributes
+                    .iter()
+                    .map(|f| field_dto(&t, f, r.attributes.get(&f.id)))
+                    .collect()
+            } else {
+                Vec::new()
+            },
+            can_manage,
+            can_scan: can_manage && def.scan.is_some(),
+            pictures,
+            places,
             resource_id: resource,
-            title: resource_title(&t, Some(def.label.as_str()), &r.attributes),
+            title: resource_title(&t, Some(def), &r.attributes),
             attributes,
             holder: holder.map(|h| name_of(&v, h)),
             history,
@@ -3021,24 +3066,25 @@ pub(crate) fn display_value(v: &Scalar) -> String {
     }
 }
 
-/// "<type> <number> · <name>" from the first text attributes.
+/// "<type> <number> · <name>" from the first two text attributes, in the
+/// order the type declares them.
 pub(crate) fn resource_title(
     t: &Texts,
-    type_label: Option<&str>,
+    def: Option<&core_model::config::ResourceTypeDef>,
     attrs: &core_engine::ops::Values,
 ) -> String {
-    let texts: Vec<String> = attrs
-        .values()
-        .filter_map(|v| {
-            if let Scalar::Str(s) = v {
-                Some(s.clone())
-            } else {
-                None
-            }
+    let texts: Vec<String> = def
+        .map(|d| d.attributes.as_slice())
+        .unwrap_or_default()
+        .iter()
+        .filter(|f| f.ty == FieldType::Text)
+        .filter_map(|f| match attrs.get(&f.id) {
+            Some(Scalar::Str(s)) if !s.is_empty() => Some(s.clone()),
+            _ => None,
         })
         .take(2)
         .collect();
-    let base = type_label.map(|l| t.get(l)).unwrap_or_default();
+    let base = def.map(|d| t.get(d.label.as_str())).unwrap_or_default();
     match texts.as_slice() {
         [] => base,
         [a] => format!("{base} {a}"),

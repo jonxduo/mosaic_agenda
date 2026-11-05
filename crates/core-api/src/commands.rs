@@ -14,7 +14,7 @@ use crate::dto::*;
 use crate::views::cfg;
 use crate::{ApiError, ApiResult, Core, parse_id, parse_person};
 
-fn slug(s: &str) -> ApiResult<Slug> {
+pub(crate) fn slug(s: &str) -> ApiResult<Slug> {
     Slug::new(s).map_err(ApiError::invalid)
 }
 
@@ -526,9 +526,40 @@ impl Core {
         attributes: BTreeMap<String, serde_json::Value>,
     ) -> ApiResult<String> {
         let t = slug(&resource_type)?;
-        let vals = values(attributes)?;
+        let mut vals = values(attributes)?;
+        let def = self.resource_def(&t)?;
+        self.store_pictures(&def.attributes, &mut vals)?;
         let id = self.act(|c| c.upsert_resource(None, &t, vals))?;
         Ok(id.to_string())
+    }
+
+    /// Replaces the attributes of an existing resource.
+    pub fn update_resource(
+        self: &Arc<Self>,
+        resource: String,
+        attributes: BTreeMap<String, serde_json::Value>,
+    ) -> ApiResult<()> {
+        let id = parse_id(&resource)?;
+        let t = self
+            .view()?
+            .proj
+            .resources
+            .get(&id)
+            .map(|r| r.resource_type.clone())
+            .ok_or_else(|| ApiError::not_found("resource"))?;
+        let mut vals = values(attributes)?;
+        let def = self.resource_def(&t)?;
+        self.store_pictures(&def.attributes, &mut vals)?;
+        self.act(|c| c.upsert_resource(Some(id), &t, vals))?;
+        Ok(())
+    }
+
+    fn resource_def(&self, t: &Slug) -> ApiResult<core_model::config::ResourceTypeDef> {
+        let v = self.view()?;
+        cfg(&v)?
+            .resource_type(t)
+            .cloned()
+            .ok_or_else(|| ApiError::not_found("resource type"))
     }
 
     pub fn assign_resource(self: &Arc<Self>, resource: String, holder: String) -> ApiResult<()> {

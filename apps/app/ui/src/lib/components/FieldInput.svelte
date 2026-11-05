@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { Field_Serialize as Field } from '../bindings';
   import { t } from '../i18n';
+  import Picture from './Picture.svelte';
+  import { fileUrl } from '../scan';
 
   let { field, value = $bindable(), disabled = false }: { field: Field; value: unknown; disabled?: boolean } = $props();
   const id = `f-${field.id}`;
@@ -16,6 +18,12 @@
   // Durations are minutes, edited as hours + minutes.
   let hours = $state(Math.floor(num(value) / 60));
   let minutes = $state(num(value) % 60);
+  const pictures = $derived(Array.isArray(value) ? (value as string[]) : []);
+  async function addPictures(files: FileList | null) {
+    if (!files) return;
+    const added = await Promise.all([...files].map(fileUrl));
+    value = [...pictures, ...added];
+  }
   function setDuration() {
     value = clamp(Math.max(0, Math.round(hours) * 60 + Math.round(minutes)));
   }
@@ -66,7 +74,23 @@
     <input {id} type="date" {disabled} value={(value as string) ?? ''} oninput={(e) => (value = e.currentTarget.value || null)} />
   </div>
 {:else if field.kind === 'photos'}
-  <p class="muted">{field.label}</p>
+  <div class="stack small">
+    <span class="lbl-sm">{field.label}</span>
+    {#each pictures as p, i (p)}
+      <div class="pic">
+        <Picture value={p} alt={field.label} />
+        {#if !disabled}<button type="button" class="btn small-btn" onclick={() => (value = pictures.filter((_, j) => j !== i))}>{t('remove_photo')}</button>{/if}
+      </div>
+    {/each}
+    {#if !disabled}
+      <label class="btn add"><input type="file" accept="image/*" multiple hidden onchange={(e) => addPictures(e.currentTarget.files)} />{t('add_photo')}</label>
+    {/if}
+  </div>
+{:else if field.kind === 'geo'}
+  <div class="stack small">
+    <label for={id}>{field.label}</label>
+    <input {id} type="text" inputmode="decimal" placeholder={t('geo_hint')} {disabled} value={(value as string) ?? ''} oninput={(e) => (value = e.currentTarget.value.replace(/\s+/g, '') || null)} />
+  </div>
 {:else}
   <div class="stack small">
     <label for={id}>{field.label}</label>
@@ -76,6 +100,10 @@
 
 <style>
   .small { gap: 8px; }
+  .lbl-sm { font-size: 14px; }
+  .pic { display: grid; gap: 6px; }
+  .small-btn { justify-self: start; }
+  .add { align-self: flex-start; cursor: pointer; }
   .lbl { font-weight: 600; font-size: 15px; }
   fieldset { border: none; margin: 0; padding: 0; }
   legend { padding: 0; margin-bottom: 10px; font-size: 17px; font-weight: 600; }
