@@ -30,17 +30,25 @@
       busy = false;
     }
   }
-  function month(e: Event) {
-    const value = (e.currentTarget as HTMLInputElement).value;
-    if (value) go('aggregate', { aggregate, period: value });
+  /** The month before or after (`YYYY-MM`). */
+  function shift(by: number) {
+    if (!v) return;
+    const [y, m] = v.period.split('-').map(Number);
+    const d = new Date(y, m - 1 + by, 1);
+    go('aggregate', { aggregate, period: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` });
   }
 </script>
 
 {#if v}
   <div class="stack page">
     <div class="spread">
-      <div class="stack tight"><h1>{v.title}</h1><p class="muted">{v.period_label}</p></div>
-      <input type="month" aria-label={t('period')} value={v.period} onchange={month} style="width: 180px" />
+      <h1>{v.title}</h1>
+      <!-- The month, moved with the arrows as in the board. -->
+      <nav class="months" aria-label={t('period')}>
+        <button class="arrow" aria-label={t('previous')} onclick={() => shift(-1)}>‹</button>
+        <strong>{v.period_label}</strong>
+        <button class="arrow" aria-label={t('next')} onclick={() => shift(1)}>›</button>
+      </nav>
     </div>
     <div class="row">
       {#if v.version}<span class="badge">{t('version')} {v.version}</span>{/if}
@@ -71,5 +79,9 @@
 
 <style>
   .page { gap: 20px; }
-  .tight { gap: 4px; }
+  .months { display: flex; align-items: center; gap: 8px; }
+  .months strong { font-size: 18px; min-width: 150px; text-align: center; }
+  .months strong::first-letter { text-transform: uppercase; }
+  .arrow { flex: none; width: 32px; height: 40px; border-radius: 8px; border: none; background: none; color: var(--primary); font-size: 32px; line-height: 1; cursor: pointer; display: grid; place-items: center; padding: 0 0 4px; }
+  .arrow:hover { color: var(--primary-strong); background: var(--primary-soft); }
 </style>
