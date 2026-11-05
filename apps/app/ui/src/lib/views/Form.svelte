@@ -4,7 +4,6 @@
   import { t } from '../i18n';
   import FieldInput from '../components/FieldInput.svelte';
   import BackButton from '../components/BackButton.svelte';
-  import Icon from '../components/Icon.svelte';
   import { fail, toast } from '../toast.svelte';
 
   // `embedded`: inside another page (no way back, smaller title).
@@ -57,10 +56,9 @@
   <form class="stack page" onsubmit={(e) => e.preventDefault()}>
     <header class="stack head">
       {#if embedded}<h2>{view.title}</h2>{:else}
-        <!-- As a board post: back, icon, name and period below. -->
+        <!-- As a board post: back, then the name and the period below. -->
         <div class="title">
           <BackButton onclick={() => history.back()} />
-          <span class="icon"><Icon name="my_documents" size={26} /></span>
           <div class="stack tight">
             <h1>{view.label}</h1>
             <span class="muted when">{view.period_label}</span>
@@ -111,7 +109,6 @@
   .title { display: flex; align-items: center; gap: 12px; }
   .title h1 { margin: 0; line-height: 1.1; }
   .tight { gap: 0; }
-  .icon { flex: none; color: var(--primary); display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--primary-soft); }
   .when { font-size: 14px; line-height: 1.3; }
   .when::first-letter { text-transform: uppercase; }
   .small { gap: 8px; }

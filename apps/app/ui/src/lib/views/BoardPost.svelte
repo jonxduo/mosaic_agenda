@@ -5,7 +5,6 @@
   import { t } from '../i18n';
   import { go } from '../router.svelte';
   import { fail } from '../toast.svelte';
-  import Icon from '../components/Icon.svelte';
   import BackButton from '../components/BackButton.svelte';
   import Program from './Program.svelte';
 
@@ -24,7 +23,6 @@
   <header class="row head">
     <BackButton onclick={() => go('board')} />
     {#if item}
-      <span class="icon"><Icon name={item.icon ?? 'notice'} size={26} /></span>
       <div class="stack tight">
         <h1>{item.title}</h1>
         {#if item.subtitle}<span class="muted when">{item.subtitle}</span>{/if}
@@ -49,7 +47,6 @@
   .page { gap: 16px; }
   .tight { gap: 2px; }
   .head { gap: 12px; align-items: center; flex-wrap: nowrap; }
-  .icon { flex: none; color: var(--primary); display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--primary-soft); }
   .when { font-size: 14px; text-transform: capitalize; }
   table { border-collapse: collapse; width: 100%; }
   td { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
