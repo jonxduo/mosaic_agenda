@@ -28,6 +28,7 @@ resta fuori, si compila con `-p app`, `--workspace` o i comandi `xtask` che la u
 cargo ck                      # clippy su tutto tranne l'app Tauri
 cargo t                       # test
 cargo devserver               # server di sviluppo per l'interfaccia nel browser
+scripts/seed-dev.sh           # dati di prova (server avviato su dati vuoti)
 ```
 
 Prima di un rilascio (CI) e quando servono l'app o i binding:
