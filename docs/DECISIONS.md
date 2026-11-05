@@ -906,3 +906,8 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   righe più ariose; chi sta sotto un'altra persona nella stessa riga è più piccolo e preceduto
   da `SlotDef.prefix` (congregazione: "con" per gli assistenti, "Lettore" per i lettori). La riga
   del discorso dei Tesori non ripete il nome della fascia.
+- Adunanza pubblica: presidente (fa anche la preghiera iniziale), cantico, fascia "Discorso
+  pubblico" (blu petrolio, tema e congregazione a sinistra, oratore a destra), fascia "Studio
+  Torre di Guardia" (verde oliva, tema a sinistra, conduttore e lettore a destra), cantico,
+  preghiera finale. Preghiera iniziale e cantico di metà sono spenti (`enabled: false`), non
+  tolti, per i programmi già fatti.

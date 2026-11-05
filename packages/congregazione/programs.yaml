@@ -93,19 +93,25 @@ program_types:
       url: "https://wol.jw.org/it/wol/meetings/r6/lp-i/{year}/{week}"
       rules:
         - { heading: "^Studio Torre di Guardia$", text: '^(?<title>[^\n]+)', slot: wt_conductor, set: { wt_theme: "{title}" } }
+    sections:
+      - { id: public_talk, label: sec.public_talk, color: "#2f5d6b" }
+      - { id: watchtower, label: sec.watchtower, color: "#5f6b2e" }
     slots:
-      - { id: opening_song, label: s.song, assignable: false, extra_fields: [ { id: song, type: integer, min: 1 } ] }
-      - { id: opening_prayer, label: s.opening_prayer, requires: { has_qualification: can_prayer } }
+      # Il presidente fa anche la preghiera iniziale.
       - { id: chairman, label: s.weekend_chairman, requires: { has_qualification: can_public_chairman } }
-      - { id: talk, label: s.public_talk, allow_external: true, requires: { has_qualification: can_public_talk },
+      - { id: opening_song, label: s.song, assignable: false, extra_fields: [ { id: song, type: integer, min: 1 } ] }
+      # Una riga per sezione: il tema a sinistra (la fascia dice già cos'è), le persone a destra.
+      - { id: talk, label: s.public_talk, section: public_talk, row_name: false, allow_external: true,
+          requires: { has_qualification: can_public_talk },
           extra_fields: [ { id: theme, type: text }, { id: home_congregation, type: text } ] }
-      - { id: middle_song, label: s.song, assignable: false, extra_fields: [ { id: song, type: integer, min: 1 } ] }
-      # Una riga: il tema a sinistra, conduttore e lettore a destra.
-      - { id: wt_conductor, label: s.wt_conductor, requires: { has_qualification: can_wt_conductor },
+      - { id: wt_conductor, label: s.wt_conductor, section: watchtower, row_name: false, requires: { has_qualification: can_wt_conductor },
           extra_fields: [ { id: wt_theme, type: text } ] }
-      - { id: wt_reader, label: s.wt_reader, prefix: pre.reader, with: wt_conductor, requires: { has_qualification: can_wt_reader } }
-      - { id: closing_song, label: s.song, assignable: false, extra_fields: [ { id: song, type: integer, min: 1 } ] }
-      - { id: closing_prayer, label: s.closing_prayer, requires: { has_qualification: can_prayer } }
+      - { id: wt_reader, label: s.wt_reader, section: watchtower, prefix: pre.reader, with: wt_conductor, requires: { has_qualification: can_wt_reader } }
+      - { id: closing_song, label: s.song, section: watchtower, assignable: false, extra_fields: [ { id: song, type: integer, min: 1 } ] }
+      - { id: closing_prayer, label: s.closing_prayer, section: watchtower, requires: { has_qualification: can_prayer } }
+      # Non più in uso: restano per i programmi già fatti.
+      - { id: opening_prayer, label: s.opening_prayer, enabled: false, requires: { has_qualification: can_prayer } }
+      - { id: middle_song, label: s.song, enabled: false, assignable: false, extra_fields: [ { id: song, type: integer, min: 1 } ] }
   - id: av
     label: p.av
     icon: mic
