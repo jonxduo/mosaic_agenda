@@ -511,7 +511,6 @@
   .ro-name { min-height: 24px; display: flex; align-items: center; gap: 4px; font-weight: 600; font-size: 15px; }
   .ro-name.mate { font-size: 13px; font-weight: 500; min-height: 20px; }
   .ro-name .with { color: var(--muted); font-weight: 400; }
-  .embedded .topcover { display: none; }
   .remove { position: absolute; top: 8px; right: 2px; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg); color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity 0.1s; padding: 0; }
   .rows > .part:hover .remove, .remove:focus-visible { opacity: 1; }
   @media (hover: none) { .remove { opacity: 1; } }
