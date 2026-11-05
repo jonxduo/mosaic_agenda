@@ -500,11 +500,12 @@
   .embedded .name { min-height: 0; }
   .embedded .rows > * { padding: 12px 0; }
   .embedded .rows > .who { padding-left: 14px; }
+  /* Parts start where the band's title starts, with room above. */
+  .embedded .rows > .part { padding: 16px 0 12px 12px; }
   .embedded .rows > .band { padding: 6px 12px; }
   /* Names at the bottom of the row, the assistant right under the student. */
   .embedded .who { justify-content: flex-end; gap: 0; }
   .embedded .details { row-gap: 4px; }
-  .embedded .part.noname { padding-top: 0; }
   .embedded .details { column-gap: 12px; }
   .lead { font-size: 15px; }
   .ro-name { min-height: 24px; display: flex; align-items: center; gap: 4px; font-weight: 600; font-size: 15px; }
