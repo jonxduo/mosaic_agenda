@@ -6,6 +6,7 @@
   import { go } from '../router.svelte';
   import { fail } from '../toast.svelte';
   import Icon from '../components/Icon.svelte';
+  import BackButton from '../components/BackButton.svelte';
   import Program from './Program.svelte';
 
   let { post, month }: { post: string; month?: string } = $props();
@@ -21,7 +22,7 @@
 
 <div class="stack page wide">
   <header class="row head">
-    <button class="back" aria-label={t('back')} title={t('back')} onclick={() => go('board')}>‹</button>
+    <BackButton onclick={() => go('board')} />
     {#if item}
       <span class="icon"><Icon name={item.icon ?? 'notice'} size={26} /></span>
       <div class="stack tight">
@@ -48,8 +49,6 @@
   .page { gap: 16px; }
   .tight { gap: 2px; }
   .head { gap: 12px; align-items: center; flex-wrap: nowrap; }
-  .back { flex: none; width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 24px; line-height: 1; cursor: pointer; display: grid; place-items: center; padding: 0 0 3px; }
-  .back:hover { border-color: var(--primary); color: var(--primary); }
   .icon { flex: none; color: var(--primary); display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--primary-soft); }
   .when { font-size: 14px; text-transform: capitalize; }
   table { border-collapse: collapse; width: 100%; }

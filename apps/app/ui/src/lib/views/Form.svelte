@@ -3,6 +3,7 @@
   import { api, run } from '../api';
   import { t } from '../i18n';
   import FieldInput from '../components/FieldInput.svelte';
+  import BackButton from '../components/BackButton.svelte';
   import { fail, toast } from '../toast.svelte';
 
   // `embedded`: inside another page (no way back, smaller title).
@@ -54,8 +55,7 @@
 {#if view}
   <form class="stack page" onsubmit={(e) => e.preventDefault()}>
     <header class="stack head">
-      {#if !embedded}<a href="#/home" onclick={(e) => { e.preventDefault(); history.back(); }}>← {t('back')}</a>{/if}
-      {#if embedded}<h2>{view.title}</h2>{:else}<h1>{view.title}</h1>{/if}
+      {#if embedded}<h2>{view.title}</h2>{:else}<div class="title"><BackButton onclick={() => history.back()} /><h1>{view.title}</h1></div>{/if}
       {#if view.subject_name && subject}<p class="muted">{view.subject_name}</p>{/if}
       {#if view.subtitle}<p class="muted">{view.subtitle}</p>{/if}
       {#if view.state_label}<p><span class="badge" data-testid="state">{view.state_label}</span>{#if view.delivery} <span class="muted">· {view.delivery}</span>{/if}</p>{/if}
@@ -97,6 +97,8 @@
 <style>
   .page { gap: 28px; max-width: 560px; }
   .head { gap: 6px; }
+  .title { display: flex; align-items: center; gap: 12px; }
+  .title h1 { margin: 0; }
   .small { gap: 8px; }
   .actions { border-top: 1px solid var(--border); padding-top: 16px; }
 </style>
