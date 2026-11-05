@@ -609,6 +609,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "blind-node"
+version = "0.1.0"
+dependencies = [
+ "core-config",
+ "core-crypto",
+ "core-engine",
+ "core-events",
+ "core-model",
+ "core-sync",
+ "core-testkit",
+ "hex",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "zeroize",
+]
+
+[[package]]
 name = "block-buffer"
 version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"

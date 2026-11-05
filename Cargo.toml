@@ -11,6 +11,7 @@ members = [
     "crates/core-push",
     "crates/core-scan",
     "server/push-service",
+    "server/blind-node",
     "crates/core-testkit",
     "crates/xtask",
     "apps/app/src-tauri",
@@ -29,6 +30,7 @@ default-members = [
     "crates/core-push",
     "crates/core-scan",
     "server/push-service",
+    "server/blind-node",
     "crates/core-testkit",
     "crates/xtask",
 ]

@@ -1012,3 +1012,19 @@ Piano di F11:
 - Comando `set_backup_node`; `sync_status` mostra il nodo e se lo si può impostare.
 - Foto: oggi solo le risorse hanno campi foto (i documenti non li salvano), e le risorse già
   elencano gli allegati in `attachments`. La regola vale per ogni tipo di oggetto che avrà foto.
+
+### F11 passo 2 (`server/blind-node`), fatto
+- Un processo per organizzazione (`BLIND_ORG` = id della genesi), chiave del nodo e chiave
+  dell'archivio in file propri (`secrets/`, solo il proprietario); archivio SQLCipher legato
+  all'organizzazione, allegati in `blobs/`. Stampa all'avvio la chiave da dichiarare nell'app.
+- **Cambio rispetto al progetto**: i dispositivi ammessi non vengono dal servizio push ma dagli
+  eventi pubblici che il nodo conserva già (dispositivi radice della genesi, più quelli aggiunti
+  da un dispositivo ammesso, meno i revocati). È un insieme un po' più ampio di quello esatto (un
+  dispositivo membro potrebbe aggiungerne uno che gli altri rifiuterebbero): potrebbe solo leggere
+  dati cifrati e consumare la quota. In cambio il nodo non dipende da un altro servizio e
+  non serve un'API interna. Prima della genesi accetta chiunque (solo eventi di quella
+  organizzazione, e la genesi stessa ne verifica l'id).
+- Ricevute firmate dal nodo; abbinamento di nuovi dispositivi rifiutato; allegati scaricati
+  finché c'è quota (⚙ `BLIND_QUOTA_GB`, predefinito 5).
+- Test: un dispositivo lascia tutto al nodo, un estraneo viene respinto, un altro dispositivo
+  dell'organizzazione che non ha mai incontrato il primo riceve tutto dal nodo.
