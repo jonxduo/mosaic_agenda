@@ -338,8 +338,8 @@
                 {/if}
               </div>
               {#if p.columns.length}
-                <div class="head muted">{t('main_column')}</div>
-                {#each p.columns as col (col.id)}<div class="head muted">{col.label}</div>{/each}
+                <div class="head muted" title={t('main_column')}>{t('main_column')}</div>
+                {#each p.columns as col (col.id)}<div class="head muted" title={col.label}>{col.label}</div>{/each}
               {/if}
             </div>
             {@render rows(g.occurrence, false)}
@@ -490,7 +490,8 @@
   .topcover { position: fixed; top: 0; left: 0; right: 0; height: 84px; background: var(--page); z-index: 4; pointer-events: none; }
   @media (max-width: 760px) { .topcover { display: none; } }
   .whead { position: sticky; top: 84px; z-index: 3; display: grid; grid-template-columns: minmax(0, 4fr) repeat(var(--cols), minmax(0, 1fr)); align-items: end; background: var(--bg); margin: -18px -20px 0; padding: 18px 20px 10px; border-bottom: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0; }
-  .whead .head { padding-left: 14px; }
+  /* One line, left-aligned with the names below, cut with "…" when narrow. */
+  .whead .head { padding-left: 14px; min-width: 0; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .head { font-size: 13px; font-weight: 600; }
   .wtitle { gap: 12px; align-items: center; flex-wrap: nowrap; }
   .part { position: relative; padding-right: 30px; }
@@ -498,6 +499,7 @@
   /* Read-only: compact rows, titles in plain text. */
   .embedded .name { min-height: 0; }
   .embedded .rows > * { padding: 12px 0; }
+  .embedded .rows > .who { padding-left: 14px; }
   .embedded .rows > .band { padding: 6px 12px; }
   /* Names at the bottom of the row, the assistant right under the student. */
   .embedded .who { justify-content: flex-end; gap: 0; }
