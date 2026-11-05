@@ -5,6 +5,7 @@
   import { api, run } from '../api';
   import { t } from '../i18n';
   import { go } from '../router.svelte';
+  import MeasureTable from '../components/MeasureTable.svelte';
   import { fail, toast } from '../toast.svelte';
 
   let { workflow, unitType, onchange }: { workflow: string; unitType: string; onchange: () => void } = $props();
@@ -62,7 +63,6 @@
       busy = false;
     }
   }
-  const fmt = (n: number | null) => (n === null ? '—' : Number.isInteger(n) ? String(n) : n.toLocaleString('it', { maximumFractionDigits: 1 }));
   const columns = (rows: { values: { label: string }[] }[]) => [...new Set(rows.flatMap((r) => r.values.map((v) => v.label)))];
   const cell = (r: { values: { label: string; value: string }[] }, c: string) => r.values.find((v) => v.label === c)?.value ?? '';
   // Dates as day/month/year; qualifications and roles each on one line.
@@ -128,11 +128,7 @@
               <strong>{t('unit_received_of').replace('{n}', String(m.received)).replace('{m}', String(m.expected))}</strong>
               <div class="progress" aria-hidden="true"><div style={`width: ${m.expected ? Math.round((m.received / m.expected) * 100) : 0}%`}></div></div>
             </div>
-            {#if m.totals.length}
-              <table class="totals"><tbody>
-                {#each m.totals as x (x.label)}<tr><td>{x.label}</td><td class="num">{fmt(x.value)}</td></tr>{/each}
-              </tbody></table>
-            {/if}
+            {#if m.totals.length}<MeasureTable measures={m.totals} />{/if}
           </section>
 
           <section class="card month">
@@ -217,8 +213,6 @@
   .missing { padding: 8px 20px 12px; }
   .missing h4 { margin: 8px 0; font-size: 15px; }
   .warn-title { color: var(--warn); }
-  .totals td { padding: 8px 0; }
-  .totals .num { text-align: right; font-variant-numeric: tabular-nums; }
   .month { padding: 16px 0 6px; }
   .scroll { overflow-x: auto; }
   .month table { border-collapse: collapse; width: 100%; font-size: 15px; }

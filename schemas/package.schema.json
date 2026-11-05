@@ -1121,7 +1121,7 @@
             }
           ],
           "default": null,
-          "description": "Required for every op except `count`."
+          "description": "Required for `count_true`, `sum`, `avg`, `min` and `max`."
         },
         "filter": {
           "anyOf": [
@@ -1149,8 +1149,42 @@
           "default": null,
           "description": "Defaults to `msr.<id>`."
         },
+        "of": {
+          "default": [],
+          "description": "The measures a `total` adds up (defined before it).",
+          "items": {
+            "$ref": "#/$defs/Slug"
+          },
+          "type": "array"
+        },
         "op": {
           "$ref": "#/$defs/MeasureOp"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TextKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Heading the measure is shown under."
+        },
+        "strong": {
+          "default": false,
+          "description": "Shown in bold.",
+          "type": "boolean"
+        },
+        "value": {
+          "default": null,
+          "description": "The number of a `constant` measure.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
         }
       },
       "required": [
@@ -1160,15 +1194,39 @@
       "type": "object"
     },
     "MeasureOp": {
-      "enum": [
-        "count",
-        "count_true",
-        "sum",
-        "avg",
-        "min",
-        "max"
-      ],
-      "type": "string"
+      "oneOf": [
+        {
+          "enum": [
+            "count",
+            "count_true",
+            "sum",
+            "avg",
+            "min",
+            "max"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "expected",
+          "description": "Subjects expected to hand in the form for the period (in scope).",
+          "type": "string"
+        },
+        {
+          "const": "missing",
+          "description": "Expected subjects without a document.",
+          "type": "string"
+        },
+        {
+          "const": "constant",
+          "description": "A number set in the configuration (`value`).",
+          "type": "string"
+        },
+        {
+          "const": "total",
+          "description": "Sum of other measures of the same aggregate (`of`).",
+          "type": "string"
+        }
+      ]
     },
     "MemberOf": {
       "pattern": "^(subject_unit|unit:[a-z0-9_]+|unit_type:[a-z][a-z0-9_]*)$",

@@ -2,17 +2,24 @@ aggregates:
   - id: monthly_summary
     label: a.monthly_summary
     source: { form: service_report, state: registered, period: same }
-    group_by: [variant, unit:group]
+    group_by: [unit:group]
+    # Righe come il prospetto della congregazione: sezioni, righe in grassetto, ore in "h".
     measures:
-      - { id: publishers_participated, op: count_true, field: participated }
-      - { id: publisher_studies, op: sum, field: bible_studies, filter: { field: { name: participated, op: set } } }
-      - { id: full_time_count, op: count, filter: { in_set: full_time } }
-      - { id: auxiliary_count, op: count, filter: { has_qualification: auxiliary_pioneer } }
-      - { id: regular_count, op: count, filter: { has_qualification: regular_pioneer } }
-      - { id: special_and_missionary_count, op: count, filter: { any: [ { has_qualification: special_pioneer }, { has_qualification: field_missionary } ] } }
-      - { id: hours_total, op: sum, field: hours }
-      - { id: extra_hours_total, op: sum, field: extra_hours }
-      - { id: full_time_studies, op: sum, field: bible_studies, filter: { in_set: full_time } }
+      - { id: active_publishers, op: expected, section: sec.congregation, strong: true }
+      - { id: regular_count, op: count, filter: { has_qualification: regular_pioneer }, section: sec.regular }
+      - { id: regular_hours, op: sum, field: hours, filter: { has_qualification: regular_pioneer }, section: sec.regular }
+      - { id: regular_studies, op: sum, field: bible_studies, filter: { has_qualification: regular_pioneer }, section: sec.regular }
+      - { id: auxiliary_count, op: count, filter: { has_qualification: auxiliary_pioneer }, section: sec.auxiliary }
+      - { id: auxiliary_hours, op: sum, field: hours, filter: { has_qualification: auxiliary_pioneer }, section: sec.auxiliary }
+      - { id: auxiliary_studies, op: sum, field: bible_studies, filter: { has_qualification: auxiliary_pioneer }, section: sec.auxiliary }
+      - { id: publishers_participated, op: count_true, field: participated, section: sec.publishers }
+      - { id: publisher_studies, op: sum, field: bible_studies, filter: { field: { name: participated, op: set } }, section: sec.publishers }
+      # Numero dato dall'amministratore (Configurazione → Resoconti), non calcolato.
+      - { id: gdpr_denied, op: constant, value: 0, section: sec.publishers }   # ⚙
+      - { id: reports_received, op: count, section: sec.received, strong: true }
+      - { id: reports_missing, op: missing, section: sec.missing }
+      - { id: hours_total, op: total, of: [regular_hours, auxiliary_hours], section: sec.totals, strong: true }
+      - { id: studies_total, op: total, of: [regular_studies, auxiliary_studies, publisher_studies], section: sec.totals, strong: true }
     include_individual_documents: true
     list_missing: true
     read_audience: elders

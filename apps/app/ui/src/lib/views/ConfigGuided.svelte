@@ -34,6 +34,7 @@
 
   const SYSTEM_AUDIENCES = ['subject_only', 'subject_or_on_behalf', 'subject_missing', 'assignee', 'resource_holder', 'object_team', 'root_admins'];
   const FIELD_TYPES = ['integer', 'decimal', 'duration', 'boolean', 'text', 'long_text', 'date', 'period', 'choice', 'multi_choice', 'person', 'resource', 'photos', 'geo', 'computed'];
+  const MEASURE_OPS = ['count', 'count_true', 'sum', 'avg', 'min', 'max', 'expected', 'missing', 'constant', 'total'];
   const REMINDER_KINDS = ['document.missing_after', 'batch.incomplete_after', 'batch.missing_after', 'event.assignment_before', 'resource.no_log_after', 'request.due_after'];
   const SLUG = /^[a-z][a-z0-9_]*$/;
 
@@ -134,6 +135,30 @@
         { key: ['allow_external'], label: t('g_allow_external'), kind: 'bool' },
         { key: ['pair_with'], label: t('g_pair_with'), kind: 'select', options: (g) => idsOf(g.items) },
         { key: ['extra_fields'], label: t('g_extra_fields'), kind: 'yaml', placeholder: '[ { id: title, type: text } ]' }
+      ]
+    },
+    {
+      // Rows of the summaries; a `constant` row is a number the
+      // administrator sets here (e.g. a count kept outside the app).
+      id: 'measures',
+      title: t('g_measures'),
+      file: 'aggregates.yaml',
+      groups: listOf(js['aggregates.yaml'], ['aggregates']).map((a, ai) => ({
+        title: String(a.id ?? ''),
+        list: ['aggregates', ai, 'measures'],
+        items: listOf(a, ['measures'])
+      })),
+      fresh: (id) => ({ id, op: 'constant', value: 0, label: `msr.${id}` }),
+      specs: [
+        { key: ['id'], label: t('g_id'), kind: 'id' },
+        { key: ['label'], label: t('g_label'), kind: 'label' },
+        { key: ['op'], label: t('g_op'), kind: 'select', options: () => MEASURE_OPS },
+        { key: ['value'], label: t('g_value'), kind: 'number' },
+        { key: ['field'], label: t('g_field'), kind: 'text' },
+        { key: ['filter'], label: t('g_filter'), kind: 'yaml', placeholder: '{ has_qualification: … }' },
+        { key: ['of'], label: t('g_of'), kind: 'yaml', placeholder: '[ … ]' },
+        { key: ['section'], label: t('g_section'), kind: 'label' },
+        { key: ['strong'], label: t('g_strong'), kind: 'bool' }
       ]
     },
     {

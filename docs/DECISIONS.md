@@ -1064,3 +1064,19 @@ Piano di F11:
   riquadro sotto ("Rapporti di servizio": tabella dei rapporti del mese, chi manca, invio). Ogni
   mese porta con sé conteggio e totali; si parte dal mese in raccolta.
 - Nome del modulo nel pacchetto: "Rapporti di servizio" (prima "S-21").
+
+## 2026-11-05 — Resoconto come il prospetto della congregazione
+
+- Nuovi calcoli nelle misure dei resoconti (`aggregates.yaml`), generici:
+  `expected` (attesi nel periodo), `missing` (attesi senza documento), `constant` (numero dato
+  nella configurazione, `value`) e `total` (somma di misure definite prima, `of`). Più
+  `section` (titolo del gruppo di righe) e `strong` (grassetto). I primi tre valgono per tutto
+  l'ambito, non per i sottogruppi; le ore (campi durata, anche nei totali) si mostrano in "h".
+- Il resoconto mensile del pacchetto ha le righe del prospetto: attivi nel mese, pionieri
+  regolari e ausiliari (numero, ore, studi), proclamatori (hanno partecipato, studi, consenso
+  GDPR negato), rapporti presentati e non presentati, totali (ore PR + PA, studi). Raggruppato
+  per gruppo (non più anche per tipo di rapporto).
+- "Proclamatori con consenso GDPR negato" è una misura `constant`: la imposta l'amministratore
+  in Configurazione → Resoconti e la pubblica con la configurazione.
+- Il resoconto di "Il mio gruppo" usa lo stesso resoconto ristretto al gruppo (attesi e
+  mancanti del gruppo, rapporti consegnati anche non ancora registrati).

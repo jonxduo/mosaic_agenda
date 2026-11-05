@@ -842,7 +842,7 @@ impl<'a> Client<'a> {
             .ok_or_else(|| nf("form"))?
             .clone();
         let sources = crate::handle::aggregate_sources(self.proj, &def, &period);
-        let result = compute_aggregate(&self.proj.auth, &cfg, &def, &form, &period, &sources);
+        let result = compute_aggregate(&self.proj.auth, &cfg, &def, &form, &period, &sources, None);
         let documents = if def.include_individual_documents {
             sources
                 .iter()

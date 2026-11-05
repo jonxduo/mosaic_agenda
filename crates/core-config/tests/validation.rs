@@ -493,6 +493,48 @@ fn aggregate_op_incompatible_with_field_type() {
     );
 }
 
+#[test]
+fn constant_measure_needs_a_value() {
+    assert_error(
+        &[(
+            "aggregates.yaml",
+            "      - { id: extra_count, op: count, filter: { in_set: extra } }\n",
+            "      - { id: extra_count, op: constant }\n",
+        )],
+        "aggregates.yaml",
+        "aggregates[0].measures[2]",
+        "needs `value`",
+    );
+}
+
+#[test]
+fn total_adds_up_earlier_measures_only() {
+    assert_error(
+        &[(
+            "aggregates.yaml",
+            "      - { id: extra_count, op: count, filter: { in_set: extra } }\n",
+            "      - { id: extra_count, op: total, of: [done_count, later] }\n",
+        )],
+        "aggregates.yaml",
+        "aggregates[0].measures[2].of[1]",
+        "not a measure defined before",
+    );
+}
+
+#[test]
+fn scope_wide_measures_take_no_filter() {
+    assert_error(
+        &[(
+            "aggregates.yaml",
+            "      - { id: extra_count, op: count, filter: { in_set: extra } }\n",
+            "      - { id: extra_count, op: expected, filter: { in_set: extra } }\n",
+        )],
+        "aggregates.yaml",
+        "aggregates[0].measures[2]",
+        "takes neither",
+    );
+}
+
 // ----- texts ----------------------------------------------------------------
 
 #[test]

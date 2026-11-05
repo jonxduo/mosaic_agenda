@@ -113,6 +113,66 @@ pub(crate) fn today(core: &Core) -> Date {
 }
 
 /// The last complete period of a periodicity, relative to `today`.
+/// One measure of an aggregate as shown: label, value (durations in hours),
+/// section and emphasis.
+fn measure_row(
+    t: &Texts,
+    def: &core_model::config::AggregateDef,
+    form: &core_model::config::FormDef,
+    m: &core_model::config::MeasureDef,
+    values: &BTreeMap<Slug, f64>,
+) -> Measure {
+    use core_model::config::MeasureOp;
+    let field_is_duration = |id: &Slug| {
+        form.variants
+            .iter()
+            .flat_map(|v| v.fields.iter())
+            .any(|f| &f.id == id && f.ty == FieldType::Duration)
+    };
+    fn duration(
+        def: &core_model::config::AggregateDef,
+        m: &core_model::config::MeasureDef,
+        field: &dyn Fn(&Slug) -> bool,
+        depth: u8,
+    ) -> bool {
+        match m.op {
+            MeasureOp::Sum | MeasureOp::Avg | MeasureOp::Min | MeasureOp::Max => {
+                m.field.as_ref().is_some_and(field)
+            }
+            MeasureOp::Total if depth < 8 => m.of.iter().all(|o| {
+                def.measures
+                    .iter()
+                    .find(|x| &x.id == o)
+                    .is_some_and(|x| duration(def, x, field, depth + 1))
+            }),
+            _ => false,
+        }
+    }
+    let value = values.get(&m.id).copied().unwrap_or(0.0) + 0.0;
+    let display = if duration(def, m, &field_is_duration, 0) {
+        let h = value / 60.0;
+        if h.fract() == 0.0 {
+            format!("{h} h")
+        } else {
+            format!("{h:.1} h").replace('.', ",")
+        }
+    } else if value.fract() == 0.0 {
+        format!("{value}")
+    } else {
+        format!("{value:.1}").replace('.', ",")
+    };
+    Measure {
+        label: m.label.as_ref().map_or_else(
+            || t.get(&core_model::config::default_label::measure(m.id.as_str())),
+            |l| t.get(l.as_str()),
+        ),
+        value,
+        display,
+        section: m.section.as_ref().map(|s| t.get(s.as_str())),
+        strong: m.strong,
+    }
+}
+
 /// Totals of a set of documents: sum of each numeric field (durations in
 /// hours), count of the yes answers, in the order of the form's fields.
 fn form_totals(t: &Texts, form: &core_model::config::FormDef, docs: &[&Document]) -> Vec<Measure> {
@@ -141,10 +201,13 @@ fn form_totals(t: &Texts, form: &core_model::config::FormDef, docs: &[&Document]
             _ => None,
         };
         if let Some(value) = total {
+            let value = value + 0.0; // an empty float sum is -0.0
             out.push(Measure {
                 label: field_dto(t, f, None).label,
-                // An empty float sum is -0.0.
-                value: value + 0.0,
+                display: if value.fract() == 0.0 { format!("{value}") } else { format!("{value:.1}").replace('.', ",") },
+                value,
+                section: None,
+                strong: false,
             });
         }
     }
@@ -1583,6 +1646,24 @@ impl Core {
                 .map(|(p, ds)| {
                     let expected = expected_subjects(&v.proj.auth, cfg, form, &p, Some(*uid)).len();
                     let plain: Vec<&Document> = ds.iter().map(|(_, d)| *d).collect();
+                    // The aggregate defined on this form, narrowed to the unit;
+                    // otherwise plain sums of the fields.
+                    let totals = match cfg.aggregates().iter().find(|a| a.source.form == form.id) {
+                        Some(def) => {
+                            let r = core_engine::rules::compute_aggregate(
+                                &v.proj.auth,
+                                cfg,
+                                def,
+                                form,
+                                &p,
+                                &ds,
+                                Some(*uid),
+                            );
+                            let whole = r.groups.get("").cloned().unwrap_or_default();
+                            def.measures.iter().map(|m| measure_row(&t, def, form, m, &whole)).collect()
+                        }
+                        None => form_totals(&t, form, &plain),
+                    };
                     let mut rows: Vec<DocumentRow> = ds
                         .iter()
                         .map(|(did, d)| self.document_row(&v, &t, did, d))
@@ -1593,7 +1674,7 @@ impl Core {
                         period_label: t.period(&p),
                         received: u32::try_from(ds.len()).unwrap_or(u32::MAX),
                         expected: u32::try_from(expected.max(ds.len())).unwrap_or(u32::MAX),
-                        totals: form_totals(&t, form, &plain),
+                        totals,
                         rows,
                     }
                 })
@@ -1814,17 +1895,8 @@ impl Core {
                         measures: def
                             .measures
                             .iter()
-                            .map(|m| Measure {
-                                label: m.label.as_ref().map_or_else(
-                                    || {
-                                        t.get(&core_model::config::default_label::measure(
-                                            m.id.as_str(),
-                                        ))
-                                    },
-                                    |l| t.get(l.as_str()),
-                                ),
-                                value: ms.get(&m.id).copied().unwrap_or(0.0),
-                            })
+                            .filter(|m| k.is_empty() || !m.op.is_scope_wide())
+                            .map(|m| measure_row(&t, def, form, m, ms))
                             .collect(),
                     })
                     .collect()

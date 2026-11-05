@@ -40,15 +40,20 @@ when:
         distributed: true
         missing: [dino]
         measures:
+          active_publishers: 7
+          regular_count: 1
+          regular_hours: 4200
+          regular_studies: 3
+          auxiliary_count: 1
+          auxiliary_hours: 3000
+          auxiliary_studies: 2
           publishers_participated: 3
           publisher_studies: 1
-          full_time_count: 2
-          auxiliary_count: 1
-          regular_count: 1
-          special_and_missionary_count: 0
+          gdpr_denied: 0
+          reports_received: 6
+          reports_missing: 1
           hours_total: 7200
-          extra_hours_total: 300
-          full_time_studies: 5
+          studies_total: 6
   - { check: { notified: { who: luca, text: n.summary_available } } }
   - { check: { cannot_read: { who: anna, aggregate: monthly_summary/2026-11 } } }
   # Integrazione tardiva: nuova versione.

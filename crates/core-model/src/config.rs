@@ -616,6 +616,21 @@ pub enum MeasureOp {
     Avg,
     Min,
     Max,
+    /// Subjects expected to hand in the form for the period (in scope).
+    Expected,
+    /// Expected subjects without a document.
+    Missing,
+    /// A number set in the configuration (`value`).
+    Constant,
+    /// Sum of other measures of the same aggregate (`of`).
+    Total,
+}
+
+impl MeasureOp {
+    /// Computed once for the whole scope, not per document or group.
+    pub fn is_scope_wide(self) -> bool {
+        matches!(self, Self::Expected | Self::Missing | Self::Constant)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -626,11 +641,23 @@ pub struct MeasureDef {
     #[serde(default)]
     pub label: Option<TextKey>,
     pub op: MeasureOp,
-    /// Required for every op except `count`.
+    /// Required for `count_true`, `sum`, `avg`, `min` and `max`.
     #[serde(default)]
     pub field: Option<Slug>,
     #[serde(default)]
     pub filter: Option<Cond>,
+    /// The number of a `constant` measure.
+    #[serde(default)]
+    pub value: Option<f64>,
+    /// The measures a `total` adds up (defined before it).
+    #[serde(default)]
+    pub of: Vec<Slug>,
+    /// Heading the measure is shown under.
+    #[serde(default)]
+    pub section: Option<TextKey>,
+    /// Shown in bold.
+    #[serde(default)]
+    pub strong: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]

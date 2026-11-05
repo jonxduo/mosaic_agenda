@@ -314,6 +314,11 @@ pub struct MonthReports {
 pub struct Measure {
     pub label: String,
     pub value: f64,
+    /// The value as shown (durations in hours, `1285 h`).
+    pub display: String,
+    /// Heading of the rows it belongs to.
+    pub section: Option<String>,
+    pub strong: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

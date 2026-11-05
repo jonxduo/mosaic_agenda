@@ -942,7 +942,7 @@ fn aggregate_generated(
     let known: BTreeSet<core_model::Id> = sources.iter().map(|(id, _)| **id).collect();
     let claimed: BTreeSet<core_model::Id> = s.result.documents.iter().copied().collect();
     if known == claimed {
-        let result = compute_aggregate(h.auth, &cfg, &def, &form, &s.period, &sources);
+        let result = compute_aggregate(h.auth, &cfg, &def, &form, &s.period, &sources, None);
         ensure(
             result == s.result,
             "the aggregate does not match the registered documents",

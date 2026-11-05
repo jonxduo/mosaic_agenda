@@ -115,7 +115,7 @@ export type AggregateView_Deserialize = {
 	period_label: string,
 	version?: number | null,
 	distributed: boolean,
-	groups: MeasureGroup[],
+	groups: MeasureGroup_Deserialize[],
 	missing: string[],
 	documents: DocumentRow_Deserialize[],
 	can_generate: boolean,
@@ -130,7 +130,7 @@ export type AggregateView_Serialize = {
 	period_label: string,
 	version: number | null,
 	distributed: boolean,
-	groups: MeasureGroup[],
+	groups: MeasureGroup_Serialize[],
 	missing: string[],
 	documents: DocumentRow_Serialize[],
 	can_generate: boolean,
@@ -648,14 +648,38 @@ export type Me = {
 	is_admin: boolean,
 };
 
-export type Measure = {
+export type Measure = Measure_Serialize | Measure_Deserialize;
+
+export type MeasureGroup = MeasureGroup_Serialize | MeasureGroup_Deserialize;
+
+export type MeasureGroup_Deserialize = {
 	label: string,
-	value: number | null,
+	measures: Measure_Deserialize[],
 };
 
-export type MeasureGroup = {
+export type MeasureGroup_Serialize = {
 	label: string,
-	measures: Measure[],
+	measures: Measure_Serialize[],
+};
+
+export type Measure_Deserialize = {
+	label: string,
+	value: number | null,
+	/**  The value as shown (durations in hours, `1285 h`). */
+	display: string,
+	/**  Heading of the rows it belongs to. */
+	section?: string | null,
+	strong: boolean,
+};
+
+export type Measure_Serialize = {
+	label: string,
+	value: number | null,
+	/**  The value as shown (durations in hours, `1285 h`). */
+	display: string,
+	/**  Heading of the rows it belongs to. */
+	section: string | null,
+	strong: boolean,
 };
 
 export type MenuItem = {
@@ -672,7 +696,7 @@ export type MonthReports_Deserialize = {
 	received: number,
 	expected: number,
 	/**  Sums of the numeric fields, count of the yes answers. */
-	totals: Measure[],
+	totals: Measure_Deserialize[],
 	rows: DocumentRow_Deserialize[],
 };
 
@@ -682,7 +706,7 @@ export type MonthReports_Serialize = {
 	received: number,
 	expected: number,
 	/**  Sums of the numeric fields, count of the yes answers. */
-	totals: Measure[],
+	totals: Measure_Serialize[],
 	rows: DocumentRow_Serialize[],
 };
 

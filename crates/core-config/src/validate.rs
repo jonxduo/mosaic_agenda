@@ -1337,6 +1337,39 @@ impl<'a> Validator<'a> {
                 if let Some(c) = &m.filter {
                     self.cond(c, AGGREGATES, &format!("{mp}.filter"), Some(&field_ids));
                 }
+                if let Some(s) = &m.section {
+                    self.text_key(s, AGGREGATES, format!("{mp}.section"));
+                }
+                match m.op {
+                    MeasureOp::Constant if m.value.is_none() => {
+                        self.err(AGGREGATES, mp.clone(), "a constant measure needs `value`");
+                    }
+                    MeasureOp::Total if m.of.is_empty() => {
+                        self.err(AGGREGATES, mp.clone(), "a total needs `of`");
+                    }
+                    MeasureOp::Total => {
+                        for (k, o) in m.of.iter().enumerate() {
+                            if !a.measures[..j].iter().any(|x| &x.id == o) {
+                                self.err(
+                                    AGGREGATES,
+                                    format!("{mp}.of[{k}]"),
+                                    format!("`{o}` is not a measure defined before this one"),
+                                );
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+                if m.op.is_scope_wide() || m.op == MeasureOp::Total {
+                    if m.field.is_some() || m.filter.is_some() {
+                        self.err(
+                            AGGREGATES,
+                            mp.clone(),
+                            format!("{:?} takes neither `field` nor `filter`", m.op),
+                        );
+                    }
+                    continue;
+                }
                 match (&m.field, m.op) {
                     (None, MeasureOp::Count) => {}
                     (None, _) => self.err(AGGREGATES, mp.clone(), "this measure needs `field`"),

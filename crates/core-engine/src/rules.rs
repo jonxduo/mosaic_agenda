@@ -250,6 +250,9 @@ pub fn present_subjects<'a>(
 type Accumulator = (f64, f64, Option<f64>, Option<f64>);
 
 /// Computes an aggregation over documents (already filtered to the source state and period).
+///
+/// `unit` narrows who is expected (`expected`, `missing`) to one unit; the
+/// documents are already narrowed by the caller.
 pub fn compute_aggregate(
     auth: &AuthState,
     cfg: &Cfg,
@@ -257,6 +260,7 @@ pub fn compute_aggregate(
     form: &FormDef,
     period: &PeriodKey,
     docs: &[(&Id, &Document)],
+    unit: Option<UnitId>,
 ) -> AggregateResult {
     let at = period.last_day().unwrap_or(Date::MIN);
     let ev = Evaluator::new(cfg.index(), &auth.org);
@@ -288,7 +292,11 @@ pub fn compute_aggregate(
                 .collect();
             keys.push(parts.join(","));
         }
-        for m in &def.measures {
+        for m in def
+            .measures
+            .iter()
+            .filter(|m| !m.op.is_scope_wide() && m.op != MeasureOp::Total)
+        {
             if let Some(f) = &m.filter {
                 if !ev.eval(f, Some(d.content.subject), &ctx) {
                     continue;
@@ -337,20 +345,37 @@ pub fn compute_aggregate(
                     }
                     MeasureOp::Min => min.unwrap_or(0.0),
                     MeasureOp::Max => max.unwrap_or(0.0),
+                    _ => 0.0,
                 });
             out.insert(m.id.clone(), v);
         }
         groups.insert(k, out);
     }
     let present: BTreeSet<PersonId> = docs.iter().map(|(_, d)| d.content.subject).collect();
-    let missing = if def.list_missing {
-        expected_subjects(auth, cfg, form, period, None)
-            .difference(&present)
-            .copied()
+    let expected = expected_subjects(auth, cfg, form, period, unit);
+    let missing_set: Vec<PersonId> = expected.difference(&present).copied().collect();
+    // Scope-wide measures belong to the whole (the "" group, always there);
+    // totals add up measures of the same group.
+    groups.entry(String::new()).or_insert_with(|| {
+        def.measures
+            .iter()
+            .filter(|m| !m.op.is_scope_wide() && m.op != MeasureOp::Total)
+            .map(|m| (m.id.clone(), 0.0))
             .collect()
-    } else {
-        Vec::new()
-    };
+    });
+    for (k, out) in &mut groups {
+        for m in &def.measures {
+            let v = match m.op {
+                MeasureOp::Expected if k.is_empty() => expected.len() as f64,
+                MeasureOp::Missing if k.is_empty() => missing_set.len() as f64,
+                MeasureOp::Constant if k.is_empty() => m.value.unwrap_or(0.0),
+                MeasureOp::Total => m.of.iter().filter_map(|o| out.get(o)).sum(),
+                _ => continue,
+            };
+            out.insert(m.id.clone(), v);
+        }
+    }
+    let missing = if def.list_missing { missing_set } else { Vec::new() };
     let mut documents: Vec<Id> = docs.iter().map(|(id, _)| **id).collect();
     documents.sort();
     AggregateResult {

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MeasureTable from '../components/MeasureTable.svelte';
   import type { AggregateView_Serialize as Agg } from '../bindings';
   import { api, run } from '../api';
   import { t } from '../i18n';
@@ -63,9 +64,7 @@
     {#each v.groups as g (g.label)}
       <section class="card">
         <h3>{g.label}</h3>
-        <table><tbody>
-          {#each g.measures as m (m.label)}<tr><td>{m.label}</td><td class="num">{Number.isInteger(m.value ?? 0) ? (m.value ?? 0) : (m.value ?? 0).toFixed(1)}</td></tr>{/each}
-        </tbody></table>
+        <MeasureTable measures={g.measures} />
       </section>
     {/each}
     {#if v.missing.length}

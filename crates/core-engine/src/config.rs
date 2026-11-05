@@ -65,6 +65,10 @@ impl Cfg {
         self.p().workflows.workflows.iter().find(|w| &w.id == id)
     }
 
+    pub fn aggregates(&self) -> &[AggregateDef] {
+        &self.p().aggregates.aggregates
+    }
+
     pub fn aggregate(&self, id: &Slug) -> Option<&AggregateDef> {
         self.p().aggregates.aggregates.iter().find(|a| &a.id == id)
     }
