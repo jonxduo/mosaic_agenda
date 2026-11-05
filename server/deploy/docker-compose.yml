@@ -1,6 +1,8 @@
-# Support server (PROGETTO.md §10): no events and no attachments are stored.
+# Support server (PROGETTO.md §10). It reads nothing: the blind backup node
+# keeps events and attachments only as they travel, encrypted (§10.3).
 #   docker compose up -d                      relay + push + Caddy
 #   docker compose --profile dns up -d        also the discovery service
+#   docker compose --profile backup up -d     also the blind backup node
 name: orgapp
 
 services:
@@ -47,6 +49,22 @@ services:
       - push_data:/data
       - ./secrets:/secrets:ro
 
+  blind-node:
+    profiles: ["backup"]
+    build:
+      context: ../..
+      dockerfile: server/blind-node/Dockerfile
+    restart: unless-stopped
+    environment:
+      BLIND_DATA: /data
+      BLIND_ORG: ${BLIND_ORG}
+      BLIND_RELAYS: https://relay.${DOMAIN}:8443
+      BLIND_QUOTA_GB: ${BLIND_QUOTA_GB:-5}
+    volumes:
+      - blind_data:/data
+    depends_on:
+      - iroh-relay
+
   iroh-dns-server:
     profiles: ["dns"]
     build:
@@ -68,4 +86,5 @@ volumes:
   caddy_data:
   caddy_config:
   push_data:
+  blind_data:
   dns_data:

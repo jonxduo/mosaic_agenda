@@ -97,6 +97,28 @@ Il primo amministratore radice che sincronizza registra l'organizzazione sul ser
 dimostrando di essere amministratore con l'evento di genesi. Da quel momento il servizio accetta
 solo i dispositivi dell'organizzazione, aggiornati automaticamente.
 
+## 6b. Nodo di backup cieco
+
+Tiene per sempre, cifrati, tutti gli eventi e le foto dell'organizzazione e li consegna ai
+dispositivi che si collegano dopo (PROGETTO.md §10.3). Non ha chiavi: non legge nulla.
+
+1. Nell'app, da un amministratore radice: **Sincronizzazione** → copiare l'id
+   dell'organizzazione.
+2. Sul server, in `.env`: `BLIND_ORG=<id>` (e se serve `BLIND_QUOTA_GB`, predefinito 5), poi:
+
+```bash
+docker compose --profile backup up -d --build
+docker compose logs blind-node | grep "blind node"
+```
+
+3. La riga `blind node <chiave>` dà la chiave del nodo: nell'app, **Sincronizzazione** → nodo di
+   backup → incollarla e salvare. Da quel momento tutti i dispositivi lo contattano per primo e i
+   documenti mostrano "Sul server" appena il nodo li ha.
+
+Chiave del nodo e chiave dell'archivio sono in `/data/secrets` (volume `blind_data`): se si
+perdono, il nodo riparte con una chiave nuova da dichiarare di nuovo e si riempie dai dispositivi.
+Il volume va incluso nel backup (§8); contiene solo dati cifrati.
+
 ## 7. Aggiornamenti
 
 ```bash
@@ -112,6 +134,8 @@ versione usata dall'app, vedi `Cargo.toml`).
 - Il servizio push salva ogni giorno una copia del suo archivio in `/data/backups` (volume
   `push_data`), tenendo le ultime 7. L'archivio contiene solo chiavi pubbliche dei dispositivi e
   token push: se si perde, i telefoni si registrano di nuovo da soli.
+- Il nodo di backup cieco è nel volume `blind_data` (dati cifrati e le sue chiavi): copiarlo
+  come gli altri, a nodo fermo (`docker compose stop blind-node`).
 - I certificati sono nel volume `caddy_data`; se si perdono, Caddy li richiede di nuovo.
 - Copia fuori dal server (es. ogni notte):
 
