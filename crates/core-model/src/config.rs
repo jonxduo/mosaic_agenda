@@ -726,6 +726,21 @@ pub struct CalendarEventTypeDef {
 pub struct ProgramsFile {
     #[serde(default)]
     pub program_types: Vec<ProgramTypeDef>,
+    /// Program types handed in together for publication: who publishes sees
+    /// them as one program per period, and publishes them at once.
+    #[serde(default)]
+    pub publish_groups: Vec<PublishGroupDef>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PublishGroupDef {
+    pub id: Slug,
+    pub label: TextKey,
+    #[serde(default)]
+    pub icon: Option<Slug>,
+    /// At least two, with the same period; a type in one group only.
+    pub program_types: Vec<Slug>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

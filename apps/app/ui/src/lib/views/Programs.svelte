@@ -51,9 +51,10 @@
         <span class="icon"><Icon name="plus" size={44} /></span>
       </button>
     {/if}
-    {#each list.programs as p (p.program_id)}
-      <a class="card tile" href="#/program_editor" onclick={(e) => { e.preventDefault(); go('program_editor', { program: p.program_id }); }}>
-        <span class="badge state" class:ok={p.status === 'published'}>{label(p.status)}</span>
+    {#each list.programs as p (p.program_id || `${p.group}-${p.period}`)}
+      <!-- A publish group (e.g. several programs handed in together) opens as one. -->
+      <a class="card tile" href="#/program_editor" onclick={(e) => { e.preventDefault(); if (p.group) go('program_group', { group: p.group, period: p.period }); else go('program_editor', { program: p.program_id }); }}>
+        <span class="badge state" class:ok={p.status === 'published'} class:warn={p.incomplete}>{p.incomplete ? t('group_incomplete') : label(p.status)}</span>
         <span class="icon"><Icon name={p.icon ?? 'program_list'} size={44} /></span>
         <strong>{p.title}</strong>
         <span class="muted when">{p.subtitle}</span>

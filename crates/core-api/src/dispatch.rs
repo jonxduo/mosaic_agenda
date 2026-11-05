@@ -60,6 +60,9 @@ pub const COMMANDS: &[&str] = &[
     "address_search",
     "send_program",
     "publish_program",
+    "program_group",
+    "sent_program",
+    "publish_program_group",
     "respond",
     "add_external",
     "my_assignments",
@@ -212,6 +215,11 @@ pub async fn dispatch(core: &Arc<Core>, cmd: &str, input: Value) -> ApiResult<Va
         }
         "send_program" => call!({ program: String } => core.send_program(program)?),
         "publish_program" => call!({ program: String } => core.publish_program(program)?),
+        "sent_program" => call!({ program: String } => core.sent_program(program)?),
+        "program_group" => call!({ group: String, period: String } => core.program_group(group, period)?),
+        "publish_program_group" => {
+            call!({ group: String, period: String } => core.publish_program_group(group, period)?)
+        }
         "respond" => {
             call!({ program: String, program_type: String, occurrence: u32, slot: String, index: u32, accept: bool, note: Option<String>, assignee: Option<String> } => core.respond(program, program_type, occurrence, slot, index, accept, note, assignee)?)
         }

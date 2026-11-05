@@ -494,6 +494,19 @@ fn aggregate_op_incompatible_with_field_type() {
 }
 
 #[test]
+fn publish_group_needs_two_known_types() {
+    let issues = errors(&[(
+        "programs.yaml",
+        "program_types:\n",
+        "publish_groups:\n  - { id: g, label: r.keeper, program_types: [weekly_plan, nothing] }\nprogram_types:\n",
+    )]);
+    assert!(
+        issues.iter().any(|i| i.path == "publish_groups[0].program_types[1]" && i.message.contains("unknown program type")),
+        "{issues:?}"
+    );
+}
+
+#[test]
 fn constant_measure_needs_a_value() {
     assert_error(
         &[(

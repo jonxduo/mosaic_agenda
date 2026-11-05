@@ -5,6 +5,10 @@ x-requirements:
   elder_or_ms: &elder_or_ms { any: [ { has_qualification: elder }, { has_qualification: ministerial_servant } ] }
   male: &male { attribute: { name: sex, op: eq, value: m } }
   baptized: &baptized { has_qualification: baptized }
+# Audio/video e uscieri arrivano al responsabile della bacheca come un unico programma
+# "Incarichi" per mese: lo pubblica in una volta; se uno dei due manca lo vede incompleto.
+publish_groups:
+  - { id: assignments, label: p.assignments, icon: door, program_types: [av, attendants] }
 program_types:
   - id: midweek
     label: p.midweek

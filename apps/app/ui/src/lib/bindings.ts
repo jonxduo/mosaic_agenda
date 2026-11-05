@@ -81,6 +81,9 @@ export const commands = {
 	revokeDevice: (device: string) => typedError<null, ApiError>(__TAURI_INVOKE("revoke_device", { device })),
 	setArchive: (device: string, archive: boolean) => typedError<null, ApiError>(__TAURI_INVOKE("set_archive", { device, archive })),
 	setBackupNode: (node: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("set_backup_node", { node })),
+	programGroup: (group: string, period: string) => typedError<ProgramGroupView, ApiError>(__TAURI_INVOKE("program_group", { group, period })),
+	sentProgram: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("sent_program", { program })),
+	publishProgramGroup: (group: string, period: string) => typedError<ProgramGroupView, ApiError>(__TAURI_INVOKE("publish_program_group", { group, period })),
 	unitReports: (workflow: string, unitType: string) => typedError<UnitReports_Serialize, ApiError>(__TAURI_INVOKE("unit_reports", { workflow, unitType })),
 	exportPerson: (person: string) => typedError<PersonExport_Serialize, ApiError>(__TAURI_INVOKE("export_person", { person })),
 	requestErasure: (person: string) => typedError<null, ApiError>(__TAURI_INVOKE("request_erasure", { person })),
@@ -253,6 +256,8 @@ export type BoardItem_Deserialize = {
 	/**  The program type's icon; none for a notice. */
 	icon?: string | null,
 	body: BoardLine[],
+	/**  The programs shown: one, or those of a publish group. */
+	programs: string[],
 };
 
 export type BoardItem_Serialize = {
@@ -262,6 +267,8 @@ export type BoardItem_Serialize = {
 	/**  The program type's icon; none for a notice. */
 	icon: string | null,
 	body: BoardLine[],
+	/**  The programs shown: one, or those of a publish group. */
+	programs: string[],
 };
 
 export type BoardLine = {
@@ -1093,6 +1100,26 @@ export type ProgramEditor_Serialize = {
  */
 export type ProgramGroup = ProgramGroup_Serialize | ProgramGroup_Deserialize;
 
+export type ProgramGroupPart = {
+	program_id: string,
+	program_type: string,
+	label: string,
+	status: string,
+};
+
+/**  A publish group for one period: its programs handed in, those missing. */
+export type ProgramGroupView = {
+	group: string,
+	title: string,
+	period: string,
+	period_label: string,
+	status: string,
+	parts: ProgramGroupPart[],
+	/**  Program types not handed in yet (their names). */
+	missing: string[],
+	can_publish: boolean,
+};
+
 /**
  *  Events sharing the same persons (one event unless the program rotates
  *  by week or month). Its cells carry the first occurrence.
@@ -1143,6 +1170,12 @@ export type ProgramRow_Deserialize = {
 	title: string,
 	subtitle: string,
 	status: string,
+	/**  A publish group shown as one program (`program_id` empty). */
+	group?: string | null,
+	/**  The program's period (`YYYY-MM` or a week). */
+	period: string,
+	/**  A group missing one of its program types. */
+	incomplete: boolean,
 };
 
 export type ProgramRow_Serialize = {
@@ -1153,6 +1186,12 @@ export type ProgramRow_Serialize = {
 	title: string,
 	subtitle: string,
 	status: string,
+	/**  A publish group shown as one program (`program_id` empty). */
+	group: string | null,
+	/**  The program's period (`YYYY-MM` or a week). */
+	period: string,
+	/**  A group missing one of its program types. */
+	incomplete: boolean,
 };
 
 /**  One cell changed in the matrix. */

@@ -1473,7 +1473,45 @@ impl<'a> Validator<'a> {
         }
     }
 
+    fn publish_groups(&mut self) {
+        let defs = &self.pkg.programs.program_types;
+        let groups = &self.pkg.programs.publish_groups;
+        self.unique(
+            PROGRAMS,
+            "publish group",
+            groups
+                .iter()
+                .enumerate()
+                .map(|(i, g)| (&g.id, format!("publish_groups[{i}].id"))),
+        );
+        let mut taken: BTreeSet<&Slug> = BTreeSet::new();
+        for (i, g) in groups.iter().enumerate() {
+            let p = format!("publish_groups[{i}]");
+            self.text_key(&g.label, PROGRAMS, format!("{p}.label"));
+            if g.program_types.len() < 2 {
+                self.err(PROGRAMS, format!("{p}.program_types"), "a group needs at least two program types");
+            }
+            let mut period = None;
+            for (j, t) in g.program_types.iter().enumerate() {
+                let tp = format!("{p}.program_types[{j}]");
+                match defs.iter().find(|d| &d.id == t) {
+                    None => self.err(PROGRAMS, tp.clone(), format!("unknown program type `{t}`")),
+                    Some(d) => {
+                        if period.is_some_and(|x| x != d.period) {
+                            self.err(PROGRAMS, tp.clone(), "the types of a group need the same period");
+                        }
+                        period = Some(d.period);
+                    }
+                }
+                if !taken.insert(t) {
+                    self.err(PROGRAMS, tp, format!("`{t}` is already in a publish group"));
+                }
+            }
+        }
+    }
+
     fn programs(&mut self) {
+        self.publish_groups();
         let defs = &self.pkg.programs.program_types;
         self.unique(
             PROGRAMS,

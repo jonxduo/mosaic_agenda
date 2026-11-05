@@ -8,7 +8,9 @@
   // on the left, who does it on the right, one column per room) and, beside,
   // the people who can take a part this week, the longest without one first.
   // `readonly`: the version on the board, as text, inside another page.
-  let { program, readonly = false }: { program: string; readonly?: boolean } = $props();
+  // titled: read only inside a group of programs, under the program's name.
+  // sent: read only, the version handed in for publication (not yet on the board).
+  let { program, readonly = false, titled = false, sent = false }: { program: string; readonly?: boolean; titled?: boolean; sent?: boolean } = $props();
   let p = $state<Editor | null>(null);
   let external = $state('');
   let reading = $state(false);
@@ -150,7 +152,7 @@
 
   async function load() {
     try {
-      p = await run(readonly ? api.publishedProgram(program) : api.program(program));
+      p = await run(readonly ? (sent ? api.sentProgram(program) : api.publishedProgram(program)) : api.program(program));
       // Types with a prefill: read the pages once, on first opening.
       if (!readonly && p.needs_prefill) await prefill(true);
     } catch (e) {
@@ -312,6 +314,7 @@
 
 {#if p}
   <div class="stack page wide" class:embedded={readonly}>
+    {#if readonly && titled}<h2 class="part-title">{p.title.split(' · ')[0]}</h2>{/if}
     {#if !readonly}
       <div class="spread">
         <h1>{p.title}</h1>
@@ -544,5 +547,6 @@
   .actions { position: sticky; bottom: 0; z-index: 5; background: var(--page); padding: 10px 0 18px; }
   /* Phone: the bar's background runs behind the floating menu. */
   @media (max-width: 760px) { .actions { padding-bottom: calc(100px + var(--inset-bottom, env(safe-area-inset-bottom, 0px))); } }
+  .part-title { margin: 8px 0 0; font-size: 20px; }
   .day { margin-top: 10px; font-size: 14px; color: var(--muted); font-weight: 600; }
 </style>

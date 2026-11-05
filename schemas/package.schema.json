@@ -2024,8 +2024,51 @@
             "$ref": "#/$defs/ProgramTypeDef"
           },
           "type": "array"
+        },
+        "publish_groups": {
+          "default": [],
+          "description": "Program types handed in together for publication: who publishes sees\nthem as one program per period, and publishes them at once.",
+          "items": {
+            "$ref": "#/$defs/PublishGroupDef"
+          },
+          "type": "array"
         }
       },
+      "type": "object"
+    },
+    "PublishGroupDef": {
+      "additionalProperties": false,
+      "properties": {
+        "icon": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Slug"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "id": {
+          "$ref": "#/$defs/Slug"
+        },
+        "label": {
+          "$ref": "#/$defs/TextKey"
+        },
+        "program_types": {
+          "description": "At least two, with the same period; a type in one group only.",
+          "items": {
+            "$ref": "#/$defs/Slug"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "program_types"
+      ],
       "type": "object"
     },
     "QualificationDef": {

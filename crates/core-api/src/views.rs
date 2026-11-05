@@ -113,6 +113,10 @@ pub(crate) fn today(core: &Core) -> Date {
 }
 
 /// The last complete period of a periodicity, relative to `today`.
+/// A publish group's period while listing: newest creation, statuses of its
+/// programs, program types present.
+type GroupRow = (i64, Vec<&'static str>, BTreeSet<Slug>);
+
 /// One measure of an aggregate as shown: label, value (durations in hours),
 /// section and emphasis.
 fn measure_row(
@@ -806,6 +810,27 @@ impl Core {
                     let c = cfg(&v)?;
                     let me = self.me()?;
                     for r in list.programs.iter().filter(|r| r.status == "to_publish") {
+                        // A publish group: one item, opening the group.
+                        if let Some(g) = &r.group {
+                            let may = self
+                                .program_group(g.clone(), r.period.clone())
+                                .is_ok_and(|x| x.can_publish);
+                            if may && seen.insert((g.clone(), r.period.clone(), "group".to_owned())) {
+                                out.push(WorkItem {
+                                    title: format!("{} · {}", r.title, r.subtitle),
+                                    subtitle: t.get("core.work.program_publish"),
+                                    view: "program_group".into(),
+                                    params: [
+                                        ("group".to_owned(), g.clone()),
+                                        ("period".to_owned(), r.period.clone()),
+                                    ]
+                                    .into(),
+                                    action: t.get("core.work.open"),
+                                    urgent: true,
+                                });
+                            }
+                            continue;
+                        }
                         let may = Slug::new(&r.program_type).is_ok_and(|pt| {
                             v.proj.auth.is_allowed(
                                 c,
@@ -1068,6 +1093,7 @@ impl Core {
                         label: String::new(),
                         value: body.clone(),
                     }],
+                    programs: Vec::new(),
                 }),
                 PBoardItem::Program(s) => {
                     let def = cfg.program_type(&s.program_type);
@@ -1115,17 +1141,64 @@ impl Core {
                             }
                         })
                         .collect();
+                    let period = def.map_or_else(
+                        || PeriodKey::week_of(first),
+                        |d| crate::schedule::period_of(d, first),
+                    );
+                    // A program of a publish group joins the others of its
+                    // period in one post.
+                    let group = cfg
+                        .package()
+                        .programs
+                        .publish_groups
+                        .iter()
+                        .find(|g| g.program_types.contains(&s.program_type));
+                    if let Some(g) = group {
+                        let gid = format!("{}-{}", g.id, period);
+                        if let Some(item) = out.iter_mut().find(|x| x.id == gid) {
+                            item.body.extend(lines);
+                            item.programs.push(id.to_string());
+                            continue;
+                        }
+                        out.push(BoardItem {
+                            id: gid,
+                            icon: g.icon.as_ref().map(ToString::to_string),
+                            title: t.get(g.label.as_str()),
+                            subtitle: t.period(&period),
+                            body: lines,
+                            programs: vec![id.to_string()],
+                        });
+                        continue;
+                    }
                     out.push(BoardItem {
                         id: id.to_string(),
                         icon: def.and_then(|d| d.icon.as_ref()).map(ToString::to_string),
                         title: def.map_or_else(String::new, |d| t.get(d.label.as_str())),
-                        subtitle: def.map_or_else(
-                            || t.period(&PeriodKey::week_of(first)),
-                            |d| t.period(&crate::schedule::period_of(d, first)),
-                        ),
+                        subtitle: t.period(&period),
                         body: lines,
+                        programs: vec![id.to_string()],
                     });
                 }
+            }
+        }
+        // The parts of a group in the group's order.
+        for item in &mut out {
+            if item.programs.len() > 1 {
+                let rank = |pid: &String| {
+                    v.proj
+                        .published
+                        .iter()
+                        .find(|(id, _)| id.to_string() == *pid)
+                        .and_then(|(_, s)| {
+                            cfg.package()
+                                .programs
+                                .publish_groups
+                                .iter()
+                                .find_map(|g| g.program_types.iter().position(|x| *x == s.program_type))
+                        })
+                        .unwrap_or(usize::MAX)
+                };
+                item.programs.sort_by_key(rank);
             }
         }
         Ok(out)
@@ -1972,91 +2045,126 @@ impl Core {
         let cfg = cfg(&v)?;
         let wanted: Option<BTreeSet<String>> =
             types.map(|s| s.split(',').map(str::to_owned).collect());
-        let defs: Vec<_> = cfg
+        let now = today(self);
+        let may = |perm: Permission, id: &Slug| {
+            v.proj.auth.is_allowed(
+                cfg,
+                me,
+                perm,
+                Some(&ObjectRef {
+                    kind: ObjectKind::Program,
+                    id: id.clone(),
+                }),
+                None,
+                now,
+            )
+        };
+        let listed: Vec<_> = cfg
             .package()
             .programs
             .program_types
             .iter()
             .filter(|d| wanted.as_ref().is_none_or(|w| w.contains(d.id.as_str())))
             .collect();
-        let now = today(self);
-        // Only the programs of the types this person drafts: the others are
-        // not theirs to handle.
-        let can_draft: Vec<String> = defs
+        let can_draft: Vec<String> = listed
             .iter()
-            .filter(|d| {
-                v.proj.auth.is_allowed(
-                    cfg,
-                    me,
-                    Permission::ProgramDraft,
-                    Some(&ObjectRef {
-                        kind: ObjectKind::Program,
-                        id: d.id.clone(),
-                    }),
-                    None,
-                    now,
-                )
-            })
+            .filter(|d| may(Permission::ProgramDraft, &d.id))
             .map(|d| d.id.to_string())
             .collect();
-        let defs: Vec<_> = defs
+        // The programs of one's competence: the types one drafts or publishes.
+        let defs: Vec<_> = listed
             .into_iter()
-            .filter(|d| can_draft.iter().any(|c| c == d.id.as_str()))
+            .filter(|d| {
+                can_draft.iter().any(|c| c == d.id.as_str()) || may(Permission::ProgramPublish, &d.id)
+            })
             .collect();
-        let mut programs = Vec::new();
-        let mut seen = BTreeSet::new();
-        for (id, p) in &v.proj.programs {
-            if defs.iter().any(|d| d.id == p.program_type) {
-                seen.insert(*id);
-                let first = p.occurrences.first().copied().unwrap_or(now);
-                programs.push((p.created, ProgramRow {
-                    program_id: id.to_string(),
-                    program_type: p.program_type.to_string(),
-                    icon: defs
-                        .iter()
-                        .find(|d| d.id == p.program_type)
-                        .and_then(|d| d.icon.as_ref())
-                        .map(ToString::to_string),
-                    title: defs
-                        .iter()
-                        .find(|d| d.id == p.program_type)
-                        .map_or_else(String::new, |d| t.get(d.label.as_str())),
-                    subtitle: defs.iter().find(|d| d.id == p.program_type).map_or_else(
-                        || t.period(&PeriodKey::week_of(first)),
-                        |d| t.period(&crate::schedule::period_of(d, first)),
-                    ),
-                    status: program_status(&v, cfg, id, &p.program_type).into(),
-                }));
+        // Who only publishes a type of a publish group sees the group as one
+        // program per period.
+        let group_of = |pt: &Slug| {
+            if can_draft.iter().any(|c| c == pt.as_str()) {
+                return None;
             }
-        }
-        for (id, s) in v
+            cfg.package()
+                .programs
+                .publish_groups
+                .iter()
+                .find(|g| g.program_types.contains(pt))
+        };
+        let mut programs: Vec<(i64, ProgramRow)> = Vec::new();
+        // (group, period) → newest creation, statuses, types present.
+        let mut grouped: BTreeMap<(Slug, PeriodKey), GroupRow> = BTreeMap::new();
+        let mut seen = BTreeSet::new();
+        let drafts = v.proj.programs.iter().map(|(id, p)| {
+            (id, &p.program_type, p.occurrences.first().copied(), p.created)
+        });
+        // Without its draft the creation time is unknown: listed last.
+        let sent = v
             .proj
             .assigned_snapshots
             .iter()
             .chain(v.proj.published.iter())
-        {
-            if seen.insert(*id) && defs.iter().any(|d| d.id == s.program_type) {
-                let first = s.occurrences.first().copied().unwrap_or(now);
-                // Without its draft the creation time is unknown: listed last.
-                programs.push((i64::MIN, ProgramRow {
-                    program_id: id.to_string(),
-                    program_type: s.program_type.to_string(),
-                    icon: defs
-                        .iter()
-                        .find(|d| d.id == s.program_type)
-                        .and_then(|d| d.icon.as_ref())
-                        .map(ToString::to_string),
-                    title: defs
-                        .iter()
-                        .find(|d| d.id == s.program_type)
-                        .map_or_else(String::new, |d| t.get(d.label.as_str())),
-                    subtitle: defs.iter().find(|d| d.id == s.program_type).map_or_else(
-                        || t.period(&PeriodKey::week_of(first)),
-                        |d| t.period(&crate::schedule::period_of(d, first)),
-                    ),
-                    status: program_status(&v, cfg, id, &s.program_type).into(),
-                }));
+            .map(|(id, s)| (id, &s.program_type, s.occurrences.first().copied(), i64::MIN));
+        for (id, program_type, first, created) in drafts.chain(sent) {
+            let Some(def) = defs.iter().find(|d| &d.id == program_type) else {
+                continue;
+            };
+            if !seen.insert(*id) {
+                continue;
             }
+            let first = first.unwrap_or(now);
+            let period = crate::schedule::period_of(def, first);
+            let status = program_status(&v, cfg, id, program_type);
+            if let Some(g) = group_of(program_type) {
+                if status != "draft" {
+                    let e = grouped
+                        .entry((g.id.clone(), period))
+                        .or_insert((i64::MIN, Vec::new(), BTreeSet::new()));
+                    e.0 = e.0.max(created);
+                    e.1.push(status);
+                    e.2.insert(program_type.clone());
+                }
+                continue;
+            }
+            programs.push((
+                created,
+                ProgramRow {
+                    program_id: id.to_string(),
+                    program_type: program_type.to_string(),
+                    icon: def.icon.as_ref().map(ToString::to_string),
+                    title: t.get(def.label.as_str()),
+                    subtitle: t.period(&period),
+                    status: status.into(),
+                    group: None,
+                    period: period.to_string(),
+                    incomplete: false,
+                },
+            ));
+        }
+        for ((gid, period), (created, statuses, present)) in grouped {
+            let Some(g) = cfg.package().programs.publish_groups.iter().find(|g| g.id == gid) else {
+                continue;
+            };
+            let status = if statuses.contains(&"to_publish") {
+                "to_publish"
+            } else if statuses.iter().all(|s| *s == "published") {
+                "published"
+            } else {
+                "assigned"
+            };
+            programs.push((
+                created,
+                ProgramRow {
+                    program_id: String::new(),
+                    program_type: String::new(),
+                    icon: g.icon.as_ref().map(ToString::to_string),
+                    title: t.get(g.label.as_str()),
+                    subtitle: t.period(&period),
+                    status: status.into(),
+                    group: Some(gid.to_string()),
+                    period: period.to_string(),
+                    incomplete: g.program_types.iter().any(|x| !present.contains(x)),
+                },
+            ));
         }
         // Newest first.
         programs.sort_by_key(|p| std::cmp::Reverse(p.0));
@@ -2075,16 +2183,132 @@ impl Core {
     }
 
     pub fn program(&self, program: String) -> ApiResult<ProgramEditor> {
-        self.program_view(program, false)
+        self.program_view(program, false, false)
+    }
+
+    /// The programs of a publish group handed in for `period` (one per type,
+    /// the newest), and the types still missing.
+    pub(crate) fn group_parts(
+        &self,
+        v: &View,
+        group: &core_model::config::PublishGroupDef,
+        period: PeriodKey,
+    ) -> ApiResult<Vec<(core_model::Id, Slug)>> {
+        let cfg = cfg(v)?;
+        let mut out: BTreeMap<Slug, (core_model::Id, u32)> = BTreeMap::new();
+        for (id, s) in v.proj.assigned_snapshots.iter().chain(v.proj.published.iter()) {
+            if !group.program_types.contains(&s.program_type) {
+                continue;
+            }
+            let Some(def) = cfg.program_type(&s.program_type) else {
+                continue;
+            };
+            let first = s.occurrences.first().copied().unwrap_or(Date::MIN);
+            if crate::schedule::period_of(def, first) != period {
+                continue;
+            }
+            let e = out.entry(s.program_type.clone()).or_insert((*id, s.version));
+            if s.version > e.1 && e.0 != *id {
+                *e = (*id, s.version);
+            }
+        }
+        Ok(group
+            .program_types
+            .iter()
+            .filter_map(|pt| out.get(pt).map(|(id, _)| (*id, pt.clone())))
+            .collect())
+    }
+
+    pub fn program_group(&self, group: String, period: String) -> ApiResult<ProgramGroupView> {
+        self.ensure_unlocked()?;
+        let v = self.view()?;
+        let me = self.me()?;
+        let t = self.texts();
+        let cfg = cfg(&v)?;
+        let gid = Slug::new(&group).map_err(ApiError::invalid)?;
+        let g = cfg
+            .package()
+            .programs
+            .publish_groups
+            .iter()
+            .find(|g| g.id == gid)
+            .ok_or_else(|| ApiError::not_found("group"))?;
+        let period: PeriodKey = period.parse().map_err(ApiError::invalid)?;
+        let now = today(self);
+        let parts: Vec<ProgramGroupPart> = self
+            .group_parts(&v, g, period)?
+            .into_iter()
+            .map(|(id, pt)| ProgramGroupPart {
+                program_id: id.to_string(),
+                program_type: pt.to_string(),
+                label: cfg
+                    .program_type(&pt)
+                    .map_or_else(|| pt.to_string(), |d| t.get(d.label.as_str())),
+                status: program_status(&v, cfg, &id, &pt).into(),
+            })
+            .collect();
+        let missing = g
+            .program_types
+            .iter()
+            .filter(|pt| !parts.iter().any(|p| p.program_type == pt.as_str()))
+            .map(|pt| {
+                cfg.program_type(pt)
+                    .map_or_else(|| pt.to_string(), |d| t.get(d.label.as_str()))
+            })
+            .collect();
+        let can_publish = parts.iter().any(|p| {
+            p.status == "to_publish"
+                && Slug::new(&p.program_type).is_ok_and(|pt| {
+                    v.proj.auth.is_allowed(
+                        cfg,
+                        me,
+                        Permission::ProgramPublish,
+                        Some(&ObjectRef {
+                            kind: ObjectKind::Program,
+                            id: pt,
+                        }),
+                        None,
+                        now,
+                    )
+                })
+        });
+        let status = if parts.iter().any(|p| p.status == "to_publish") {
+            "to_publish"
+        } else if !parts.is_empty() && parts.iter().all(|p| p.status == "published") {
+            "published"
+        } else {
+            "assigned"
+        };
+        Ok(ProgramGroupView {
+            group,
+            title: t.get(g.label.as_str()),
+            period: period.to_string(),
+            period_label: t.period(&period),
+            status: status.into(),
+            parts,
+            missing,
+            can_publish,
+        })
     }
 
     /// The version on the board, read-only (also for the team, who would
     /// otherwise see their draft).
     pub fn published_program(&self, program: String) -> ApiResult<ProgramEditor> {
-        self.program_view(program, true)
+        self.program_view(program, true, true)
     }
 
-    fn program_view(&self, program: String, published_only: bool) -> ApiResult<ProgramEditor> {
+    /// The version handed in for publication (or the published one), never
+    /// the draft: what who publishes is about to put on the board.
+    pub fn sent_program(&self, program: String) -> ApiResult<ProgramEditor> {
+        self.program_view(program, false, true)
+    }
+
+    fn program_view(
+        &self,
+        program: String,
+        published_only: bool,
+        skip_draft: bool,
+    ) -> ApiResult<ProgramEditor> {
         self.ensure_unlocked()?;
         let v = self.view()?;
         let me = self.me()?;
@@ -2092,7 +2316,7 @@ impl Core {
         let cfg = cfg(&v)?;
         let id = crate::parse_id(&program)?;
         let now = today(self);
-        let draft = v.proj.programs.get(&id).filter(|_| !published_only);
+        let draft = v.proj.programs.get(&id).filter(|_| !skip_draft);
         let (program_type, occurrences, assignments, _): ProgramParts<'_> = match draft {
             Some(p) => (
                 p.program_type.clone(),

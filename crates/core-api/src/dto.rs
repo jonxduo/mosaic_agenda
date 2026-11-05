@@ -119,6 +119,8 @@ pub struct BoardItem {
     /// The program type's icon; none for a notice.
     pub icon: Option<String>,
     pub body: Vec<BoardLine>,
+    /// The programs shown: one, or those of a publish group.
+    pub programs: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -356,6 +358,34 @@ pub struct ProgramRow {
     pub icon: Option<String>,
     pub title: String,
     pub subtitle: String,
+    pub status: String,
+    /// A publish group shown as one program (`program_id` empty).
+    pub group: Option<String>,
+    /// The program's period (`YYYY-MM` or a week).
+    pub period: String,
+    /// A group missing one of its program types.
+    pub incomplete: bool,
+}
+
+/// A publish group for one period: its programs handed in, those missing.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct ProgramGroupView {
+    pub group: String,
+    pub title: String,
+    pub period: String,
+    pub period_label: String,
+    pub status: String,
+    pub parts: Vec<ProgramGroupPart>,
+    /// Program types not handed in yet (their names).
+    pub missing: Vec<String>,
+    pub can_publish: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct ProgramGroupPart {
+    pub program_id: String,
+    pub program_type: String,
+    pub label: String,
     pub status: String,
 }
 

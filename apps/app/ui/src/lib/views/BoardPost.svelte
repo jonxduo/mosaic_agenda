@@ -23,9 +23,12 @@
   <header>
     <PageHeading title={item?.title ?? ''} subtitle={item?.subtitle ?? ''} onback={() => go('board')} />
   </header>
-  {#if item?.icon}
-    <!-- A program: the same layout as its editor, as text. -->
-    <Program program={post} readonly />
+  {#if item?.programs.length}
+    <!-- Programs: the same layout as their editor, as text; a group shows
+         each of its programs under its name. -->
+    {#each item.programs as id (id)}
+      <Program program={id} readonly titled={item.programs.length > 1} />
+    {/each}
   {:else if item}
     <article class="card">
       <table><tbody>

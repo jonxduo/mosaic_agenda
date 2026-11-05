@@ -422,6 +422,24 @@ impl Core {
         self.program(program)
     }
 
+    /// Publishes at once the programs of a publish group handed in for
+    /// `period` (those waiting; a missing type stays out).
+    pub fn publish_program_group(
+        self: &Arc<Self>,
+        group: String,
+        period: String,
+    ) -> ApiResult<crate::dto::ProgramGroupView> {
+        let view = self.program_group(group.clone(), period.clone())?;
+        if !view.can_publish {
+            return Err(ApiError::new("denied", "nothing to publish here"));
+        }
+        for p in view.parts.iter().filter(|p| p.status == "to_publish") {
+            let id = parse_id(&p.program_id)?;
+            self.act_events(|c| c.publish_program(id))?;
+        }
+        self.program_group(group, period)
+    }
+
     pub fn publish_program(self: &Arc<Self>, program: String) -> ApiResult<ProgramEditor> {
         let id = parse_id(&program)?;
         self.act_events(|c| c.publish_program(id))?;

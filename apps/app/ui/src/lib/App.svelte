@@ -19,6 +19,7 @@
   import MyDocuments from './views/MyDocuments.svelte';
   import WorkQueue from './views/WorkQueue.svelte';
   import UnitReports from './views/UnitReports.svelte';
+  import ProgramGroup from './views/ProgramGroup.svelte';
   import Aggregate from './views/Aggregate.svelte';
   import Programs from './views/Programs.svelte';
   import Program from './views/Program.svelte';
@@ -152,7 +153,7 @@
     go(m.view, m.params);
   }
   // Pages opened from a menu entry keep that entry active.
-  const PARENT: Record<string, string> = { board_post: 'board', program_editor: 'program_list' };
+  const PARENT: Record<string, string> = { board_post: 'board', program_editor: 'program_list', program_group: 'program_list' };
   const isActive = (m: MenuItem) =>
     (PARENT[route.view] === m.view && !m.params.form) ||
     m.view === route.view &&
@@ -269,6 +270,7 @@
         {:else if route.view === 'aggregate'}<Aggregate aggregate={params.aggregate} period={params.period} />
         {:else if route.view === 'program_list'}<Programs types={params.types} />
         {:else if route.view === 'program_editor'}<Program program={params.program} />
+        {:else if route.view === 'program_group'}<ProgramGroup group={params.group} period={params.period} onchange={refresh} />
         {:else if route.view === 'board'}<Board />
         {:else if route.view === 'board_post'}<BoardPost post={params.post} month={params.month} />
         {:else if route.view === 'profile'}<Profile />

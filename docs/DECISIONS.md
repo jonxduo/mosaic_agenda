@@ -1085,3 +1085,19 @@ Piano di F11:
   resoconto mensile: attivi nel mese; tabella pionieri regolari / ausiliari / proclamatori ×
   partecipato / ore / studi; nota "consenso GDPR negato"; quattro riquadri (ricevuti, non fatto,
   ore PR + PA, studi).
+
+## 2026-11-06 — Programmi pubblicati insieme ("Incarichi")
+
+- Nuovo `publish_groups` in `programs.yaml`: tipi di programma (almeno due, stesso periodo, un
+  tipo in un solo gruppo) che chi pubblica vede come un unico programma per periodo.
+- Elenco Programmi: la "competenza" è preparare **o** pubblicare un tipo (correzione: prima
+  restavano fuori i programmi che il responsabile della bacheca deve pubblicare). Chi pubblica
+  un tipo di un gruppo senza prepararlo vede una sola scheda per periodo, "Incompleto" se manca
+  uno dei tipi; Oggi propone una sola voce da pubblicare.
+- Pagina del gruppo (`program_group`): le parti arrivate nella versione inviata (`sent_program`,
+  mai la bozza), l'avviso dei tipi mancanti e "Pubblica" che pubblica insieme le parti in attesa.
+  Con un tipo mancante si pubblica la parte arrivata; l'altra si aggiunge quando arriva.
+- Bacheca: i programmi pubblicati di un gruppo nello stesso periodo sono un solo post, con ogni
+  programma sotto il suo nome (`BoardItem.programs`).
+- Nel pacchetto: "Incarichi" = audio/video + uscieri. Tutti i programmi passano dal responsabile
+  della bacheca (`notify: publish` per ogni tipo).
