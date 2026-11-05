@@ -1002,3 +1002,13 @@ Piano di F11:
    test: tre dispositivi mai accesi insieme convergono passando dal nodo.
 5. Interfaccia: stato "Sul server" nella consegna; impostazione del nodo per l'amministratore
    radice.
+
+### F11 passo 1 (nucleo), fatto
+- Evento pubblico `org.backup_node_set { node }` (in coda all'enum dei tipi), di sola autorizzazione:
+  solo un amministratore radice; il nodo non può essere un dispositivo di una persona.
+  Stato: `AuthState.backup_node`.
+- Il nodo entra nei peer ammessi, negli annunci e in testa ai peer da contattare.
+- Stato di consegna `Stored` ("Sul server") tra `Pending` e `Sent`; l'outbox resta fino a `Sent`.
+- Comando `set_backup_node`; `sync_status` mostra il nodo e se lo si può impostare.
+- Foto: oggi solo le risorse hanno campi foto (i documenti non li salvano), e le risorse già
+  elencano gli allegati in `attachments`. La regola vale per ogni tipo di oggetto che avrà foto.

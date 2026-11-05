@@ -715,7 +715,8 @@ impl Core {
                 engine: engine.clone(),
             })
         };
-        // Only the organization's devices may sync with this one.
+        // Only the organization's devices, and its blind backup node, may
+        // sync with this one.
         let allowed = v
             .proj
             .auth
@@ -723,6 +724,7 @@ impl Core {
             .iter()
             .filter(|(_, d)| !d.revoked)
             .map(|(k, _)| *k)
+            .chain(v.proj.auth.backup_node)
             .collect();
         // An archive device keeps every attachment (§9.4): it asks its
         // peers for all of them. Other devices fetch them on demand.
@@ -898,6 +900,7 @@ impl Core {
                         .devices
                         .keys()
                         .copied()
+                        .chain(v.proj.auth.backup_node)
                         .filter(|d| *d != self.keys.public())
                         .collect()
                 })

@@ -597,6 +597,14 @@ impl<'a> Client<'a> {
         )
     }
 
+    /// Declares (or removes) the organization's blind backup node.
+    pub fn set_backup_node(
+        &self,
+        node: Option<DevicePublicKey>,
+    ) -> Result<Vec<SignedEvent>, ActionError> {
+        self.org_event(EventKind::OrgBackupNodeSet, &BackupNodeSet { node })
+    }
+
     pub fn publish_config(
         &self,
         version: u32,

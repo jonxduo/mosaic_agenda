@@ -35,6 +35,14 @@ pub struct ConfigPublished {
     pub bundle: Vec<u8>,
 }
 
+/// The organization's blind backup node (PROGETTO.md §10.3): a server peer
+/// without channel keys that keeps every event and attachment, encrypted.
+/// `None` removes it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BackupNodeSet {
+    pub node: Option<core_crypto::DevicePublicKey>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DeviceArchiveSet {
     pub device: core_crypto::DevicePublicKey,
@@ -454,6 +462,7 @@ pub enum Op {
     DeviceAdded(DeviceAdded),
     DeviceRevoked(DeviceRevoked),
     DeviceArchiveSet(DeviceArchiveSet),
+    BackupNodeSet(BackupNodeSet),
     PersonAdded(PersonAdded),
     PersonUpdated(PersonUpdated),
     PersonRemoved(PersonRemoved),
@@ -560,6 +569,7 @@ impl Op {
             K::PersonDataErasureRequested => Op::ErasureRequested(de(bytes)?),
             K::RetentionApplied => Op::RetentionApplied(de(bytes)?),
             K::AdminQuarantineResolved => Op::QuarantineResolved(de(bytes)?),
+            K::OrgBackupNodeSet => Op::BackupNodeSet(de(bytes)?),
         })
     }
 
@@ -575,6 +585,7 @@ impl Op {
                 | K::DeviceAdded
                 | K::DeviceRevoked
                 | K::DeviceArchiveSet
+                | K::OrgBackupNodeSet
                 | K::PersonAdded
                 | K::PersonUpdated
                 | K::PersonRemoved

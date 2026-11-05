@@ -127,3 +127,24 @@ async fn every_listed_command_is_dispatched() {
         }
     }
 }
+
+/// F11: a root administrator declares the blind backup node (§10.3); a
+/// person's device cannot be it.
+#[tokio::test]
+async fn root_declares_the_blind_backup_node() {
+    let dir = tempfile::tempdir().unwrap();
+    let a = open(dir.path(), Arc::new(MemorySecretStore::default()));
+    a.create_org("Club".into(), "Alice".into()).await.unwrap();
+    let st = a.sync_status().await.unwrap();
+    assert_eq!(st.backup_node, None);
+    assert!(st.can_set_backup_node);
+
+    let own = a.people().unwrap().persons[0].devices[0].id.clone();
+    assert!(a.set_backup_node(Some(own)).is_err());
+
+    let node = core_crypto::DeviceKeys::generate().unwrap().public().to_string();
+    a.set_backup_node(Some(node.clone())).unwrap();
+    assert_eq!(a.sync_status().await.unwrap().backup_node, Some(node));
+    a.set_backup_node(None).unwrap();
+    assert_eq!(a.sync_status().await.unwrap().backup_node, None);
+}

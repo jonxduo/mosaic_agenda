@@ -1071,6 +1071,7 @@ impl Core {
         let t = self.texts();
         Some(t.get(match d {
             core_sync::delivery::Delivery::Pending => "core.delivery.pending",
+            core_sync::delivery::Delivery::Stored => "core.delivery.stored",
             core_sync::delivery::Delivery::Sent => "core.delivery.sent",
             core_sync::delivery::Delivery::Delivered => "core.delivery.delivered",
         }))
@@ -2920,6 +2921,14 @@ impl Core {
                     .collect()
             })
             .unwrap_or_default();
+        let (backup_node, can_set_backup_node) = self
+            .view()
+            .ok()
+            .map(|v| {
+                let root = self.me().is_ok_and(|me| v.proj.auth.is_root(me));
+                (v.proj.auth.backup_node.map(|k| k.to_string()), root)
+            })
+            .unwrap_or_default();
         let last = self.local()?.last_sync.map(|ms| {
             t.day_month(date_of(ms))
                 + &format!(" {:02}:{:02}", (ms / 3_600_000) % 24, (ms / 60_000) % 60)
@@ -2936,6 +2945,8 @@ impl Core {
             outbox,
             last_sync: last,
             peers,
+            backup_node,
+            can_set_backup_node,
         })
     }
 

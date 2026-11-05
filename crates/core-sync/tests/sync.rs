@@ -363,6 +363,33 @@ fn delivery_status_follows_receipts() {
     assert!(delivery(&store, &proj, &ev).unwrap() >= Delivery::Sent);
 }
 
+/// F11: the blind backup node's receipt gives "stored", never "sent".
+#[test]
+fn backup_node_receipt_is_stored_not_sent() {
+    let w = world();
+    let keys_a = &w.device("a", None).unwrap().keys;
+    let ring = derive_keyring(&w.events, keys_a);
+    let mut proj = rebuild(&w.events, &ring).unwrap();
+    let node = core_crypto::DeviceKeys::generate().unwrap().public();
+    proj.auth.backup_node = Some(node);
+    let LocalLog::Open(mut store) = store_with(&w.events) else {
+        unreachable!()
+    };
+    let a_dev = keys_a.public();
+    let ev = w
+        .events
+        .iter()
+        .rev()
+        .find(|e| e.body.author == a_dev)
+        .unwrap()
+        .clone();
+    store.add_receipt(&ev.id, &node, 1).unwrap();
+    assert_eq!(delivery(&store, &proj, &ev).unwrap(), Delivery::Stored);
+    // The node is contacted first.
+    let peers = core_sync::schedule::peers(&proj, &a_dev, &Default::default(), true, 3);
+    assert_eq!(peers.first(), Some(&node));
+}
+
 // ----- over iroh -----------------------------------------------------------------
 
 fn node_state(store: LocalLog) -> NodeState {

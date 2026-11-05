@@ -25,8 +25,9 @@ pub enum Trigger {
     Announcement,
 }
 
-/// Peers to contact, in priority order: archive devices, devices of the
-/// recipients of our pending events, then the others (rotated by `seed` so
+/// Peers to contact, in priority order: the blind backup node (§10.3),
+/// archive devices, devices of the recipients of our pending events, then
+/// the others (rotated by `seed` so
 /// that load spreads over the devices).
 pub fn peers(
     proj: &Projection,
@@ -47,11 +48,13 @@ pub fn peers(
         .filter(|(k, d)| *k != me && !d.revoked)
         .map(|(k, d)| (k, d.archive))
         .collect();
-    let mut out: Vec<DevicePublicKey> = candidates
-        .iter()
-        .filter(|(_, a)| *a)
-        .map(|(k, _)| **k)
+    let mut out: Vec<DevicePublicKey> = proj
+        .auth
+        .backup_node
+        .filter(|n| n != me)
+        .into_iter()
         .collect();
+    out.extend(candidates.iter().filter(|(_, a)| *a).map(|(k, _)| **k));
     for (k, _) in &candidates {
         if outbox_targets.contains(*k) && !out.contains(*k) {
             out.push(**k);

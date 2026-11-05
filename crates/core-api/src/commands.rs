@@ -814,6 +814,13 @@ impl Core {
         self.act_events(|c| c.set_archive(key, archive))
     }
 
+    /// Declares the organization's blind backup node (§10.3) by its public
+    /// key, or removes it with `None`. Root administrators only.
+    pub fn set_backup_node(self: &Arc<Self>, node: Option<String>) -> ApiResult<()> {
+        let key = node.as_deref().map(device_key).transpose()?;
+        self.act_events(|c| c.set_backup_node(key))
+    }
+
     pub fn update_settings(
         &self,
         auto_lock_minutes: u32,

@@ -46,6 +46,9 @@ pub struct AuthState {
     pub role_ids: BTreeMap<Id, (usize, EventHash)>,
     /// Role grants dropped because concurrent grants exceeded `holders.max`.
     pub superseded_roles: BTreeSet<EventHash>,
+    /// The blind backup node (§10.3): admitted and contacted by every
+    /// device, but not a device of any person.
+    pub backup_node: Option<DevicePublicKey>,
 }
 
 /// Why an action is not allowed.
@@ -245,6 +248,13 @@ impl AuthState {
             Op::DeviceArchiveSet(d) => {
                 req(P::DevicesManage)?;
                 ensure(self.devices.contains_key(&d.device), "unknown device")
+            }
+            Op::BackupNodeSet(b) => {
+                ensure(self.is_root(author), "root administrators only")?;
+                ensure(
+                    b.node.is_none_or(|n| !self.devices.contains_key(&n)),
+                    "the backup node cannot be a person's device",
+                )
             }
             Op::PersonAdded(p) => {
                 req(P::PeopleManage)?;
@@ -644,6 +654,7 @@ impl AuthState {
                     r.archive = d.archive;
                 }
             }
+            Op::BackupNodeSet(b) => self.backup_node = b.node,
             Op::PersonAdded(p) => {
                 self.org.persons.insert(
                     p.person,

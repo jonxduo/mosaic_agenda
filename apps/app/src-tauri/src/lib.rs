@@ -126,6 +126,7 @@ cmd!(set_membership(person: String, unit: String, from: Option<String>) -> () =>
 cmd!(grant_role(person: String, role: String, unit: Option<String>) -> () => |c| c.grant_role(person, role, unit));
 cmd!(revoke_device(device: String) -> () => |c| c.revoke_device(device));
 cmd!(set_archive(device: String, archive: bool) -> () => |c| c.set_archive(device, archive));
+cmd!(set_backup_node(node: Option<String>) -> () => |c| c.set_backup_node(node));
 cmd!(export_person(person: String) -> core_api::privacy::PersonExport => |c| c.export_person(person));
 cmd!(request_erasure(person: String) -> () => |c| c.request_erasure(person));
 cmd!(export_person_to(person: String, path: String) -> () => |c| c.export_person_to(person, &path));
@@ -215,6 +216,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         grant_role,
         revoke_device,
         set_archive,
+        set_backup_node,
         export_person,
         request_erasure,
         export_person_to,

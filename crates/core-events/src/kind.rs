@@ -86,6 +86,7 @@ kinds! {
     AdminQuarantineResolved => "admin.quarantine_resolved", true;
     ProgramDetailsSet => "program.details_set", false;
     ProgramPartsShown => "program.parts_shown", false;
+    OrgBackupNodeSet => "org.backup_node_set", true;
 }
 
 #[cfg(test)]

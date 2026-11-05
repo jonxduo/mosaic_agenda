@@ -80,6 +80,7 @@ export const commands = {
 	grantRole: (person: string, role: string, unit: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("grant_role", { person, role, unit })),
 	revokeDevice: (device: string) => typedError<null, ApiError>(__TAURI_INVOKE("revoke_device", { device })),
 	setArchive: (device: string, archive: boolean) => typedError<null, ApiError>(__TAURI_INVOKE("set_archive", { device, archive })),
+	setBackupNode: (node: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("set_backup_node", { node })),
 	exportPerson: (person: string) => typedError<PersonExport_Serialize, ApiError>(__TAURI_INVOKE("export_person", { person })),
 	requestErasure: (person: string) => typedError<null, ApiError>(__TAURI_INVOKE("request_erasure", { person })),
 	exportPersonTo: (person: string, path: string) => typedError<null, ApiError>(__TAURI_INVOKE("export_person_to", { person, path })),
@@ -1353,6 +1354,10 @@ export type SyncStatus_Deserialize = {
 	outbox: number,
 	last_sync?: string | null,
 	peers: PeerInfo_Deserialize[],
+	/**  Public key of the blind backup node (§10.3), if declared. */
+	backup_node?: string | null,
+	/**  Root administrators set or remove it. */
+	can_set_backup_node: boolean,
 };
 
 export type SyncStatus_Serialize = {
@@ -1362,6 +1367,10 @@ export type SyncStatus_Serialize = {
 	outbox: number,
 	last_sync: string | null,
 	peers: PeerInfo_Serialize[],
+	/**  Public key of the blind backup node (§10.3), if declared. */
+	backup_node: string | null,
+	/**  Root administrators set or remove it. */
+	can_set_backup_node: boolean,
 };
 
 export type UnitRef = {

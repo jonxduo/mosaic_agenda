@@ -17,6 +17,8 @@ pub const SENT_THRESHOLD: usize = 2;
 pub enum Delivery {
     /// No receipt yet.
     Pending,
+    /// Kept by the blind backup node (§10.3), no other person has it yet.
+    Stored,
     /// Received by at least two devices of other persons.
     Sent,
     /// Received by at least one device of every person of the audience.
@@ -69,8 +71,14 @@ pub fn delivery(
                 .is_some_and(|r| Some(r.person) != author)
         })
         .count();
+    let stored = proj
+        .auth
+        .backup_node
+        .is_some_and(|n| receipts.contains(&n));
     Ok(if other_devices >= SENT_THRESHOLD {
         Delivery::Sent
+    } else if stored {
+        Delivery::Stored
     } else {
         Delivery::Pending
     })
