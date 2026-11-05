@@ -5,7 +5,7 @@
   import { t } from '../i18n';
   import { go } from '../router.svelte';
   import { fail } from '../toast.svelte';
-  import BackButton from '../components/BackButton.svelte';
+  import PageHeading from '../components/PageHeading.svelte';
   import Program from './Program.svelte';
 
   let { post, month }: { post: string; month?: string } = $props();
@@ -20,14 +20,8 @@
 </script>
 
 <div class="stack page wide">
-  <header class="row head">
-    <BackButton onclick={() => go('board')} />
-    {#if item}
-      <div class="stack tight">
-        <h1>{item.title}</h1>
-        {#if item.subtitle}<span class="muted when">{item.subtitle}</span>{/if}
-      </div>
-    {/if}
+  <header>
+    <PageHeading title={item?.title ?? ''} subtitle={item?.subtitle ?? ''} onback={() => go('board')} />
   </header>
   {#if item?.icon}
     <!-- A program: the same layout as its editor, as text. -->
@@ -45,9 +39,6 @@
 
 <style>
   .page { gap: 16px; }
-  .tight { gap: 2px; }
-  .head { gap: 12px; align-items: center; flex-wrap: nowrap; }
-  .when { font-size: 14px; text-transform: capitalize; }
   table { border-collapse: collapse; width: 100%; }
   td { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
   tr:last-child td { border-bottom: none; }
