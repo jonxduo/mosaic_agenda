@@ -534,6 +534,9 @@
     .rows > .who { border-bottom: none; padding-top: 0; padding-left: 0; }
     .rows > .who:empty { display: none; }
     .rows > .part { border-bottom: none; }
+    /* Read-only: the name right under the part's title. */
+    .embedded .rows > .part { padding-bottom: 4px; }
+    .embedded .ro-name { min-height: 0; }
   }
   .details input.num { width: 84px; flex: none; }
   .details.changed input { border-color: var(--primary); }
