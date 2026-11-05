@@ -962,3 +962,43 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   gli altri non sono di sua competenza.
 - Nei programmi titoli delle parti e partecipanti non sono in grassetto; i partecipanti
   sono in corsivo.
+
+## 2026-11-05 — Nodo di backup cieco sul server (F11, progetto)
+
+Il server non è più solo relay e push: tiene **per sempre**, cifrati, tutti gli eventi e gli
+allegati di ogni organizzazione e li consegna a chi si collega dopo (PROGETTO.md §10.3). Scelto
+"backup cieco per sempre" invece di "fino alla consegna": fa anche da backup e rende facoltativi
+i desktop d'archivio. Il server continua a non poter leggere nulla.
+
+Cosa si è verificato nel codice prima di decidere:
+- Busta dell'evento in chiaro (organizzazione, autore, genitori, profondità, tipo, canale,
+  `attachments`); solo il contenuto è cifrato. `SignedEvent::verify` controlla id, firma e
+  struttura senza chiavi; anche la riconciliazione e l'invio non decifrano nulla. Le ricevute
+  si firmano con la sola chiave del dispositivo.
+- L'elenco esatto dei dispositivi autorizzati dipende da eventi cifrati (persone, ruoli): un nodo
+  senza chiavi ne calcolerebbe solo un'approssimazione. Si usa quindi l'elenco che gli
+  amministratori radice pubblicano già al servizio push (`/v1/org/membership`); fino al primo
+  invio valgono i dispositivi radice della genesi.
+- I dispositivi oggi accettano e contattano solo i dispositivi del proprio stato
+  (`proj.auth.devices`): serve un modo pubblico, verificabile senza chiavi, per dichiarare il
+  nodo → nuovo evento pubblico `org.backup_node_set { node }`, firmato da un amministratore
+  radice (i dispositivi radice sono noti dalla genesi).
+- Gli allegati dei campi foto dei documenti oggi sono solo nel contenuto cifrato: vanno elencati
+  anche in `attachments`, come già per le risorse, altrimenti il nodo non li vede.
+- Le ricevute del nodo non contano per `sent` (il conteggio usa i dispositivi delle persone):
+  danno un nuovo stato `stored`.
+- La cancellazione si applica sul nodo leggendo gli eventi pubblici di cancellazione e
+  conservazione e le intestazioni in chiaro. Da verificare in F11: che `retention.applied`
+  elenchi gli oggetti (il nodo non può valutare le scadenze sui documenti cifrati).
+
+Piano di F11:
+1. Nucleo: evento `org.backup_node_set`; il nodo dichiarato entra nei peer ammessi e si contatta
+   per primo; stato di consegna `stored`; allegati di tutti gli oggetti in `attachments`.
+2. `server/blind-node`: nodo iroh senza chiavi su `core-sync` (archivio SQLCipher per
+   organizzazione, allegati su disco), registrazione con la genesi, ammissione dall'elenco del
+   servizio push, ricevute, quota (⚙ 5 GB per organizzazione).
+3. Cancellazione e conservazione sul nodo.
+4. Deploy: servizio nel `docker-compose.yml`, chiave del nodo nei segreti, `docs/DEPLOY.md`;
+   test: tre dispositivi mai accesi insieme convergono passando dal nodo.
+5. Interfaccia: stato "Sul server" nella consegna; impostazione del nodo per l'amministratore
+   radice.

@@ -657,7 +657,7 @@ Il primo evento (`org.genesis`) contiene: nome dell'organizzazione, chiavi dei d
 
 | Gruppo | Tipi |
 | --- | --- |
-| Organizzazione | `org.genesis`, `org.settings_changed`, `config.published` |
+| Organizzazione | `org.genesis`, `org.settings_changed`, `org.backup_node_set`, `config.published` |
 | Dispositivi | `device.invited`, `device.added`, `device.revoked`, `device.archive_set` |
 | Persone | `person.added`, `person.updated`, `person.removed`, `external_person.upserted` |
 | Qualifiche | `qualification.granted`, `qualification.ended` |
@@ -815,10 +815,11 @@ Un evento locale è:
 | Stato | Condizione |
 | --- | --- |
 | `pending` | Nessuna ricevuta |
+| `stored` | Ricevuta del nodo di backup cieco (§10.3): il dato è al sicuro sul server, nessun'altra persona lo ha ancora |
 | `sent` | Ricevute da almeno **2** dispositivi diversi da quelli della stessa persona |
 | `delivered:<pubblico>` | Ricevuta da almeno un dispositivo di ogni persona del pubblico di destinazione rilevante (es. sorveglianza del gruppo) |
 
-L'interfaccia mostra lo stato (§12.3). L'`outbox` mantiene gli eventi fino a `sent`.
+L'interfaccia mostra lo stato (§12.3). L'`outbox` mantiene gli eventi fino a `sent`. La ricevuta del nodo di backup cieco non conta per `sent` (non è il dispositivo di una persona).
 
 ### 9.4 Allegati (foto)
 
@@ -848,7 +849,7 @@ Un allegato risulta inviato solo quando almeno 2 altri dispositivi ne confermano
 
 ### 9.5 Dispositivi d'archivio
 
-Desktop indicati con `device.archive_set` (almeno 2 raccomandati). Conservano tutti gli eventi e tutti gli allegati che possono leggere, e **pinnano** comunque tutti i blob (anche non leggibili) per ridondanza. Backup cifrato esportabile (file `.orgbackup` cifrato con passphrase, Argon2id + XChaCha20-Poly1305). Non hanno permessi aggiuntivi.
+Desktop indicati con `device.archive_set`: facoltativi da quando c'è il nodo di backup cieco (§10.3), restano utili come copia in chiaro dell'organizzazione. Conservano tutti gli eventi e tutti gli allegati che possono leggere, e **pinnano** comunque tutti i blob (anche non leggibili) per ridondanza. Backup cifrato esportabile (file `.orgbackup` cifrato con passphrase, Argon2id + XChaCha20-Poly1305). Non hanno permessi aggiuntivi.
 
 ### 9.6 Abbinamento di un nuovo dispositivo
 
@@ -864,13 +865,14 @@ Desktop indicati con `device.archive_set` (almeno 2 raccomandati). Conservano tu
 
 ## 10. Server di supporto
 
-Il server **non conserva eventi né allegati**. Una sola VPS (2 vCPU, 4 GB RAM, 40 GB SSD, traffico incluso ampio; ~5–10 €/mese) esegue:
+Il server **non legge** eventi né allegati: li conserva solo cifrati, nel nodo di backup cieco (§10.3). Una sola VPS (2 vCPU, 4 GB RAM, 40 GB SSD, traffico incluso ampio; ~5–10 €/mese) esegue:
 
 | Servizio | Immagine/binario | Porte | Note |
 | --- | --- | --- | --- |
 | `iroh-relay` | binario ufficiale della release iroh | TCP 80, 443; UDP 7842 | Certificato Let's Encrypt (`cert_mode = "LetsEncrypt"`), hostname `relay.<dominio>`; accesso limitato (token o allowlist) in produzione; metriche su 9090 solo interne |
 | `iroh-dns-server` | binario ufficiale | UDP/TCP 53; HTTPS per pkarr | Sottodominio delegato `dns.<dominio>`; facoltativo nella prima messa in produzione |
 | `push-service` | `server/push-service` | dietro Caddy | API sotto `api.<dominio>` |
+| `blind-node` | `server/blind-node` | UDP/QUIC via relay | Backup cieco degli eventi e degli allegati (§10.3) |
 | `caddy` | immagine ufficiale | 443 su IP/hostname diverso dal relay, oppure relay su porte alternative | TLS per `api.<dominio>` |
 
 Se relay e Caddy condividono l'IP, il relay usa `relay.<dominio>` con porte dedicate (es. 8443) configurate nel relay map dei client; documentalo in `docs/DEPLOY.md`.
@@ -895,6 +897,21 @@ Tutte le richieste sono firmate dal dispositivo: header `X-Device` (chiave pubbl
 ### 10.2 Deploy
 
 `server/deploy/docker-compose.yml` con i quattro servizi, volumi per certificati e SQLite, `restart: unless-stopped`. `docs/DEPLOY.md` descrive: acquisto dominio, record DNS (A/AAAA per `relay`, `api`; NS per `dns`), firewall (porte sopra), primo avvio, rinnovo certificati (automatico), aggiornamenti, monitoraggio (metriche relay su Prometheus interno o semplice controllo di salute), backup.
+
+### 10.3 Nodo di backup cieco
+
+Un nodo sempre acceso, senza chiavi di canale, che conserva **per sempre** tutti gli eventi e tutti gli allegati dell'organizzazione così come viaggiano (cifrati) e li consegna a chi si collega dopo. Risolve il caso in cui i telefoni non sono mai accesi nello stesso momento e fa da backup cifrato.
+
+- **Identità**: chiave Ed25519 propria (= id dell'endpoint iroh), conservata sul server. Un amministratore radice la dichiara con l'evento pubblico `org.backup_node_set { node: Option<pubkey> }` (`None` lo toglie). I dispositivi lo includono tra i peer ammessi e lo contattano per primo (§9.2), prima dei dispositivi d'archivio.
+- **Cosa conserva**: ogni evento verificato (id, firma, struttura, organizzazione: tutto in chiaro, §7.1) e ogni allegato elencato in `attachments`. Non decifra nulla. Gli allegati di **tutti** gli oggetti (anche i campi foto dei documenti) devono comparire in `attachments`.
+- **Chi può collegarsi**: solo i dispositivi autorizzati dell'organizzazione. L'elenco esatto richiede lo stato cifrato, quindi è quello pubblicato dagli amministratori radice al servizio push (`POST /v1/org/membership`); il nodo lo legge dal servizio push. Finché l'elenco non c'è, valgono i dispositivi radice della genesi.
+- **Ricevute**: firma le ricevute con la propria chiave (non servono chiavi di canale). Danno lo stato `stored` (§9.3), non `sent`.
+- **Registrazione dell'organizzazione**: come per il servizio push, con l'evento di genesi inviato da un dispositivo radice; il nodo tiene un archivio per organizzazione.
+- **Cancellazione e conservazione** (§14): il nodo applica gli eventi pubblici `person.data_erasure_requested` e `retention.applied` agli oggetti indicati (intestazioni in chiaro): sostituisce il contenuto con il guscio e cancella gli allegati relativi, come i dispositivi.
+- **Limiti**: quota di spazio per organizzazione (⚙ 5 GB), allegati come §9.4, connessioni come il relay.
+- **Cosa vede il gestore del server**: chiavi pubbliche dei dispositivi, tipi di evento e di oggetto, date, dimensioni, grafo degli eventi. Mai contenuti, nomi o valori.
+- **Archivio**: SQLCipher come sui dispositivi, chiave nei segreti del server; allegati su disco; backup giornaliero del volume.
+
 
 ---
 
@@ -1382,7 +1399,7 @@ resource_types:
 ## 14. Privacy e conformità
 
 - I dati del pacchetto Congregazione rientrano nelle **categorie particolari** dell'art. 9 GDPR (convinzioni religiose). La realizzazione deve permettere all'organizzazione di adempiere ai propri obblighi; le decisioni giuridiche (base giuridica, titolare, informativa, durate) spettano all'organizzazione.
-- **Minimizzazione**: solo i campi dichiarati; EXIF rimossi; nessun dato nei log; nessun dato sul server.
+- **Minimizzazione**: solo i campi dichiarati; EXIF rimossi; nessun dato nei log; sul server solo dati cifrati che il server non può leggere (§10.3).
 - **Informativa**: `privacy/it.md` mostrata al primo avvio con presa visione registrata (evento locale, non condiviso).
 - **Diritti**: esportazione dei dati di una persona (JSON + PDF) da `people`; cancellazione con `person.data_erasure_requested` → ogni dispositivo elimina i payload decifrabili relativi e gli allegati; gli eventi restano come gusci (id, autore, tipo) per l'integrità del grafo, con payload sostituito da tombstone.
 - **Conservazione**: per tipo di documento, configurabile nel pacchetto (`retention` in `forms.yaml`, predefinito ⚙ 5 anni per i rapporti, 2 anni per programmi, storico territori senza scadenza); applicata con `retention.applied`.
@@ -1488,6 +1505,7 @@ Ogni fase si chiude solo se **tutti** i criteri passano e i test relativi sono i
 | **F8 — Amministrazione e configurazione** | Editor di configurazione desktop con simulazione, migrazioni, dispositivi d'archivio, backup | Modifica di uno slot e di un incarico pubblicata senza nuova build; backup ripristinato su un nuovo desktop |
 | **F9 — Privacy e rifinitura** | Esportazione e cancellazione dati, conservazione, informativa, accessibilità, prestazioni | Scenario di cancellazione verificato su 3 dispositivi; avvio a freddo < 2 s su telefono di fascia media con un anno di dati simulati |
 | **F10 — Pilota** | Uso reale con un gruppo ridotto | Registro dei problemi in `docs/PILOT.md`; nessun dato perso; tempi di consegna misurati |
+| **F11 — Backup cieco** | `org.backup_node_set`, stato `stored`, allegati di tutti gli oggetti in `attachments`, `server/blind-node`, cancellazione e conservazione sul nodo, deploy | Tre dispositivi mai accesi insieme convergono passando dal nodo; il nodo non ha chiavi e non decifra nulla; cancellazione applicata sul nodo; deploy da `docker compose up` |
 
 ---
 
