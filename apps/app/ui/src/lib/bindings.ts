@@ -40,6 +40,7 @@ export const commands = {
 	distributeAggregate: (aggregate: string, period: string) => typedError<AggregateView_Serialize, ApiError>(__TAURI_INVOKE("distribute_aggregate", { aggregate, period })),
 	programs: (types: string | null) => typedError<ProgramList_Serialize, ApiError>(__TAURI_INVOKE("programs", { types })),
 	program: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("program", { program })),
+	publishedProgram: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("published_program", { program })),
 	programDates: (programType: string, period: string | null) => typedError<ProgramDates, ApiError>(__TAURI_INVOKE("program_dates", { programType, period })),
 	draftProgram: (programType: string, dates: string[]) => typedError<string, ApiError>(__TAURI_INVOKE("draft_program", { programType, dates })),
 	assignSlot: (program: string, occurrence: number, slot: string, index: number, person: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("assign_slot", { program, occurrence, slot, index, person })),

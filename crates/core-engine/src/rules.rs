@@ -13,7 +13,9 @@ use time::Date;
 use crate::auth::{AuthState, Denied};
 use crate::channels::{STAGE_ASSIGNED, STAGE_DRAFT, audience_desc, program_desc};
 use crate::config::Cfg;
-use crate::ops::{AggregateResult, Assignee, NoticeItem, ProgramSnapshot, PublishedAssignment};
+use crate::ops::{
+    AggregateResult, Assignee, NoticeItem, ProgramSnapshot, PublishedAssignment, SlotKey,
+};
 use crate::projection::{Document, Program};
 use crate::time::PeriodKey;
 use crate::values::with_computed;
@@ -388,28 +390,48 @@ pub fn notice_items(p: &Program) -> Option<BTreeMap<PersonId, Vec<NoticeItem>>> 
 }
 
 pub fn program_snapshot(auth: &AuthState, id: Id, p: &Program, version: u32) -> ProgramSnapshot {
+    // Every assigned slot, and the parts that only have details (a song
+    // number, a title still to assign), except the parts removed.
+    let keys: std::collections::BTreeSet<&SlotKey> = p
+        .assignments
+        .keys()
+        .chain(
+            p.details
+                .iter()
+                .filter(|(_, d)| !d.is_empty())
+                .map(|(k, _)| k),
+        )
+        .filter(|k| p.shown.get(*k) != Some(&false))
+        .collect();
     ProgramSnapshot {
         program: id,
         program_type: p.program_type.clone(),
         version,
         occurrences: p.occurrences.clone(),
-        assignments: p
-            .assignments
-            .iter()
-            .map(|(k, (a, extra))| PublishedAssignment {
-                key: k.clone(),
-                date: p
-                    .occurrences
-                    .get(usize::from(k.occurrence))
-                    .copied()
-                    .unwrap_or(Date::MIN),
-                display_name: display_name(auth, a),
-                // The slot's details, then what was given with the assignee.
-                extra: {
-                    let mut e = p.details.get(k).cloned().unwrap_or_default();
-                    e.extend(extra.clone());
-                    e
-                },
+        assignments: keys
+            .into_iter()
+            .map(|k| {
+                let assigned = p.assignments.get(k);
+                PublishedAssignment {
+                    key: k.clone(),
+                    date: p
+                        .occurrences
+                        .get(usize::from(k.occurrence))
+                        .copied()
+                        .unwrap_or(Date::MIN),
+                    // Empty for a part with details only.
+                    display_name: assigned
+                        .map(|(a, _)| display_name(auth, a))
+                        .unwrap_or_default(),
+                    // The slot's details, then what was given with the assignee.
+                    extra: {
+                        let mut e = p.details.get(k).cloned().unwrap_or_default();
+                        if let Some((_, extra)) = assigned {
+                            e.extend(extra.clone());
+                        }
+                        e
+                    },
+                }
             })
             .collect(),
     }

@@ -879,3 +879,14 @@ sono valori predefiniti di questioni aperte (PROGETTO.md §17), configurabili ne
   User-Agent generico, senza dati della persona oltre al testo digitato.
 - Congregazione: nome, cognome, nascita, telefono, email, indirizzo, contatto di emergenza
   (nominativo, telefono, note) e data del battesimo; i contatti li legge `contacts_readers`.
+
+## 2026-11-05 — Programma in bacheca come nell'editor
+
+- La versione inviata e pubblicata comprende anche le parti con soli dettagli (numero del
+  cantico, titolo di una parte non ancora assegnata), con nome vuoto, e non le parti tolte.
+  Cambia l'istantanea calcolata dal motore: gli invii fatti prima non tornerebbero (fase di
+  sviluppo, dati di prova ricreati).
+- `published_program`: la versione in bacheca in sola lettura, anche per chi ha la bozza. La
+  pagina di un programma in bacheca usa la stessa disposizione dell'editor (settimane, fasce,
+  colonne delle sale) con testi al posto dei campi e nomi al posto dei riquadri; mostra solo le
+  righe con una persona o un testo.

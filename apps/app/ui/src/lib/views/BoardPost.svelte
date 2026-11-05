@@ -6,6 +6,7 @@
   import { go } from '../router.svelte';
   import { fail } from '../toast.svelte';
   import Icon from '../components/Icon.svelte';
+  import Program from './Program.svelte';
 
   let { post }: { post: string } = $props();
   let item = $state<BoardItem | null>(null);
@@ -18,7 +19,7 @@
     .catch(fail);
 </script>
 
-<div class="stack page">
+<div class="stack page wide">
   <header class="row head">
     <button class="back" aria-label={t('back')} title={t('back')} onclick={() => go('board')}>‹</button>
     {#if item}
@@ -29,7 +30,10 @@
       </div>
     {/if}
   </header>
-  {#if item}
+  {#if item?.icon}
+    <!-- A program: the same layout as its editor, as text. -->
+    <Program program={post} readonly />
+  {:else if item}
     <article class="card">
       <table><tbody>
         {#each item.body as l, i (i)}<tr>{#if l.label}<td class="muted">{l.label}</td>{/if}<td>{l.value}</td></tr>{/each}

@@ -956,6 +956,8 @@ impl Core {
                     let lines = s
                         .assignments
                         .iter()
+                        // Parts with details only (a song) have nobody to list.
+                        .filter(|a| !a.display_name.is_empty())
                         .filter(|a| {
                             // One line per person and group of a rotation.
                             let group =
@@ -1739,6 +1741,16 @@ impl Core {
     }
 
     pub fn program(&self, program: String) -> ApiResult<ProgramEditor> {
+        self.program_view(program, false)
+    }
+
+    /// The version on the board, read-only (also for the team, who would
+    /// otherwise see their draft).
+    pub fn published_program(&self, program: String) -> ApiResult<ProgramEditor> {
+        self.program_view(program, true)
+    }
+
+    fn program_view(&self, program: String, published_only: bool) -> ApiResult<ProgramEditor> {
         self.ensure_unlocked()?;
         let v = self.view()?;
         let me = self.me()?;
@@ -1746,58 +1758,63 @@ impl Core {
         let cfg = cfg(&v)?;
         let id = crate::parse_id(&program)?;
         let now = today(self);
-        let (program_type, occurrences, assignments, _): ProgramParts<'_> =
-            match v.proj.programs.get(&id) {
-                Some(p) => (
-                    p.program_type.clone(),
-                    p.occurrences.clone(),
-                    p.assignments
+        let draft = v.proj.programs.get(&id).filter(|_| !published_only);
+        let (program_type, occurrences, assignments, _): ProgramParts<'_> = match draft {
+            Some(p) => (
+                p.program_type.clone(),
+                p.occurrences.clone(),
+                p.assignments
+                    .iter()
+                    .map(|(k, (a, _))| {
+                        (
+                            k.clone(),
+                            (a.clone(), core_engine::rules::display_name(&v.proj.auth, a)),
+                        )
+                    })
+                    .collect(),
+                if v.proj.published.contains_key(&id) {
+                    "published"
+                } else if p.status == ProgramStatus::Assigned {
+                    "assigned"
+                } else {
+                    "draft"
+                },
+            ),
+            None => {
+                let s = if published_only {
+                    v.proj.published.get(&id)
+                } else {
+                    v.proj
+                        .assigned_snapshots
+                        .get(&id)
+                        .or_else(|| v.proj.published.get(&id))
+                }
+                .ok_or_else(|| ApiError::not_found("program"))?;
+                (
+                    s.program_type.clone(),
+                    s.occurrences.clone(),
+                    s.assignments
                         .iter()
-                        .map(|(k, (a, _))| {
+                        // A part with details only has nobody.
+                        .filter(|a| !a.display_name.is_empty())
+                        .map(|a| {
                             (
-                                k.clone(),
-                                (a.clone(), core_engine::rules::display_name(&v.proj.auth, a)),
+                                a.key.clone(),
+                                (
+                                    Assignee::External(core_model::Id::from_bytes([0; 16])),
+                                    a.display_name.clone(),
+                                ),
                             )
                         })
                         .collect(),
                     if v.proj.published.contains_key(&id) {
                         "published"
-                    } else if p.status == ProgramStatus::Assigned {
-                        "assigned"
                     } else {
-                        "draft"
+                        "assigned"
                     },
-                ),
-                None => {
-                    let s = v
-                        .proj
-                        .assigned_snapshots
-                        .get(&id)
-                        .or_else(|| v.proj.published.get(&id))
-                        .ok_or_else(|| ApiError::not_found("program"))?;
-                    (
-                        s.program_type.clone(),
-                        s.occurrences.clone(),
-                        s.assignments
-                            .iter()
-                            .map(|a| {
-                                (
-                                    a.key.clone(),
-                                    (
-                                        Assignee::External(core_model::Id::from_bytes([0; 16])),
-                                        a.display_name.clone(),
-                                    ),
-                                )
-                            })
-                            .collect(),
-                        if v.proj.published.contains_key(&id) {
-                            "published"
-                        } else {
-                            "assigned"
-                        },
-                    )
-                }
-            };
+                )
+            }
+        };
         let def = cfg
             .program_type(&program_type)
             .ok_or_else(|| ApiError::not_found("program type"))?;
@@ -1807,7 +1824,7 @@ impl Core {
             kind: ObjectKind::Program,
             id: program_type.clone(),
         };
-        let can_edit = v.proj.programs.contains_key(&id)
+        let can_edit = draft.is_some()
             && (v
                 .proj
                 .auth
@@ -1821,34 +1838,31 @@ impl Core {
                     now,
                 ));
         // Details of each slot: the draft's, else those of the version sent.
-        let details: BTreeMap<core_engine::ops::SlotKey, core_engine::ops::Values> =
-            match v.proj.programs.get(&id) {
-                Some(p) => {
-                    let mut d = p.details.clone();
-                    for (k, (_, extra)) in &p.assignments {
-                        d.entry(k.clone()).or_default().extend(extra.clone());
-                    }
-                    d
+        let details: BTreeMap<core_engine::ops::SlotKey, core_engine::ops::Values> = match draft {
+            Some(p) => {
+                let mut d = p.details.clone();
+                for (k, (_, extra)) in &p.assignments {
+                    d.entry(k.clone()).or_default().extend(extra.clone());
                 }
-                None => v
-                    .proj
+                d
+            }
+            None => if published_only {
+                v.proj.published.get(&id)
+            } else {
+                v.proj
                     .assigned_snapshots
                     .get(&id)
                     .or_else(|| v.proj.published.get(&id))
-                    .map(|s| {
-                        s.assignments
-                            .iter()
-                            .map(|a| (a.key.clone(), a.extra.clone()))
-                            .collect()
-                    })
-                    .unwrap_or_default(),
-            };
-        let shown_of = v
-            .proj
-            .programs
-            .get(&id)
-            .map(|p| p.shown.clone())
-            .unwrap_or_default();
+            }
+            .map(|s| {
+                s.assignments
+                    .iter()
+                    .map(|a| (a.key.clone(), a.extra.clone()))
+                    .collect()
+            })
+            .unwrap_or_default(),
+        };
+        let shown_of = draft.map(|p| p.shown.clone()).unwrap_or_default();
         let groups = crate::schedule::groups(def.rotation, &occurrences);
         let mut cells = Vec::new();
         // Slots that change at every event get one cell per event.

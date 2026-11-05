@@ -7,7 +7,8 @@
   // One layout for every program: a row per part (the part and its details
   // on the left, who does it on the right, one column per room) and, beside,
   // the people who can take a part this week, the longest without one first.
-  let { program }: { program: string } = $props();
+  // `readonly`: the version on the board, as text, inside another page.
+  let { program, readonly = false }: { program: string; readonly?: boolean } = $props();
   let p = $state<Editor | null>(null);
   let external = $state('');
   let reading = $state(false);
@@ -33,8 +34,14 @@
   const topOf = (c: Cell) =>
     p?.cells.find((x) => x.occurrence === c.occurrence && x.per_event === c.per_event && x.slot === c.row && x.index === c.index) ?? c;
   const visible = (c: Cell) => shownOf(topOf(c));
+  // Read-only, a row shows only if someone or something is in it.
+  const filled = (top: Cell) =>
+    (p?.cells ?? []).some(
+      (x) => x.occurrence === top.occurrence && x.per_event === top.per_event && x.row === top.slot && x.index === top.index &&
+        (!!x.assignee || x.details.some((f) => text(f.value)))
+    );
   const rowsOf = (occurrence: number, perEvent: boolean) =>
-    p?.cells.filter((c) => c.occurrence === occurrence && c.per_event === perEvent && isRow(c) && shownOf(c)) ?? [];
+    p?.cells.filter((c) => c.occurrence === occurrence && c.per_event === perEvent && isRow(c) && shownOf(c) && (!readonly || filled(c))) ?? [];
   // Rows of a week that can be added: one entry per slot, its first hidden position.
   const addable = (g: ProgramGroup) => {
     const occs = occsOf(g);
@@ -143,9 +150,9 @@
 
   async function load() {
     try {
-      p = await run(api.program(program));
+      p = await run(readonly ? api.publishedProgram(program) : api.program(program));
       // Types with a prefill: read the pages once, on first opening.
-      if (p.needs_prefill) await prefill(true);
+      if (!readonly && p.needs_prefill) await prefill(true);
     } catch (e) {
       fail(e);
     }
@@ -234,7 +241,7 @@
             />
           {/if}
         {:else if text(f.value)}
-          <span class="muted" class:wide={f.kind === 'long_text'}>{f.id === 'minutes' ? `${f.value} min` : f.kind === 'integer' ? `${f.label} ${f.value}` : text(f.value)}</span>
+          <span class:muted={f.kind === 'long_text' || f.kind === 'integer'} class:lead={f.kind === 'text'} class:wide={f.kind === 'long_text'}>{f.id === 'minutes' ? `${f.value} min` : f.kind === 'integer' ? `${f.label} ${f.value}` : text(f.value)}</span>
         {/if}
       {/each}
     </div>
@@ -243,6 +250,9 @@
 
 <!-- A slot as a drop target: dashed when empty, with its label; a click opens the list. -->
 {#snippet zone(c: Cell)}
+  {#if readonly}
+    {#if c.assignee}<div class="ro-name">{c.assignee_name}</div>{/if}
+  {:else}
   {@const v = valueOf(c)}
   {@const ok = !!dragging && accepts(c, dragging)}
   <div
@@ -273,6 +283,7 @@
     {/if}
     {#if c.assignee && !(keyOf(c) in pending)}<span class="zbadge badge" class:ok={c.response === 'accepted'}>{t(`response_${c.response}` as never)}</span>{/if}
   </div>
+  {/if}
 {/snippet}
 
 {#snippet rows(occurrence: number, perEvent: boolean)}
@@ -299,11 +310,13 @@
 {/snippet}
 
 {#if p}
-  <div class="stack page wide">
-    <div class="spread">
-      <h1>{p.title}</h1>
-      <span class="badge">{t(`status_${p.status}` as never)}</span>
-    </div>
+  <div class="stack page wide" class:embedded={readonly}>
+    {#if !readonly}
+      <div class="spread">
+        <h1>{p.title}</h1>
+        <span class="badge">{t(`status_${p.status}` as never)}</span>
+      </div>
+    {/if}
     {#if reading}<p class="muted" role="status">{t('prefill_reading')}</p>{/if}
     {#each p.warnings as w, i (i)}<p class="warn">{w}</p>{/each}
     <!-- Rows scroll away under this band, level with the sticky headers. -->
@@ -371,6 +384,7 @@
         </aside>
       {/if}
     </div>
+    {#if !readonly}
     <div class="row actions">
       {#if p.can_edit}
         <button class="btn" disabled={busy || !changed} onclick={() => save()}>{t('save')}</button>
@@ -379,6 +393,7 @@
       {#if p.can_publish}<button class="btn" disabled={busy} onclick={() => act('publish')}>{t('publish')}</button>{/if}
       {#if changed}<span class="muted" role="status">{t('unsaved_changes').replace('{n}', String(changed))}</span>{/if}
     </div>
+    {/if}
     {#if picking}
       {@const pc = picking}
       <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
@@ -479,6 +494,15 @@
   .wtitle { gap: 12px; align-items: center; flex-wrap: nowrap; }
   .part { position: relative; padding-right: 30px; }
   .part.noname { padding-top: 10px; }
+  /* Read-only: compact rows, titles in plain text. */
+  .embedded .name { min-height: 0; }
+  .embedded .rows > * { padding: 8px 0; }
+  .embedded .who { justify-content: center; }
+  .embedded .part.noname { padding-top: 0; }
+  .embedded .details { gap: 2px 12px; }
+  .lead { font-size: 15px; }
+  .ro-name { min-height: 28px; display: flex; align-items: center; font-weight: 600; font-size: 15px; }
+  .embedded .topcover { display: none; }
   .remove { position: absolute; top: 8px; right: 2px; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg); color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity 0.1s; padding: 0; }
   .rows > .part:hover .remove, .remove:focus-visible { opacity: 1; }
   @media (hover: none) { .remove { opacity: 1; } }
