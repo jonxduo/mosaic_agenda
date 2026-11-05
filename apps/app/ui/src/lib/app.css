@@ -92,3 +92,6 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .prose li { margin: 3px 0; }
 .prose blockquote { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--primary); background: var(--primary-soft); border-radius: 0 8px 8px 0; color: var(--muted); }
 .prose blockquote p { margin: 0; }
+
+/* Every check box and radio in the app's colour (some had the browser's blue). */
+input[type='checkbox'], input[type='radio'] { accent-color: var(--primary); }

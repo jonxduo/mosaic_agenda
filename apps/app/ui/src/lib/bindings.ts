@@ -247,6 +247,17 @@ export type BatchView_Serialize = {
 	can_fill_on_behalf: boolean,
 };
 
+export type BoardGrid = {
+	columns: string[],
+	rows: BoardGridRow[],
+};
+
+export type BoardGridRow = {
+	/**  The dates of the row: one event, or those sharing the persons (a week). */
+	label: string,
+	cells: string[],
+};
+
 export type BoardItem = BoardItem_Serialize | BoardItem_Deserialize;
 
 export type BoardItem_Deserialize = {
@@ -258,6 +269,8 @@ export type BoardItem_Deserialize = {
 	body: BoardLine[],
 	/**  The programs shown: one, or those of a publish group. */
 	programs: string[],
+	/**  A publish group as one table: dates by rows, assignments by columns. */
+	grid?: BoardGrid | null,
 };
 
 export type BoardItem_Serialize = {
@@ -269,6 +282,8 @@ export type BoardItem_Serialize = {
 	body: BoardLine[],
 	/**  The programs shown: one, or those of a publish group. */
 	programs: string[],
+	/**  A publish group as one table: dates by rows, assignments by columns. */
+	grid: BoardGrid | null,
 };
 
 export type BoardLine = {

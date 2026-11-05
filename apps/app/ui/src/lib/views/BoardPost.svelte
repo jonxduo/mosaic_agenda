@@ -23,7 +23,23 @@
   <header>
     <PageHeading title={item?.title ?? ''} subtitle={item?.subtitle ?? ''} onback={() => go('board')} />
   </header>
-  {#if item?.programs.length}
+  {#if item?.grid}
+    {@const g = item.grid}
+    <!-- Programs published together: dates by rows, every assignment of
+         every program a column of the same row. -->
+    <div class="card grid-card">
+      <div class="scroll">
+        <table class="grid">
+          <thead><tr><th scope="col">{t('dates')}</th>{#each g.columns as c, i (i)}<th scope="col">{c}</th>{/each}</tr></thead>
+          <tbody>
+            {#each g.rows as r, i (i)}
+              <tr><th scope="row" class="when">{r.label}</th>{#each r.cells as c, j (j)}<td>{c || '–'}</td>{/each}</tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {:else if item?.programs.length}
     <!-- Programs: the same layout as their editor, as text; a group shows
          each of its programs under its name. -->
     {#each item.programs as id (id)}
@@ -45,4 +61,14 @@
   table { border-collapse: collapse; width: 100%; }
   td { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
   tr:last-child td { border-bottom: none; }
+  .grid-card { padding: 0; overflow: hidden; }
+  .scroll { overflow-x: auto; }
+  .grid { font-size: 15px; }
+  .grid th, .grid td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+  .grid thead th { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .grid td { font-style: italic; }
+  /* The dates stay in view while the columns scroll. */
+  .grid .when { position: sticky; left: 0; background: var(--bg); font-weight: 600; }
+  .grid thead th:first-child { position: sticky; left: 0; background: var(--bg); }
+  .grid tr:last-child th, .grid tr:last-child td { border-bottom: none; }
 </style>

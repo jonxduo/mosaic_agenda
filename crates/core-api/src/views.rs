@@ -113,6 +113,102 @@ pub(crate) fn today(core: &Core) -> Date {
 }
 
 /// The last complete period of a periodicity, relative to `today`.
+/// Dates of one row: "1 · 4 ottobre" in the same month, else each in full.
+fn dates_label(t: &Texts, ds: &[Date]) -> String {
+    match ds {
+        [] => String::new(),
+        [one] => t.day_month(*one),
+        [.., last] if ds.iter().all(|d| d.month() == last.month()) => {
+            let days: Vec<String> = ds[..ds.len() - 1].iter().map(|d| d.day().to_string()).collect();
+            format!("{} · {}", days.join(" · "), t.day_month(*last))
+        }
+        _ => ds.iter().map(|d| t.day_month(*d)).collect::<Vec<_>>().join(" · "),
+    }
+}
+
+/// A publish group's programs as one table: a column per assignment
+/// (program types in the group's order, slots in their order, "Name 2" for
+/// the second of a slot), a row per event, or per week when every program
+/// keeps the same persons for the week (both dates in the row).
+fn board_grid(t: &Texts, cfg: &Cfg, snaps: &[&core_engine::ops::ProgramSnapshot]) -> BoardGrid {
+    use core_model::config::Rotation;
+    let group = snaps.first().and_then(|s| {
+        cfg.package()
+            .programs
+            .publish_groups
+            .iter()
+            .find(|g| g.program_types.contains(&s.program_type))
+    });
+    let mut ordered: Vec<&&core_engine::ops::ProgramSnapshot> = snaps.iter().collect();
+    ordered.sort_by_key(|s| {
+        group
+            .and_then(|g| g.program_types.iter().position(|x| *x == s.program_type))
+            .unwrap_or(usize::MAX)
+    });
+    // Columns: (type, slot, index) with at least one person.
+    let mut columns: Vec<(Slug, Slug, u16, String)> = Vec::new();
+    for s in &ordered {
+        let Some(def) = cfg.program_type(&s.program_type) else {
+            continue;
+        };
+        for slot in &def.slots {
+            let mut indexes: Vec<u16> = s
+                .assignments
+                .iter()
+                .filter(|a| a.key.slot == slot.id && !a.display_name.is_empty())
+                .map(|a| a.key.index)
+                .collect();
+            indexes.sort_unstable();
+            indexes.dedup();
+            for i in indexes {
+                let name = t.get(slot.label.as_str());
+                let label = if slot.count > 1 || i > 0 { format!("{name} {}", i + 1) } else { name };
+                columns.push((s.program_type.clone(), slot.id.clone(), i, label));
+            }
+        }
+    }
+    // Rows: a week when every program keeps the persons for the week.
+    let weekly = ordered.iter().all(|s| {
+        cfg.program_type(&s.program_type)
+            .is_some_and(|d| d.rotation == Rotation::Week)
+    });
+    let mut dates: Vec<Date> = ordered.iter().flat_map(|s| s.occurrences.iter().copied()).collect();
+    dates.sort_unstable();
+    dates.dedup();
+    let mut rows: Vec<Vec<Date>> = Vec::new();
+    for d in dates {
+        let same = |x: &Date| weekly && PeriodKey::week_of(*x) == PeriodKey::week_of(d);
+        match rows.last_mut() {
+            Some(r) if r.first().is_some_and(same) => r.push(d),
+            _ => rows.push(vec![d]),
+        }
+    }
+    BoardGrid {
+        columns: columns.iter().map(|c| c.3.clone()).collect(),
+        rows: rows
+            .into_iter()
+            .map(|ds| BoardGridRow {
+                label: dates_label(t, &ds),
+                cells: columns
+                    .iter()
+                    .map(|(pt, slot, i, _)| {
+                        let mut names: Vec<&str> = ordered
+                            .iter()
+                            .filter(|s| &s.program_type == pt)
+                            .flat_map(|s| s.assignments.iter())
+                            .filter(|a| &a.key.slot == slot && a.key.index == *i && ds.contains(&a.date))
+                            .map(|a| a.display_name.as_str())
+                            .filter(|n| !n.is_empty())
+                            .collect();
+                        names.dedup();
+                        names.join(", ")
+                    })
+                    .collect(),
+            })
+            .collect(),
+    }
+}
+
 /// A publish group's period while listing: newest creation, statuses of its
 /// programs, program types present.
 type GroupRow = (i64, Vec<&'static str>, BTreeSet<Slug>);
@@ -1072,6 +1168,8 @@ impl Core {
         let cfg = cfg(v)?;
         let now = today(self);
         let mut out = Vec::new();
+        // Programs of each publish group's post, for its table.
+        let mut snaps: BTreeMap<String, Vec<&core_engine::ops::ProgramSnapshot>> = BTreeMap::new();
         for (id, post) in &v.proj.board {
             let on_now = !(now < post.from || now > post.until);
             let shown = match (month, &post.item) {
@@ -1094,6 +1192,7 @@ impl Core {
                         value: body.clone(),
                     }],
                     programs: Vec::new(),
+                    grid: None,
                 }),
                 PBoardItem::Program(s) => {
                     let def = cfg.program_type(&s.program_type);
@@ -1155,6 +1254,7 @@ impl Core {
                         .find(|g| g.program_types.contains(&s.program_type));
                     if let Some(g) = group {
                         let gid = format!("{}-{}", g.id, period);
+                        snaps.entry(gid.clone()).or_default().push(s);
                         if let Some(item) = out.iter_mut().find(|x| x.id == gid) {
                             item.body.extend(lines);
                             item.programs.push(id.to_string());
@@ -1167,6 +1267,7 @@ impl Core {
                             subtitle: t.period(&period),
                             body: lines,
                             programs: vec![id.to_string()],
+                            grid: None,
                         });
                         continue;
                     }
@@ -1177,8 +1278,14 @@ impl Core {
                         subtitle: t.period(&period),
                         body: lines,
                         programs: vec![id.to_string()],
+                        grid: None,
                     });
                 }
+            }
+        }
+        for item in &mut out {
+            if let Some(list) = snaps.get(&item.id) {
+                item.grid = Some(board_grid(t, cfg, list));
             }
         }
         // The parts of a group in the group's order.

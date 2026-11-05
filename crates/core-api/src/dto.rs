@@ -121,6 +121,21 @@ pub struct BoardItem {
     pub body: Vec<BoardLine>,
     /// The programs shown: one, or those of a publish group.
     pub programs: Vec<String>,
+    /// A publish group as one table: dates by rows, assignments by columns.
+    pub grid: Option<BoardGrid>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct BoardGrid {
+    pub columns: Vec<String>,
+    pub rows: Vec<BoardGridRow>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct BoardGridRow {
+    /// The dates of the row: one event, or those sharing the persons (a week).
+    pub label: String,
+    pub cells: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

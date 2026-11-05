@@ -1101,3 +1101,6 @@ Piano di F11:
   programma sotto il suo nome (`BoardItem.programs`).
 - Nel pacchetto: "Incarichi" = audio/video + uscieri. Tutti i programmi passano dal responsabile
   della bacheca (`notify: publish` per ogni tipo).
+- In bacheca il post di un gruppo è una tabella: prima colonna le date, poi una colonna per ogni
+  incarico di ogni programma (stessa riga per tutti). Una riga per evento, o per settimana
+  ("1 · 4 ottobre") quando tutti i programmi del gruppo tengono le stesse persone per la settimana.
