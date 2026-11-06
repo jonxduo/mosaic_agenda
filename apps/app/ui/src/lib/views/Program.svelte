@@ -316,11 +316,11 @@
       {#if v}<button class="clear" aria-label={`${t('clear')} · ${c.label}`} onclick={() => choose(c, '')}>×</button>{/if}
     {/if}
     {#if c.assignee && !(keyOf(c) in pending) && c.response === 'declined'}<span class="zbadge badge warn">{t('response_declined')}</span>{/if}
-    {#if p?.can_edit && c.substitute && !(keyOf(c) in pending)}
-      <!-- The substitute the assignee found: one tap assigns them. -->
-      <button type="button" class="subst btn small" onclick={() => choose(c, c.substitute!.id)}>{t('substitute_assign').replace('{name}', short(c.substitute.label))}</button>
-    {/if}
   </div>
+  {#if p?.can_edit && c.substitute && !(keyOf(c) in pending)}
+    <!-- The substitute the assignee found, under the slot: one tap assigns them. -->
+    <button type="button" class="subst btn small" onclick={() => choose(c, c.substitute!.id)}>{t('substitute_assign').replace('{name}', short(c.substitute.label))}</button>
+  {/if}
   {/if}
 {/snippet}
 
@@ -620,7 +620,7 @@
   /* Phone: the bar's background runs behind the floating menu. */
   @media (max-width: 760px) { .actions { padding-bottom: calc(100px + var(--inset-bottom, env(safe-area-inset-bottom, 0px))); } }
   .part-title { margin: 8px 0 0; font-size: 20px; }
-  .subst { position: relative; z-index: 3; margin-top: 4px; font-size: 12px; min-height: 0; padding: 3px 8px; }
+  .subst { align-self: stretch; margin-top: -2px; font-size: 13px; min-height: 0; padding: 6px 10px; white-space: nowrap; color: var(--primary-strong); border-color: var(--primary); background: var(--primary-soft); }
   .dedicated h3 { margin: 0; }
   .drows { width: 100%; border-collapse: collapse; }
   .drows td { padding: 10px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
