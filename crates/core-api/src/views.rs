@@ -132,25 +132,16 @@ fn board_grid(t: &Texts, cfg: &Cfg, snaps: &[&core_engine::ops::ProgramSnapshot]
             .and_then(|g| g.program_types.iter().position(|x| *x == s.program_type))
             .unwrap_or(usize::MAX)
     });
-    // Columns: (type, slot, index) with at least one person.
-    let mut columns: Vec<(Slug, Slug, u16, String)> = Vec::new();
+    // Columns: (type, slot) with at least one person; a slot for several
+    // persons is one column, its persons one per line.
+    let mut columns: Vec<(Slug, Slug, String)> = Vec::new();
     for s in &ordered {
         let Some(def) = cfg.program_type(&s.program_type) else {
             continue;
         };
         for slot in &def.slots {
-            let mut indexes: Vec<u16> = s
-                .assignments
-                .iter()
-                .filter(|a| a.key.slot == slot.id && !a.display_name.is_empty())
-                .map(|a| a.key.index)
-                .collect();
-            indexes.sort_unstable();
-            indexes.dedup();
-            for i in indexes {
-                let name = t.get(slot.label.as_str());
-                let label = if slot.count > 1 || i > 0 { format!("{name} {}", i + 1) } else { name };
-                columns.push((s.program_type.clone(), slot.id.clone(), i, label));
+            if s.assignments.iter().any(|a| a.key.slot == slot.id && !a.display_name.is_empty()) {
+                columns.push((s.program_type.clone(), slot.id.clone(), t.get(slot.label.as_str())));
             }
         }
     }
@@ -171,23 +162,30 @@ fn board_grid(t: &Texts, cfg: &Cfg, snaps: &[&core_engine::ops::ProgramSnapshot]
         }
     }
     BoardGrid {
-        columns: columns.iter().map(|c| c.3.clone()).collect(),
+        columns: columns.iter().map(|c| c.2.clone()).collect(),
         rows: rows
             .into_iter()
             .map(|ds| BoardGridRow {
-                dates: ds.iter().map(|d| t.day_month(*d)).collect(),
+                dates: ds.iter().map(|d| t.long_date(*d)).collect(),
                 cells: columns
                     .iter()
-                    .map(|(pt, slot, i, _)| {
-                        let mut names: Vec<String> = ordered
+                    .map(|(pt, slot, _)| {
+                        // In the slot's order (first, second…), each person once.
+                        let mut found: Vec<(u16, &str)> = ordered
                             .iter()
                             .filter(|s| &s.program_type == pt)
                             .flat_map(|s| s.assignments.iter())
-                            .filter(|a| &a.key.slot == slot && a.key.index == *i && ds.contains(&a.date))
-                            .map(|a| a.display_name.clone())
-                            .filter(|n| !n.is_empty())
+                            .filter(|a| &a.key.slot == slot && ds.contains(&a.date))
+                            .filter(|a| !a.display_name.is_empty())
+                            .map(|a| (a.key.index, a.display_name.as_str()))
                             .collect();
-                        names.dedup();
+                        found.sort_by_key(|(i, _)| *i);
+                        let mut names: Vec<String> = Vec::new();
+                        for (_, n) in found {
+                            if !names.iter().any(|x| x == n) {
+                                names.push(n.to_owned());
+                            }
+                        }
                         names
                     })
                     .collect(),

@@ -72,9 +72,10 @@
   .grid-card { padding: 0; overflow: hidden; }
   .scroll { overflow-x: auto; }
   .grid { font-size: 15px; }
-  .grid th, .grid td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; vertical-align: top; }
+  .grid th, .grid td { padding: 14px 18px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; vertical-align: middle; line-height: 1.5; }
   /* One date, one person per line: narrow columns. */
   .grid th span, .grid td span { display: block; }
+  .grid th span::first-letter { text-transform: uppercase; }
   .grid thead th { font-size: 13px; font-weight: 600; color: var(--muted); }
   .grid td { font-style: italic; }
   /* The dates stay in view while the columns scroll. */
