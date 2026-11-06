@@ -39,7 +39,12 @@
           <tbody>
             {#each g.rows as r, i (i)}
               <tr>
-                <th scope="row" class="when">{#each r.dates as d (d)}<span>{d}</span>{/each}</th>
+                <th scope="row" class="when">
+                  {#each r.dates as d (d)}
+                    {@const cut = d.indexOf(' ')}
+                    <span class="date"><small>{cut > 0 ? d.slice(0, cut) : ''}</small>{cut > 0 ? d.slice(cut + 1) : d}</span>
+                  {/each}
+                </th>
                 {#each r.cells as c, j (j)}<td>{#each c as n (n)}<span>{short(n)}</span>{:else}–{/each}</td>{/each}
               </tr>
             {/each}
@@ -75,7 +80,10 @@
   .grid th, .grid td { padding: 14px 18px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; vertical-align: middle; line-height: 1.5; }
   /* One date, one person per line: narrow columns. */
   .grid th span, .grid td span { display: block; }
-  .grid th span::first-letter { text-transform: uppercase; }
+  /* "Mercoledì" small and plain, the day below. */
+  .grid .date + .date { margin-top: 8px; }
+  .grid .date small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.3; }
+  .grid .date small::first-letter { text-transform: uppercase; }
   .grid thead th { font-size: 13px; font-weight: 600; color: var(--muted); }
   .grid td { font-style: italic; }
   /* The dates stay in view while the columns scroll. */
