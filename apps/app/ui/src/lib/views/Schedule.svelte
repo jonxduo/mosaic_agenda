@@ -291,8 +291,8 @@
                   <input class="name" bind:value={s.label} disabled={!current.can_publish} aria-label={t('sch_name')} />
                   {#if !s.repeated}
                     <label class="inline count">
-                      <span class="muted">{t('sch_count')}</span>
-                      <input type="number" min="1" max="9" bind:value={s.count} disabled={!current.can_publish || !s.enabled} aria-label={`${s.label} · ${t('sch_count')}`} />
+                      <span class="muted">{t(p.units ? 'sch_count_units' : 'sch_count')}</span>
+                      <input type="number" min="1" max="9" bind:value={s.count} disabled={!current.can_publish || !s.enabled} aria-label={`${s.label} · ${t(p.units ? 'sch_count_units' : 'sch_count')}`} />
                     </label>
                   {/if}
                   <select class="each" bind:value={s.mode} disabled={!current.can_publish || !s.enabled} aria-label={`${s.label} · ${t('sch_mode')}`} title={t('sch_mode_hint')}>
