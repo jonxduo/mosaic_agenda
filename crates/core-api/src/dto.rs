@@ -556,6 +556,8 @@ pub struct ProgramEditor {
     pub dedicated: Vec<DedicatedRow>,
     /// The slots one may add a dedicated row for, with who can take them.
     pub dedicated_slots: Vec<DedicatedSlot>,
+    /// Slots go to units (groups), not persons: no people list beside.
+    pub assign_units: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

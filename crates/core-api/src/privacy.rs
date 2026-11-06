@@ -126,8 +126,7 @@ impl Core {
                         |x| t.get(x.label.as_str()),
                     ),
                     date: prog
-                        .occurrences
-                        .get(usize::from(key.occurrence))
+                        .date_of(key.occurrence)
                         .map(|d| d.to_string())
                         .unwrap_or_default(),
                     slot: pt

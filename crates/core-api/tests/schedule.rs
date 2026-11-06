@@ -441,3 +441,42 @@ async fn dedicated_days_rows() {
     let export = a.export_person(bob).unwrap();
     assert_eq!(export.assignments.len(), 1, "{:?}", export.assignments);
 }
+
+/// A program assigned to units: the candidates are the units of that type,
+/// a slot goes to a unit and its members hear of it.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn slots_to_units() {
+    let dir = tempfile::tempdir().unwrap();
+    let a = core(dir.path());
+    a.create_org("Club".into(), "Alice".into()).await.unwrap();
+    let bob = a.add_person("Bob".into(), Default::default()).unwrap();
+    let alice = a.people().unwrap().persons.into_iter().find(|p| p.name == "Alice").unwrap().person_id;
+    a.grant_qualification(alice.clone(), "member".into(), None, None).unwrap();
+    a.grant_role(alice.clone(), "keeper".into(), None).unwrap();
+    let team = a.create_unit("team".into(), "Team 1".into()).unwrap();
+    a.grant_qualification(bob.clone(), "member".into(), None, None).unwrap();
+    a.set_membership(bob.clone(), team.clone(), None).unwrap();
+    a.set_membership(alice.clone(), team.clone(), None).unwrap();
+    let mut files = a.config_files().unwrap().files;
+    let f = files.iter_mut().find(|f| f.path == "programs.yaml").unwrap();
+    assert!(f.text.contains("    period: week\n"));
+    f.text = f.text.replacen("    period: week\n", "    period: week\n    assign_units: team\n", 1);
+    a.config_publish(files).unwrap();
+
+    let d = a.program_dates("weekly_plan".into(), Some("week-2026-11-16".into())).unwrap();
+    let id = a.draft_program("weekly_plan".into(), d.dates).unwrap();
+    let p = a.program(id.clone()).unwrap();
+    assert!(p.assign_units);
+    let cell = p.cells.iter().find(|c| c.slot == "host").unwrap();
+    let unit = format!("unit:{team}");
+    assert!(cell.candidates.iter().any(|c| c.id == unit && c.label == "Team 1"), "{:?}", cell.candidates);
+    let p = a.assign_slot(id.clone(), cell.occurrence, "host".into(), 0, unit.clone()).unwrap();
+    let cell = p.cells.iter().find(|c| c.slot == "host").unwrap();
+    assert_eq!(cell.assignee.as_deref(), Some(unit.as_str()));
+    assert_eq!(cell.assignee_name.as_deref(), Some("Team 1"));
+    // Sent: Alice, a member, holds the slot through the team.
+    a.send_program(id.clone()).unwrap();
+    let mine = a.my_assignments().unwrap();
+    assert!(!mine.is_empty(), "the team's slot reaches its members");
+    let _ = bob;
+}

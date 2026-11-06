@@ -1888,6 +1888,18 @@
           "description": "Assignees confirm or decline.",
           "type": "boolean"
         },
+        "assign_units": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Slug"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Slots go to units of this type instead of persons (any unit may\ntake one; its members hear of it)."
+        },
         "assistant_roles": {
           "default": [],
           "items": {

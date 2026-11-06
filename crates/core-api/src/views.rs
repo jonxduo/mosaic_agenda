@@ -2527,6 +2527,27 @@ impl Core {
         let mut cells = Vec::new();
         // Slots that change at every event get one cell per event.
         let dedicated_mode = |s: &core_model::config::SlotDef| s.mode == core_model::config::SlotMode::Dedicated;
+        // A program assigned to units: the active units of that type.
+        let unit_choices: Vec<Choice> = def
+            .assign_units
+            .as_ref()
+            .map(|ut| {
+                let mut c: Vec<Choice> = v
+                    .proj
+                    .auth
+                    .org
+                    .units
+                    .iter()
+                    .filter(|(_, u)| u.active && &u.unit_type == ut)
+                    .map(|(id, u)| Choice {
+                        id: format!("unit:{}", id.0),
+                        label: u.name.clone(),
+                    })
+                    .collect();
+                c.sort_by(|a, b| a.label.cmp(&b.label));
+                c
+            })
+            .unwrap_or_default();
         for slot in def.slots.iter().filter(|s| def.slot_active(s) && !dedicated_mode(s)) {
             let rotation = crate::schedule::slot_rotation(def, &slot.id);
             let per_event = rotation != def.rotation;
@@ -2546,7 +2567,9 @@ impl Core {
                         index: index as u16,
                     };
                     let current = assignments.get(&key);
-                    let candidates = if can_edit && slot.assignable {
+                    let candidates = if can_edit && slot.assignable && def.assign_units.is_some() {
+                        unit_choices.clone()
+                    } else if can_edit && slot.assignable {
                         let mut c: Vec<Choice> = v
                             .proj
                             .auth
@@ -2620,6 +2643,7 @@ impl Core {
                         assignee: current.map(|(a, _)| match a {
                             Assignee::Person(p) => p.to_string(),
                             Assignee::External(e) => format!("ext:{e}"),
+                            Assignee::Unit(u) => format!("unit:{}", u.0),
                         }),
                         assignee_name: current.map(|(_, n)| n.clone()),
                         response: response.into(),
@@ -2708,22 +2732,25 @@ impl Core {
             dedicated_slots_def
                 .iter()
                 .map(|slot| {
-                    let mut candidates: Vec<Choice> = v
-                        .proj
-                        .auth
-                        .org
-                        .persons
-                        .iter()
-                        .filter(|(p, r)| {
-                            r.active
-                                && !v.proj.erasure.persons.contains(p)
-                                && v.proj.auth.satisfies(cfg, **p, slot.requires.as_ref(), now)
-                        })
-                        .map(|(p, r)| Choice {
-                            id: p.to_string(),
-                            label: r.display_name.clone(),
-                        })
-                        .collect();
+                    let mut candidates: Vec<Choice> = if def.assign_units.is_some() {
+                        unit_choices.clone()
+                    } else {
+                        v.proj
+                            .auth
+                            .org
+                            .persons
+                            .iter()
+                            .filter(|(p, r)| {
+                                r.active
+                                    && !v.proj.erasure.persons.contains(p)
+                                    && v.proj.auth.satisfies(cfg, **p, slot.requires.as_ref(), now)
+                            })
+                            .map(|(p, r)| Choice {
+                                id: p.to_string(),
+                                label: r.display_name.clone(),
+                            })
+                            .collect()
+                    };
                     candidates.sort_by(|a, b| a.label.cmp(&b.label));
                     DedicatedSlot {
                         id: slot.id.to_string(),
@@ -2738,6 +2765,7 @@ impl Core {
         Ok(ProgramEditor {
             dedicated,
             dedicated_slots,
+            assign_units: def.assign_units.is_some(),
             program_id: program,
             program_type: program_type.to_string(),
             title: format!(

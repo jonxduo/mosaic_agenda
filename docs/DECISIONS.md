@@ -1135,3 +1135,14 @@ Piano di F11:
   "I miei incarichi" usano la data del giorno.
 - Nel pacchetto "Pulizia approfondita" è un incarico a giorno dedicato (spento; acceso nei dati
   di prova).
+
+## 2026-11-06 — Incarichi a persone o a gruppi
+
+- `assign_units` sul tipo di programma: gli incarichi vanno a unità di quel tipo (i gruppi)
+  invece che a persone. In Calendario e turni un pulsante accanto al titolo di ogni riquadro
+  passa da persona a gruppo (il primo tipo di unità del pacchetto).
+- Nel nucleo un nuovo assegnatario `Assignee::Unit`: l'unità deve essere attiva e del tipo del
+  programma; i requisiti degli incarichi valgono per le persone, non per le unità. Gli avvisi
+  vanno ai componenti dell'unità alla data dell'evento, che possono anche rispondere per lei.
+  In bacheca e nell'editor compare il nome dell'unità; nell'editor l'elenco delle persone a
+  lato non c'è.

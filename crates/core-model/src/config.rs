@@ -878,6 +878,10 @@ pub struct ProgramTypeDef {
     /// (Calendario e turni), whatever its name.
     #[serde(default)]
     pub slot_requires: Option<Cond>,
+    /// Slots go to units of this type instead of persons (any unit may
+    /// take one; its members hear of it).
+    #[serde(default)]
+    pub assign_units: Option<Slug>,
     pub owner_role: Slug,
     #[serde(default)]
     pub assistant_roles: Vec<Slug>,

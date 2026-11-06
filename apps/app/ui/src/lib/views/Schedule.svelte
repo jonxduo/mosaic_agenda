@@ -8,6 +8,7 @@
   import { api, run } from '../api';
   import { t, type Key } from '../i18n';
   import { fail, toast } from '../toast.svelte';
+  import Icon from '../components/Icon.svelte';
   import { parseDoc, toText, toJs, setAt, addTo, addRetire, setText, flatTexts, type Js } from '../yamlEdit';
 
   let { onchange }: { onchange: () => void } = $props();
@@ -17,7 +18,8 @@
   // j: position in programs.yaml (null for a slot added here).
   const SLOT_MODES = ['program', 'each_event', 'month', 'dedicated'];
   type Slot = { j: number | null; id: string; key: string; label: string; enabled: boolean; count: number; repeated: boolean; mode: string; removed: boolean };
-  type Prog = { i: number; id: string; label: string; rotation: string; period: string; slots: Slot[]; requires: unknown; adding: string };
+  // units: the unit type its slots go to (groups), or '' for persons.
+  type Prog = { i: number; id: string; label: string; rotation: string; period: string; slots: Slot[]; requires: unknown; adding: string; units: string };
   // An option of a program type (e.g. a second room): i program, k option.
   type Opt = { i: number; k: number; id: string; program: string; label: string; enabled: boolean };
 
@@ -30,6 +32,8 @@
   let initial = '';
   let locale = 'it';
   let texts: Record<string, string> = {};
+  // The unit type slots can go to instead of persons (the package's first).
+  let unitType = $state('');
 
   const list = (v: unknown): Js[] => (Array.isArray(v) ? (v as Js[]) : []);
   const file = (path: string) => current?.files.find((f) => f.path === path);
@@ -42,6 +46,7 @@
       const pkg = toJs(file('package.yaml')?.text);
       locale = String(pkg?.default_locale ?? 'it');
       texts = flatTexts(toJs(file(`texts/${locale}.yaml`)?.text));
+      unitType = String(list(toJs(file('units.yaml')?.text)?.unit_types)[0]?.id ?? '');
       const label = (k: unknown) => texts[String(k)] ?? String(k);
       const cal = toJs(file('calendar.yaml')?.text);
       events = list(cal?.event_types)
@@ -62,6 +67,7 @@
           label: label(p.label),
           rotation: String(p.rotation ?? 'occurrence'),
           period: String(p.period ?? 'week'),
+          units: p.assign_units ? String(p.assign_units) : '',
           // New slots take the program's requirement (`slot_requires`),
           // whatever their name.
           requires: p.slot_requires ?? list(p.slots)[0]?.requires,
@@ -135,6 +141,7 @@
     for (const p of programs) {
       const base = ['program_types', p.i];
       setAt(prog, [...base, 'rotation'], p.rotation === 'occurrence' ? undefined : p.rotation);
+      setAt(prog, [...base, 'assign_units'], p.units || undefined);
       if (p.rotation === 'month') setAt(prog, [...base, 'period'], 'month');
       for (const s of p.slots) {
         if (s.label.trim() && s.label !== texts[s.key]) setText(txt, s.key, s.label.trim());
@@ -258,7 +265,15 @@
         {#each programs as p (p.id)}
           <div class="card stack">
             <div class="spread wrap">
-              <h3>{p.label}</h3>
+              <div class="row title">
+                <h3>{p.label}</h3>
+                <!-- To persons or to groups (units of the first unit type): any group may take a slot. -->
+                <button class="who-btn" class:on={!!p.units} disabled={!current.can_publish || !unitType}
+                  title={p.units ? t('sch_to_units') : t('sch_to_persons')} aria-label={p.units ? t('sch_to_units') : t('sch_to_persons')} aria-pressed={!!p.units}
+                  onclick={() => (p.units = p.units ? '' : unitType)}>
+                  <Icon name={p.units ? 'work_queue' : 'profile'} size={20} />
+                </button>
+              </div>
               <label class="inline">
                 <span class="muted">{t('sch_rotation')}</span>
                 <select bind:value={p.rotation} disabled={!current.can_publish} aria-label={`${p.label} · ${t('sch_rotation')}`}>
@@ -346,6 +361,11 @@
   .icon-btn { display: grid; place-items: center; width: 36px; height: 36px; border: none; border-radius: 8px; background: none; color: var(--muted); cursor: pointer; }
   .icon-btn:hover { background: var(--surface); color: var(--danger); }
   .add { margin-top: 12px; flex-wrap: nowrap; }
+  .title { gap: 10px; align-items: center; flex-wrap: nowrap; }
+  .title h3 { margin: 0; }
+  .who-btn { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--muted); cursor: pointer; padding: 0; }
+  .who-btn.on { color: var(--primary-strong); background: var(--primary-soft); border-color: transparent; }
+  .who-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
   @media (max-width: 640px) {
     .slot { grid-template-columns: auto 1fr auto; }
     .slot .count, .slot .each { grid-column: 2 / 4; }

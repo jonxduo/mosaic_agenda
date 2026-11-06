@@ -1106,6 +1106,8 @@ export type ProgramEditor_Deserialize = {
 	dedicated: DedicatedRow[],
 	/**  The slots one may add a dedicated row for, with who can take them. */
 	dedicated_slots: DedicatedSlot[],
+	/**  Slots go to units (groups), not persons: no people list beside. */
+	assign_units: boolean,
 };
 
 export type ProgramEditor_Serialize = {
@@ -1139,6 +1141,8 @@ export type ProgramEditor_Serialize = {
 	dedicated: DedicatedRow[],
 	/**  The slots one may add a dedicated row for, with who can take them. */
 	dedicated_slots: DedicatedSlot[],
+	/**  Slots go to units (groups), not persons: no people list beside. */
+	assign_units: boolean,
 };
 
 /**

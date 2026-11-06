@@ -101,7 +101,7 @@ pub fn assignment_descriptor(program_type: &Slug, assignee: &Assignee) -> Channe
             program_type: program_type.clone(),
             person: *p,
         },
-        Assignee::External(_) => program_draft_descriptor(program_type),
+        Assignee::External(_) | Assignee::Unit(_) => program_draft_descriptor(program_type),
     }
 }
 
@@ -394,18 +394,40 @@ pub fn display_name(auth: &AuthState, a: &Assignee) -> String {
             .map(|r| r.display_name.clone())
             .unwrap_or_default(),
         Assignee::External(id) => auth.externals.get(id).cloned().unwrap_or_default(),
+        Assignee::Unit(u) => auth.org.units.get(u).map(|r| r.name.clone()).unwrap_or_default(),
+    }
+}
+
+/// The persons an assignee stands for on `date`: the person, or a unit's members.
+pub fn assignee_persons(auth: &AuthState, a: &Assignee, date: Date) -> Vec<PersonId> {
+    match a {
+        Assignee::Person(p) => vec![*p],
+        Assignee::External(_) => Vec::new(),
+        Assignee::Unit(u) => {
+            let mut v: Vec<PersonId> = auth
+                .org
+                .memberships
+                .iter()
+                .filter(|m| m.unit == *u && m.period.contains(date))
+                .map(|m| m.person)
+                .collect();
+            v.sort();
+            v.dedup();
+            v
+        }
     }
 }
 
 /// What gets published for a program.
 /// What each assignee is told: their slots in the program, with the dates.
 /// `None` when a slot points past the program's events.
-pub fn notice_items(p: &Program) -> Option<BTreeMap<PersonId, Vec<NoticeItem>>> {
+pub fn notice_items(auth: &AuthState, p: &Program) -> Option<BTreeMap<PersonId, Vec<NoticeItem>>> {
     let mut by_person: BTreeMap<PersonId, Vec<NoticeItem>> = BTreeMap::new();
     for (k, (a, _)) in &p.assignments {
-        if let Assignee::Person(person) = a {
-            let date = p.date_of(k.occurrence)?;
-            by_person.entry(*person).or_default().push(NoticeItem {
+        let date = p.date_of(k.occurrence)?;
+        // A unit's slot is told to each of its members.
+        for person in assignee_persons(auth, a, date) {
+            by_person.entry(person).or_default().push(NoticeItem {
                 key: k.clone(),
                 date,
             });

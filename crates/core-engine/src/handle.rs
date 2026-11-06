@@ -1236,6 +1236,13 @@ fn program_updated(proj: &mut Projection, h: &H<'_>, u: &ProgramUpdated) -> Resu
                 )?;
                 ensure(h.auth.externals.contains_key(id), "unknown external person")?;
             }
+            Assignee::Unit(u) => {
+                let unit = h.auth.org.units.get(u).filter(|x| x.active);
+                ensure(
+                    unit.is_some_and(|x| def.assign_units.as_ref() == Some(&x.unit_type)),
+                    "this program does not go to units of that type",
+                )?;
+            }
         }
     }
     if let Some(p) = proj.programs.get_mut(&u.program) {
@@ -1313,7 +1320,7 @@ fn assignments_sent(proj: &mut Projection, h: &H<'_>, s: &AssignmentsSent) -> Re
                 "the roster follows the version it lists",
             )?;
             if let Some(prog) = proj.programs.get(program) {
-                let expected: Vec<_> = notice_items(prog)
+                let expected: Vec<_> = notice_items(h.auth, prog)
                     .ok_or_else(|| Denied("slot past the events".into()))?
                     .into_iter()
                     .collect();
@@ -1360,7 +1367,11 @@ fn assignments_sent(proj: &mut Projection, h: &H<'_>, s: &AssignmentsSent) -> Re
                     let ok = p
                         .assignments
                         .get(&it.key)
-                        .is_some_and(|(a, _)| a == &Assignee::Person(*person))
+                        .is_some_and(|(a, _)| {
+                            p.date_of(it.key.occurrence).is_some_and(|d| {
+                                crate::rules::assignee_persons(h.auth, a, d).contains(person)
+                            })
+                        })
                         && p.date_of(it.key.occurrence) == Some(it.date);
                     ensure(ok, "the notice does not match the program")?;
                 }
@@ -1414,12 +1425,20 @@ fn assignment_responded(
             on_behalf,
             "permission assignment.respond_on_behalf required",
         )?,
+        // A unit answers through any of its members.
+        Assignee::Unit(u) => ensure(
+            h.auth.org.is_member(h.author, *u, h.date) || on_behalf,
+            "only a member of the unit can respond",
+        )?,
     }
     if let Some(p) = proj.programs.get(&r.program) {
         ensure(
-            p.assignments
-                .get(&r.key)
-                .is_some_and(|(a, _)| a == &r.assignee),
+            p.assignments.get(&r.key).is_some_and(|(a, _)| {
+                a == &r.assignee
+                    // A member answers for the unit holding the slot.
+                    || matches!((a, &r.assignee), (Assignee::Unit(u), Assignee::Person(m))
+                        if h.auth.org.is_member(*m, *u, h.date))
+            }),
             "not assigned to this slot",
         )?;
     }

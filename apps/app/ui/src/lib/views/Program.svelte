@@ -140,7 +140,8 @@
     if (picking) choose(picking, id);
     picking = null;
   }
-  const side = $derived(!!p && p.can_edit && p.people.length > 0);
+  // Persons to drag beside the program (not when slots go to groups).
+  const side = $derived(!!p && p.can_edit && !p.assign_units && p.people.length > 0);
   function drop(c: Cell, e: DragEvent) {
     e.preventDefault();
     const id = e.dataTransfer?.getData('text/plain') || dragging;

@@ -35,6 +35,9 @@ fn values(map: BTreeMap<String, serde_json::Value>) -> ApiResult<Values> {
 }
 
 fn assignee(s: &str) -> ApiResult<Assignee> {
+    if let Some(id) = s.strip_prefix("unit:") {
+        return Ok(Assignee::Unit(core_model::UnitId(parse_id(id)?)));
+    }
     match s.strip_prefix("ext:") {
         Some(id) => Ok(Assignee::External(parse_id(id)?)),
         None => Ok(Assignee::Person(parse_person(s)?)),
@@ -564,7 +567,7 @@ impl Core {
                     }
                     keys
                 }
-                Assignee::External(_) => {
+                Assignee::External(_) | Assignee::Unit(_) => {
                     let held = |k: &SlotKey| {
                         v.proj
                             .programs

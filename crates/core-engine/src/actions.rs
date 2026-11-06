@@ -1060,7 +1060,7 @@ impl<'a> Client<'a> {
             header.clone(),
             &AssignmentsSent::Team { program, snapshot },
         )?;
-        let by_person = notice_items(&p).ok_or_else(|| nf("occurrence"))?;
+        let by_person = notice_items(&self.proj.auth, &p).ok_or_else(|| nf("occurrence"))?;
         let at_publish = self
             .cfg()?
             .program_type(&p.program_type)

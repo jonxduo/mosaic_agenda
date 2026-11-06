@@ -1591,6 +1591,11 @@ impl<'a> Validator<'a> {
             if let Some(c) = &t.slot_requires {
                 self.cond(c, PROGRAMS, &format!("{p}.slot_requires"), None);
             }
+            if let Some(ut) = &t.assign_units {
+                if !self.pkg.units.unit_types.iter().any(|u| &u.id == ut) {
+                    self.err(PROGRAMS, format!("{p}.assign_units"), format!("unknown unit type `{ut}`"));
+                }
+            }
             let slot_ids: BTreeSet<&Slug> = t.slots.iter().map(|s| &s.id).collect();
             for (j, s) in t.slots.iter().enumerate() {
                 let sp = format!("{p}.slots[{j}]");

@@ -258,6 +258,8 @@ pub struct SlotKey {
 pub enum Assignee {
     Person(PersonId),
     External(Id),
+    /// A whole unit (e.g. a group): its members hear of it.
+    Unit(core_model::UnitId),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
