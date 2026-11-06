@@ -142,8 +142,21 @@
     if (picking) choose(picking, id);
     picking = null;
   }
-  // Persons to drag beside the program (not when slots go to groups).
-  const side = $derived(!!p && p.can_edit && !p.assign_units && p.people.length > 0);
+  // The groups a slot of the program can go to (dragged like persons);
+  // taken: already on a slot of the week on screen.
+  function unitsOf(g: ProgramGroup | undefined) {
+    if (!p) return [];
+    const occs = g ? occsOf(g) : new Set<number>();
+    const taken = new Set(p.cells.filter((c) => occs.has(c.occurrence) && visible(c)).map(valueOf).filter(Boolean));
+    const seen = new Map<string, string>();
+    for (const c of p.cells) if (visible(c)) for (const o of c.candidates) if (o.id.startsWith('unit:')) seen.set(o.id, o.label);
+    return [...seen].map(([id, name]) => ({ id, name, taken: taken.has(id) })).sort((a, b) => a.name.localeCompare(b.name, 'it'));
+  }
+  const units = $derived(unitsOf(group));
+  // Persons to drag beside the program (not when slots go to groups), and
+  // the groups when a slot of the week goes to a group.
+  const sidePeople = $derived(!!p && p.can_edit && !p.assign_units && p.people.length > 0);
+  const side = $derived(!!p && p.can_edit && (sidePeople || units.length > 0));
   function drop(c: Cell, e: DragEvent) {
     e.preventDefault();
     const id = e.dataTransfer?.getData('text/plain') || dragging;
@@ -399,29 +412,54 @@
         {/each}
       </div>
       {#if side}
-        <aside class="people card" aria-label={t('people_side')}>
-          <h3>{t('people_side')}</h3>
-          {#if group}<p class="week-of">{group.label}</p>{/if}
-          <p class="muted mini-hint">{t('people_side_hint')}</p>
-          <ul>
-            {#each people as x (x.id)}
-              <li
-                class="chip"
-                class:taken={x.taken}
-                draggable="true"
-                ondragstart={(e) => { dragging = x.id; e.dataTransfer?.setData('text/plain', x.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy'; }}
-                ondragend={() => (dragging = null)}
-              >
-                <span class="cname">{x.name}</span>
-                {#if x.elsewhere.length}<span class="elsewhere" title={x.elsewhere.map((o) => o.full).join('\n')}>{x.elsewhere.map((o) => o.slot).join(' · ')}</span>{/if}
-                <span class="weeks">{x.taken ? t('weeks_now') : x.weeks === null ? t('weeks_never') : t('weeks_n').replace('{n}', String(x.weeks))}</span>
-              </li>
-            {/each}
-          </ul>
-          <form class="external" onsubmit={(e) => { e.preventDefault(); if (external.trim()) addExternal(); }}>
-            <input aria-label={t('add_external')} placeholder={t('add_external')} bind:value={external} />
-            <button class="btn small" type="submit" disabled={!external.trim()}>{t('add')}</button>
-          </form>
+        <aside class="side-col">
+          {#if sidePeople}
+            <section class="people card" aria-label={t('people_side')}>
+              <h3>{t('people_side')}</h3>
+              {#if group}<p class="week-of">{group.label}</p>{/if}
+              <p class="muted mini-hint">{t('people_side_hint')}</p>
+              <ul>
+                {#each people as x (x.id)}
+                  <li
+                    class="chip"
+                    class:taken={x.taken}
+                    draggable="true"
+                    ondragstart={(e) => { dragging = x.id; e.dataTransfer?.setData('text/plain', x.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy'; }}
+                    ondragend={() => (dragging = null)}
+                  >
+                    <span class="cname">{x.name}</span>
+                    {#if x.elsewhere.length}<span class="elsewhere" title={x.elsewhere.map((o) => o.full).join('\n')}>{x.elsewhere.map((o) => o.slot).join(' · ')}</span>{/if}
+                    <span class="weeks">{x.taken ? t('weeks_now') : x.weeks === null ? t('weeks_never') : t('weeks_n').replace('{n}', String(x.weeks))}</span>
+                  </li>
+                {/each}
+              </ul>
+              <form class="external" onsubmit={(e) => { e.preventDefault(); if (external.trim()) addExternal(); }}>
+                <input aria-label={t('add_external')} placeholder={t('add_external')} bind:value={external} />
+                <button class="btn small" type="submit" disabled={!external.trim()}>{t('add')}</button>
+              </form>
+            </section>
+          {/if}
+          {#if units.length}
+            <section class="people card" aria-label={t('units_side')}>
+              <h3>{t('units_side')}</h3>
+              {#if group && !sidePeople}<p class="week-of">{group.label}</p>{/if}
+              <p class="muted mini-hint">{t('units_side_hint')}</p>
+              <ul>
+                {#each units as x (x.id)}
+                  <li
+                    class="chip"
+                    class:taken={x.taken}
+                    draggable="true"
+                    ondragstart={(e) => { dragging = x.id; e.dataTransfer?.setData('text/plain', x.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy'; }}
+                    ondragend={() => (dragging = null)}
+                  >
+                    <span class="cname">{x.name}</span>
+                    {#if x.taken}<span class="weeks">{t('weeks_now')}</span>{/if}
+                  </li>
+                {/each}
+              </ul>
+            </section>
+          {/if}
         </aside>
       {/if}
     </div>
@@ -522,7 +560,8 @@
   .details textarea { resize: vertical; font: inherit; font-size: 14px; }
   .editor { width: 100%; }
   .editor.side { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 18px; align-items: start; }
-  .people { position: sticky; top: 84px; max-height: calc(100vh - 170px); overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .side-col { position: sticky; top: 84px; max-height: calc(100vh - 170px); overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+  .people { padding: 14px; display: flex; flex-direction: column; gap: 8px; }
   .people h3 { font-size: 16px; }
   .week-of { margin: -4px 0 0; font-size: 13px; font-weight: 600; color: var(--primary-strong); }
   .mini-hint { font-size: 12px; margin: 0; }
@@ -548,7 +587,7 @@
   .external { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--border); }
   .external input { min-height: 38px; font-size: 14px; }
   .narrow-only { display: none; }
-  @media (max-width: 1000px) { .editor.side { grid-template-columns: minmax(0, 1fr); } .people { display: none; } .narrow-only { display: flex; } }
+  @media (max-width: 1000px) { .editor.side { grid-template-columns: minmax(0, 1fr); } .side-col { display: none; } .narrow-only { display: flex; } }
   /* A transparent button over the box: on phones it opens the picker sheet. */
   .tap { display: none; position: absolute; inset: 0; z-index: 1; background: none; border: none; cursor: pointer; }
   @media (max-width: 1000px) { .tap { display: block; } .overlay { display: none; } }
