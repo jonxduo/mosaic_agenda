@@ -98,7 +98,8 @@ cmd!(prefill_program(program: String, occurrences: Option<Vec<u32>>) -> ProgramE
 cmd!(assign_slot(program: String, occurrence: u32, slot: String, index: u32, person: String) -> ProgramEditor => |c| c.assign_slot(program, occurrence, slot, index, person));
 cmd!(send_program(program: String) -> ProgramEditor => |c| c.send_program(program));
 cmd!(publish_program(program: String) -> ProgramEditor => |c| c.publish_program(program));
-cmd!(respond(program: String, program_type: String, occurrence: u32, slot: String, index: u32, accept: bool, note: Option<String>, assignee: Option<String>) -> () => |c| c.respond(program, program_type, occurrence, slot, index, accept, note, assignee));
+cmd!(respond(program: String, program_type: String, occurrence: u32, slot: String, index: u32, accept: bool, note: Option<String>, assignee: Option<String>, substitute: Option<String>) -> () => |c| c.respond(program, program_type, occurrence, slot, index, accept, note, assignee, substitute));
+cmd!(substitutes(program: String, program_type: String, occurrence: u32, slot: String) -> Vec<Choice> => |c| c.substitutes(program, program_type, occurrence, slot));
 cmd!(add_external(name: String) -> String => |c| c.add_external(name));
 cmd!(my_assignments() -> Vec<AssignmentItem> => |c| c.my_assignments());
 cmd!(board(month: Option<String>) -> Vec<BoardItem> => |c| c.board(month));
@@ -194,6 +195,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         send_program,
         publish_program,
         respond,
+        substitutes,
         add_external,
         my_assignments,
         board,

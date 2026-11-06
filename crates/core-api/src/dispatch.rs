@@ -66,6 +66,7 @@ pub const COMMANDS: &[&str] = &[
     "publish_program_group",
     "respond",
     "add_external",
+    "substitutes",
     "my_assignments",
     "board",
     "resources",
@@ -223,9 +224,10 @@ pub async fn dispatch(core: &Arc<Core>, cmd: &str, input: Value) -> ApiResult<Va
             call!({ group: String, period: String } => core.publish_program_group(group, period)?)
         }
         "respond" => {
-            call!({ program: String, program_type: String, occurrence: u32, slot: String, index: u32, accept: bool, note: Option<String>, assignee: Option<String> } => core.respond(program, program_type, occurrence, slot, index, accept, note, assignee)?)
+            call!({ program: String, program_type: String, occurrence: u32, slot: String, index: u32, accept: bool, note: Option<String>, assignee: Option<String>, substitute: Option<String> } => core.respond(program, program_type, occurrence, slot, index, accept, note, assignee, substitute)?)
         }
         "add_external" => call!({ name: String } => core.add_external(name)?),
+        "substitutes" => call!({ program: String, program_type: String, occurrence: u32, slot: String } => core.substitutes(program, program_type, occurrence, slot)?),
         "my_assignments" => json(core.my_assignments()?),
         "board" => call!({ month: Option<String> } => core.board(month)?),
         "resources" => call!({ resource_type: String } => core.resources(resource_type)?),

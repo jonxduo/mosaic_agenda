@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ask } from '../ask.svelte';
+  import CannotDialog from '../components/CannotDialog.svelte';
   import type { Home_Serialize as HomeData, Me, AssignmentItem } from '../bindings';
   import { api, run } from '../api';
   import { t } from '../i18n';
@@ -43,17 +43,9 @@
   const work = $derived(home?.sections.find((s) => s.kind === 'work'));
 
   // "Non posso": the only answer, after asking.
-  async function cannot(a: AssignmentItem) {
-    if (!(await ask(t('cannot_confirm').replace('{what}', `${a.title} · ${a.subtitle}`), t('decline'), true))) return;
-    try {
-      await run(api.respond(a.program_id, a.program_type, a.occurrence, a.slot, a.index, false, null, null));
-      toast(t('saved'));
-      await load();
-      onchange();
-    } catch (e) {
-      fail(e);
-    }
-  }
+  // "Non posso": the dialog asks for a substitute, or just confirms.
+  let cannotItem = $state<AssignmentItem | null>(null);
+  const cannot = (a: AssignmentItem) => (cannotItem = a);
 </script>
 
 {#if home}
@@ -132,6 +124,7 @@
       </section>
     {/if}
     {#if me}<span hidden data-testid="me">{me.display_name}</span>{/if}
+    <CannotDialog item={cannotItem} ondone={() => { cannotItem = null; load(); onchange(); }} />
   </div>
 {/if}
 

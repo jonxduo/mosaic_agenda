@@ -1442,9 +1442,20 @@ fn assignment_responded(
             "not assigned to this slot",
         )?;
     }
+    if let Response::Substituted { substitute, .. } = &r.response {
+        ensure(h.auth.person_exists(*substitute), "unknown person")?;
+        // Who can take the slot on that day, when the program is known here.
+        if let Some(date) = proj.programs.get(&r.program).and_then(|p| p.date_of(r.key.occurrence)) {
+            let slot = def.slots.iter().find(|s| s.id == r.key.slot);
+            ensure(
+                h.auth.satisfies(&h.cfg, *substitute, slot.and_then(|s| s.requires.as_ref()), date.max(h.date)),
+                "the substitute does not meet the requirements",
+            )?;
+        }
+    }
     proj.responses
         .insert((r.program, r.key.clone()), r.response.clone());
-    if let Response::Declined { .. } = r.response {
+    if r.response.is_declined() {
         let mut roles = vec![&def.owner_role];
         roles.extend(def.assistant_roles.iter());
         let mut ctx = EvalContext::at(h.date);
@@ -1453,13 +1464,33 @@ fn assignment_responded(
             program_type: Some(r.program_type.clone()),
             ..About::default()
         };
-        h.fire(
-            proj,
-            Trigger::AssignmentDeclined,
-            &about,
-            &ctx,
-            BTreeMap::new(),
-        );
+        // Who, which slot (its text key), when, and the substitute if any.
+        let date = proj
+            .programs
+            .get(&r.program)
+            .and_then(|p| p.date_of(r.key.occurrence))
+            .or_else(|| {
+                proj.notices.values().flat_map(|(_, items)| items).find(|i| i.key == r.key).map(|i| i.date)
+            });
+        let mut params = BTreeMap::from([
+            ("person".to_owned(), crate::rules::display_name(h.auth, &r.assignee)),
+            (
+                "slot".to_owned(),
+                def.slots
+                    .iter()
+                    .find(|s| s.id == r.key.slot)
+                    .map_or_else(|| r.key.slot.to_string(), |s| s.label.to_string()),
+            ),
+            ("date".to_owned(), date.map(|d| d.to_string()).unwrap_or_default()),
+            ("substitute".to_owned(), String::new()),
+        ]);
+        if let Response::Substituted { substitute, .. } = &r.response {
+            params.insert(
+                "substitute".to_owned(),
+                crate::rules::display_name(h.auth, &Assignee::Person(*substitute)),
+            );
+        }
+        h.fire(proj, Trigger::AssignmentDeclined, &about, &ctx, params);
     }
     Ok(())
 }

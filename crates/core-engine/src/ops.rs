@@ -343,6 +343,16 @@ pub struct ProgramPartsShown {
 pub enum Response {
     Accepted,
     Declined { note: Option<String> },
+    /// Declined, with a person found to take the slot instead (who holds
+    /// the program assigns them).
+    Substituted { substitute: PersonId, note: Option<String> },
+}
+
+impl Response {
+    /// The assignee cannot hold the slot (with or without a substitute).
+    pub fn is_declined(&self) -> bool {
+        matches!(self, Self::Declined { .. } | Self::Substituted { .. })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

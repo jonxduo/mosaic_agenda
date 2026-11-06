@@ -1155,3 +1155,15 @@ Piano di F11:
 - Un incarico è accettato per default: non si chiede più di accettare. Si può solo segnalare
   "Non posso" (il responsabile viene avvisato come prima); l'editor mostra solo i rifiuti.
   Gli incarichi non stanno più in "Da fare".
+
+## 2026-11-06 — "Non posso" con sostituto
+
+- Su un incarico che richiede qualcosa, "Non posso" apre "Hai già trovato un sostituto?": un
+  elenco di chi soddisfa i requisiti dell'incarico in quella data (`substitutes`) oppure "No".
+  Senza requisiti resta la semplice conferma.
+- Nuova risposta `Response::Substituted { substitute, note }` (in coda all'enum): vale come
+  rifiuto; il nucleo controlla che il sostituto esista e, dove conosce il programma, che abbia i
+  requisiti. Chi rinuncia non può cambiare il programma: nell'editor il responsabile vede
+  "Assegna <nome>" sull'incarico e lo assegna con un tocco.
+- L'avviso al responsabile ora ha chi, quale incarico e quando (prima mancavano), più
+  " · sostituto: <nome>" se proposto.

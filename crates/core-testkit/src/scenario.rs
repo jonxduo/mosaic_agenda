@@ -888,6 +888,7 @@ impl Runner {
                     None => "none",
                     Some(Response::Accepted) => "accepted",
                     Some(Response::Declined { .. }) => "declined",
+                    Some(Response::Substituted { .. }) => "substituted",
                 };
                 let want = req(m, "is")?;
                 if have != want {

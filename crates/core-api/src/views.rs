@@ -113,6 +113,19 @@ pub(crate) fn today(core: &Core) -> Date {
 }
 
 /// The last complete period of a periodicity, relative to `today`.
+/// A notification's parameter as shown: text keys (a slot's name) in
+/// words, dates as day and month, a substitute as a phrase of its own.
+fn notification_param(t: &Texts, key: &str, value: &str) -> String {
+    match key {
+        "substitute" if value.is_empty() => String::new(),
+        "substitute" => t.fmt("core.substitute", &[("name", value.to_owned())]),
+        _ => match core_engine::time::parse_date(value) {
+            Some(d) => t.day_month(d),
+            None => t.get(value),
+        },
+    }
+}
+
 /// A publish group's programs as one table: a column per assignment
 /// (program types in the group's order, slots in their order, "Name 2" for
 /// the second of a slot), a row per event, or per week when every program
@@ -1046,7 +1059,7 @@ impl Core {
                 // Accepted unless the person said they cannot.
                 let response = if all
                     .iter()
-                    .any(|x| matches!(answer(&x.key), Some(Response::Declined { .. })))
+                    .any(|x| answer(&x.key).is_some_and(Response::is_declined))
                 {
                     "declined"
                 } else {
@@ -2622,7 +2635,7 @@ impl Core {
                     // Accepted unless someone said they cannot.
                     let response = if answers
                         .iter()
-                        .any(|r| matches!(r, Some(Response::Declined { .. })))
+                        .any(|r| r.is_some_and(Response::is_declined))
                     {
                         "declined"
                     } else {
@@ -2645,6 +2658,16 @@ impl Core {
                         }),
                         assignee_name: current.map(|(_, n)| n.clone()),
                         response: response.into(),
+                        substitute: answers.iter().find_map(|r| match r {
+                            Some(Response::Substituted { substitute, .. }) => Some(Choice {
+                                id: substitute.to_string(),
+                                label: core_engine::rules::display_name(
+                                    &v.proj.auth,
+                                    &Assignee::Person(*substitute),
+                                ),
+                            }),
+                            _ => None,
+                        }),
                         candidates,
                         per_event,
                         details: slot
@@ -3638,7 +3661,7 @@ impl Core {
             let params: Vec<(&str, String)> = tr
                 .params
                 .iter()
-                .map(|(k, v)| (k.as_str(), v.clone()))
+                .map(|(k, v)| (k.as_str(), notification_param(&t, k, v)))
                 .collect();
             out.push(Notification {
                 id: id.clone(),

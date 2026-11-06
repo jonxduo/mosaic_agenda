@@ -52,7 +52,8 @@ export const commands = {
 	addressSearch: (query: string) => typedError<string[], ApiError>(__TAURI_INVOKE("address_search", { query })),
 	sendProgram: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("send_program", { program })),
 	publishProgram: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("publish_program", { program })),
-	respond: (program: string, programType: string, occurrence: number, slot: string, index: number, accept: boolean, note: string | null, assignee: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("respond", { program, programType, occurrence, slot, index, accept, note, assignee })),
+	respond: (program: string, programType: string, occurrence: number, slot: string, index: number, accept: boolean, note: string | null, assignee: string | null, substitute: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("respond", { program, programType, occurrence, slot, index, accept, note, assignee, substitute })),
+	substitutes: (program: string, programType: string, occurrence: number, slot: string) => typedError<Choice[], ApiError>(__TAURI_INVOKE("substitutes", { program, programType, occurrence, slot })),
 	addExternal: (name: string) => typedError<string, ApiError>(__TAURI_INVOKE("add_external", { name })),
 	myAssignments: () => typedError<AssignmentItem[], ApiError>(__TAURI_INVOKE("my_assignments")),
 	board: (month: string | null) => typedError<BoardItem_Serialize[], ApiError>(__TAURI_INVOKE("board", { month })),
@@ -1438,6 +1439,8 @@ export type SlotCell_Deserialize = {
 	assignee?: string | null,
 	assignee_name?: string | null,
 	response: string,
+	/**  The substitute the assignee found, when they cannot (to assign them). */
+	substitute?: Choice | null,
 	candidates: Choice[],
 	/**  The slot changes at every event inside a group (see `ProgramGroup::days`). */
 	per_event: boolean,
@@ -1467,6 +1470,8 @@ export type SlotCell_Serialize = {
 	assignee: string | null,
 	assignee_name: string | null,
 	response: string,
+	/**  The substitute the assignee found, when they cannot (to assign them). */
+	substitute: Choice | null,
 	candidates: Choice[],
 	/**  The slot changes at every event inside a group (see `ProgramGroup::days`). */
 	per_event: boolean,

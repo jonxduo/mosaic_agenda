@@ -518,6 +518,7 @@ impl Core {
         accept: bool,
         note: Option<String>,
         assignee_id: Option<String>,
+        substitute: Option<String>,
     ) -> ApiResult<()> {
         let id = parse_id(&program)?;
         let t = slug(&program_type)?;
@@ -584,12 +585,65 @@ impl Core {
                 }
             }
         };
-        let response = if accept {
-            Response::Accepted
-        } else {
-            Response::Declined { note }
+        let response = match (accept, substitute) {
+            (true, _) => Response::Accepted,
+            (false, Some(s)) => Response::Substituted {
+                substitute: parse_person(&s)?,
+                note,
+            },
+            (false, None) => Response::Declined { note },
         };
         self.act_events(|c| c.respond_all(id, &t, keys, a, response))
+    }
+
+    /// Who could take one of my slots instead of me: the persons satisfying its
+    /// requirements on its day (empty when the slot requires nothing).
+    pub fn substitutes(
+        self: &Arc<Self>,
+        program: String,
+        program_type: String,
+        occurrence: u32,
+        slot: String,
+    ) -> ApiResult<Vec<crate::dto::Choice>> {
+        let id = parse_id(&program)?;
+        let t = slug(&program_type)?;
+        let slot = slug(&slot)?;
+        let occ = u16::try_from(occurrence).map_err(ApiError::invalid)?;
+        let v = self.view()?;
+        let me = self.me()?;
+        let c = crate::views::cfg(&v)?;
+        let Some(requires) = c
+            .program_type(&t)
+            .and_then(|d| d.slots.iter().find(|s| s.id == slot))
+            .and_then(|s| s.requires.as_ref())
+        else {
+            return Ok(Vec::new());
+        };
+        let date = v
+            .proj
+            .notices
+            .get(&(id, me))
+            .and_then(|(_, items)| items.iter().find(|i| i.key.occurrence == occ && i.key.slot == slot))
+            .map_or_else(|| date_of(self.now()), |i| i.date);
+        let mut out: Vec<crate::dto::Choice> = v
+            .proj
+            .auth
+            .org
+            .persons
+            .iter()
+            .filter(|(p, r)| {
+                **p != me
+                    && r.active
+                    && !v.proj.erasure.persons.contains(p)
+                    && v.proj.auth.satisfies(c, **p, Some(requires), date)
+            })
+            .map(|(p, r)| crate::dto::Choice {
+                id: p.to_string(),
+                label: r.display_name.clone(),
+            })
+            .collect();
+        out.sort_by(|a, b| a.label.cmp(&b.label));
+        Ok(out)
     }
 
     pub fn add_external(self: &Arc<Self>, name: String) -> ApiResult<String> {

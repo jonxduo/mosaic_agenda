@@ -480,3 +480,37 @@ async fn slots_to_units() {
     assert!(!mine.is_empty(), "the team's slot reaches its members");
     let _ = bob;
 }
+
+/// "Non posso" with a substitute: who meets the slot's requirements is
+/// offered; the manager sees the proposal on the slot.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn decline_with_a_substitute() {
+    let dir = tempfile::tempdir().unwrap();
+    let a = core(dir.path());
+    a.create_org("Club".into(), "Alice".into()).await.unwrap();
+    let bob = a.add_person("Bob".into(), Default::default()).unwrap();
+    let carl = a.add_person("Carl".into(), Default::default()).unwrap();
+    let alice = a.people().unwrap().persons.into_iter().find(|p| p.name == "Alice").unwrap().person_id;
+    let level2: std::collections::BTreeMap<String, serde_json::Value> =
+        [("level".to_owned(), serde_json::json!(2))].into();
+    for p in [&alice, &bob] {
+        a.update_person(p.clone(), None, level2.clone()).unwrap();
+        a.grant_qualification(p.clone(), "senior".into(), None, None).unwrap();
+    }
+    a.grant_role(alice.clone(), "keeper".into(), None).unwrap();
+    let d = a.program_dates("weekly_plan".into(), Some("week-2026-11-16".into())).unwrap();
+    let id = a.draft_program("weekly_plan".into(), d.dates).unwrap();
+    let p = a.assign_slot(id.clone(), 0, "host".into(), 0, alice.clone()).unwrap();
+    assert!(p.cells.iter().any(|c| c.slot == "host" && c.assignee.as_deref() == Some(alice.as_str())));
+    a.send_program(id.clone()).unwrap();
+
+    // Who could take it: Bob (senior), not Carl, not Alice herself.
+    let subs = a.substitutes(id.clone(), "weekly_plan".into(), 0, "host".into()).unwrap();
+    assert_eq!(subs.iter().map(|c| c.id.as_str()).collect::<Vec<_>>(), [bob.as_str()]);
+    let _ = carl;
+    a.respond(id.clone(), "weekly_plan".into(), 0, "host".into(), 0, false, None, None, Some(bob.clone()))
+        .unwrap();
+    let cell = a.program(id).unwrap().cells.into_iter().find(|c| c.slot == "host").unwrap();
+    assert_eq!(cell.response, "declined");
+    assert_eq!(cell.substitute.map(|c| c.id), Some(bob));
+}

@@ -428,6 +428,8 @@ pub struct SlotCell {
     pub assignee: Option<String>,
     pub assignee_name: Option<String>,
     pub response: String,
+    /// The substitute the assignee found, when they cannot (to assign them).
+    pub substitute: Option<Choice>,
     pub candidates: Vec<Choice>,
     /// The slot changes at every event inside a group (see `ProgramGroup::days`).
     pub per_event: bool,
