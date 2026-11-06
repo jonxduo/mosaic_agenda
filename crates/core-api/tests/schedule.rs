@@ -619,3 +619,23 @@ async fn calendar_export_and_import() {
     b.schedule_import(json).unwrap();
     assert_eq!(b.calendar_series().unwrap().items.len(), 1);
 }
+
+/// A program sent and then published stays in the list of programs.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn published_programs_stay_listed() {
+    let dir = tempfile::tempdir().unwrap();
+    let a = core(dir.path());
+    a.create_org("Club".into(), "Alice".into()).await.unwrap();
+    let alice = a.people().unwrap().persons[0].person_id.clone();
+    a.grant_qualification(alice.clone(), "member".into(), None, None).unwrap();
+    a.grant_role(alice, "keeper".into(), None).unwrap();
+    let id = a.draft_program("weekly_plan".into(), vec!["2026-11-16".into()]).unwrap();
+    let status = |a: &std::sync::Arc<core_api::Core>| {
+        a.programs(None).unwrap().programs.into_iter().find(|p| p.program_id == id).map(|p| p.status)
+    };
+    assert_eq!(status(&a).as_deref(), Some("draft"));
+    a.send_program(id.clone()).unwrap();
+    assert_eq!(status(&a).as_deref(), Some("assigned"));
+    a.publish_program(id.clone()).unwrap();
+    assert_eq!(status(&a).as_deref(), Some("published"));
+}
