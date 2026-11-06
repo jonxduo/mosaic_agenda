@@ -163,6 +163,10 @@ fn board_grid(t: &Texts, cfg: &Cfg, snaps: &[&core_engine::ops::ProgramSnapshot]
     }
     BoardGrid {
         columns: columns.iter().map(|c| c.2.clone()).collect(),
+        colors: columns
+            .iter()
+            .map(|c| cfg.program_type(&c.0).and_then(|d| d.color.clone()))
+            .collect(),
         rows: rows
             .into_iter()
             .map(|ds| BoardGridRow {

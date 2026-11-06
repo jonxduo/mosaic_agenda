@@ -853,6 +853,9 @@ pub struct ProgramTypeDef {
     /// Name of an icon of the app (e.g. `book`, `mic`), shown on its tiles.
     #[serde(default)]
     pub icon: Option<Slug>,
+    /// `#rrggbb` of its headings where several programs are shown together.
+    #[serde(default)]
+    pub color: Option<String>,
     pub event_type: OneOrMany<Slug>,
     pub period: ProgramPeriod,
     /// Assignments shared by the events of the same week or month.

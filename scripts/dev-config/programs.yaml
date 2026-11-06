@@ -104,6 +104,7 @@ program_types:
   - id: av
     label: p.av
     icon: mic
+    color: "#b5892e"
     event_type: [ midweek_meeting, weekend_meeting ]
     period: month
     slot_requires: { any: [ { has_qualification: can_av }, { has_qualification: can_microphones } ] }
@@ -122,6 +123,7 @@ program_types:
   - id: attendants
     label: p.attendants
     icon: door
+    color: "#2f5d6b"
     event_type: [ midweek_meeting, weekend_meeting ]
     period: month
     slot_requires: { has_qualification: can_attendant }

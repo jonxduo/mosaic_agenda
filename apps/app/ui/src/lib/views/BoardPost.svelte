@@ -35,7 +35,10 @@
     <div class="card grid-card">
       <div class="scroll">
         <table class="grid">
-          <thead><tr><th scope="col">{t('dates')}</th>{#each g.columns as c, i (i)}<th scope="col">{c}</th>{/each}</tr></thead>
+          <thead><tr>
+            <th scope="col" class="head-date">{t('dates')}</th>
+            {#each g.columns as c, i (i)}<th scope="col" class:tinted={g.colors[i]} style={g.colors[i] ? `background: ${g.colors[i]}` : ''}>{c}</th>{/each}
+          </tr></thead>
           <tbody>
             {#each g.rows as r, i (i)}
               <tr>
@@ -88,6 +91,9 @@
   .grid td { font-style: italic; }
   /* The dates stay in view while the columns scroll. */
   .grid .when { position: sticky; left: 0; background: var(--bg); font-weight: 600; }
-  .grid thead th:first-child { position: sticky; left: 0; background: var(--bg); }
+  .grid thead th:first-child { position: sticky; left: 0; }
+  /* Headings as the programs' bands: grey for the dates, each program's colour. */
+  .grid thead th.head-date, .grid thead th.tinted { color: #fff; font-weight: 700; }
+  .grid thead th.head-date { background: var(--muted); }
   .grid tr:last-child th, .grid tr:last-child td { border-bottom: none; }
 </style>

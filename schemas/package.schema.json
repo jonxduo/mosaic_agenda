@@ -1895,6 +1895,14 @@
           },
           "type": "array"
         },
+        "color": {
+          "default": null,
+          "description": "`#rrggbb` of its headings where several programs are shown together.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "event_type": {
           "$ref": "#/$defs/OneOrMany_Slug"
         },

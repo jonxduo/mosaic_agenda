@@ -119,6 +119,7 @@ program_types:
   - id: av
     label: p.av
     icon: mic
+    color: "#b5892e"                     # intestazioni dove compare con altri programmi
     event_type: [midweek_meeting, weekend_meeting]
     period: month
     rotation: occurrence                 # ⚙ occurrence | week | month (Calendario e turni)
@@ -141,6 +142,7 @@ program_types:
   - id: attendants
     label: p.attendants
     icon: door
+    color: "#2f5d6b"                     # intestazioni dove compare con altri programmi
     event_type: [midweek_meeting, weekend_meeting]
     period: month
     rotation: occurrence                 # ⚙

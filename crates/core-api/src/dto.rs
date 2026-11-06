@@ -128,6 +128,8 @@ pub struct BoardItem {
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct BoardGrid {
     pub columns: Vec<String>,
+    /// Background of each column's heading: its program type's colour.
+    pub colors: Vec<Option<String>>,
     pub rows: Vec<BoardGridRow>,
 }
 

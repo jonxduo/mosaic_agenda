@@ -249,6 +249,8 @@ export type BatchView_Serialize = {
 
 export type BoardGrid = {
 	columns: string[],
+	/**  Background of each column's heading: its program type's colour. */
+	colors: (string | null)[],
 	rows: BoardGridRow[],
 };
 

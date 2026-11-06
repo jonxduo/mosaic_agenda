@@ -131,6 +131,10 @@ impl<'a> Validator<'a> {
         for (i, o) in t.options.iter().enumerate() {
             self.text_key(&o.label, PROGRAMS, format!("{p}.options[{i}].label"));
         }
+        let hex = |c: &String| c.len() == 7 && c.starts_with('#') && c[1..].chars().all(|h| h.is_ascii_hexdigit());
+        if t.color.as_ref().is_some_and(|c| !hex(c)) {
+            self.err(PROGRAMS, format!("{p}.color"), "a colour is written #rrggbb");
+        }
         for (i, x) in t.sections.iter().enumerate() {
             self.text_key(&x.label, PROGRAMS, format!("{p}.sections[{i}].label"));
             let ok = x.color.as_ref().is_none_or(|c| {
