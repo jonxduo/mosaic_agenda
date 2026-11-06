@@ -15,7 +15,8 @@
   const DAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
   type Ev = { i: number; id: string; label: string; days: string[]; time: string };
   // j: position in programs.yaml (null for a slot added here).
-  type Slot = { j: number | null; id: string; key: string; label: string; enabled: boolean; count: number; repeated: boolean; eachEvent: boolean; removed: boolean };
+  // needs: who can take the slot, in words (its requirement), shown under the name.
+  type Slot = { j: number | null; id: string; key: string; label: string; enabled: boolean; count: number; repeated: boolean; eachEvent: boolean; removed: boolean; needs: string };
   type Prog = { i: number; id: string; label: string; rotation: string; period: string; slots: Slot[]; requires: unknown; adding: string };
   // An option of a program type (e.g. a second room): i program, k option.
   type Opt = { i: number; k: number; id: string; program: string; label: string; enabled: boolean };
@@ -35,12 +36,27 @@
   const snapshot = () => JSON.stringify({ events, programs, options });
   const dirty = $derived(current !== null && snapshot() !== initial);
 
+  // A requirement in words: the qualifications' names, "o" / "e" between them.
+  let qualLabels: Record<string, string> = {};
+  function needsOf(cond: unknown): string {
+    if (!cond || typeof cond !== 'object') return '';
+    const c = cond as Record<string, unknown>;
+    if (typeof c.has_qualification === 'string') return qualLabels[c.has_qualification] ?? c.has_qualification;
+    const join = (xs: unknown, sep: string) => (Array.isArray(xs) ? xs.map(needsOf).filter(Boolean).join(sep) : '');
+    if (c.any) return join(c.any, ` ${t('sch_or')} `);
+    if (c.all) return join(c.all, ` ${t('sch_and')} `);
+    return '';
+  }
+
   async function load() {
     try {
       current = await run(api.configFiles());
       const pkg = toJs(file('package.yaml')?.text);
       locale = String(pkg?.default_locale ?? 'it');
       texts = flatTexts(toJs(file(`texts/${locale}.yaml`)?.text));
+      qualLabels = Object.fromEntries(
+        list(toJs(file('qualifications.yaml')?.text)?.qualifications).map((q) => [String(q.id), texts[String(q.label)] ?? String(q.id)])
+      );
       const label = (k: unknown) => texts[String(k)] ?? String(k);
       const cal = toJs(file('calendar.yaml')?.text);
       events = list(cal?.event_types)
@@ -72,7 +88,8 @@
             count: Number(s.count ?? 1),
             repeated: s.repeat !== undefined,
             eachEvent: s.each_event === true,
-            removed: false
+            removed: false,
+            needs: needsOf(s.requires)
           }))
         }));
       options = list(prog?.program_types).flatMap((p, i) =>
@@ -105,7 +122,7 @@
     const name = p.adding.trim();
     if (!name) return;
     const id = slugFor(name);
-    p.slots.push({ j: null, id, key: `s.${id}`, label: name, enabled: true, count: 1, repeated: false, eachEvent: false, removed: false });
+    p.slots.push({ j: null, id, key: `s.${id}`, label: name, enabled: true, count: 1, repeated: false, eachEvent: false, removed: false, needs: needsOf(p.requires) });
     p.adding = '';
   }
 
@@ -268,7 +285,10 @@
               {#each p.slots.filter((x) => !x.removed) as s (s.id)}
                 <div class="slot" class:off={!s.enabled}>
                   <input class="on" type="checkbox" bind:checked={s.enabled} disabled={!current.can_publish} aria-label={`${s.label} · ${t('sch_active')}`} />
-                  <input class="name" bind:value={s.label} disabled={!current.can_publish} aria-label={t('sch_name')} />
+                  <div class="namebox">
+                    <input class="name" bind:value={s.label} disabled={!current.can_publish} aria-label={t('sch_name')} />
+                    {#if s.needs}<span class="needs muted">{t('sch_needs').replace('{what}', s.needs)}</span>{/if}
+                  </div>
                   {#if !s.repeated}
                     <label class="inline count">
                       <span class="muted">{t('sch_count')}</span>
@@ -338,6 +358,8 @@
   .slot.off .name, .slot.off .count, .slot.off .each { opacity: 0.5; }
   .on, .each input { width: 20px; height: 20px; min-height: 20px; margin: 0; accent-color: var(--primary); flex: none; }
   .name { min-height: 38px; padding: 6px 10px; }
+  .namebox { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .needs { font-size: 13px; padding-left: 2px; }
   .each { font-size: 14px; white-space: nowrap; }
   .icon-btn { display: grid; place-items: center; width: 36px; height: 36px; border: none; border-radius: 8px; background: none; color: var(--muted); cursor: pointer; }
   .icon-btn:hover { background: var(--surface); color: var(--danger); }
