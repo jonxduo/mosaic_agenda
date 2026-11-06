@@ -1043,18 +1043,14 @@ impl Core {
                 let slot_label = def
                     .and_then(|d| d.slots.iter().find(|s| s.id == it.key.slot))
                     .map_or_else(|| it.key.slot.to_string(), |s| t.get(s.label.as_str()));
+                // Accepted unless the person said they cannot.
                 let response = if all
                     .iter()
                     .any(|x| matches!(answer(&x.key), Some(Response::Declined { .. })))
                 {
                     "declined"
-                } else if all
-                    .iter()
-                    .all(|x| matches!(answer(&x.key), Some(Response::Accepted)))
-                {
-                    "accepted"
                 } else {
-                    "pending"
+                    "accepted"
                 };
                 let when = match (g, all.len()) {
                     (Some(k), n) if n > 1 => format!(
@@ -1080,7 +1076,7 @@ impl Core {
                         when
                     ),
                     response: response.into(),
-                    can_respond: def.is_some_and(|d| d.acceptance) && response == "pending",
+                    can_respond: def.is_some_and(|d| d.acceptance) && response != "declined",
                     date: all.iter().map(|x| x.date).min().unwrap_or(it.date).to_string(),
                     monthly: matches!(g, Some(PeriodKey::Month { .. })),
                 });
@@ -2623,18 +2619,14 @@ impl Core {
                             ))
                         })
                         .collect();
+                    // Accepted unless someone said they cannot.
                     let response = if answers
                         .iter()
                         .any(|r| matches!(r, Some(Response::Declined { .. })))
                     {
                         "declined"
-                    } else if answers
-                        .iter()
-                        .all(|r| matches!(r, Some(Response::Accepted)))
-                    {
-                        "accepted"
                     } else {
-                        "pending"
+                        "accepted"
                     };
                     let label = if slot.count * reps > 1 && slot.numbered {
                         format!("{} {}", t.get(slot.label.as_str()), index + 1)

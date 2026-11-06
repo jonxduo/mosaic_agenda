@@ -1146,3 +1146,12 @@ Piano di F11:
   vanno ai componenti dell'unità alla data dell'evento, che possono anche rispondere per lei.
   In bacheca e nell'editor compare il nome dell'unità; nell'editor l'elenco delle persone a
   lato non c'è.
+
+## 2026-11-06 — Home "In programma" e incarichi accettati per default
+
+- Sotto "Da fare" la sezione "In programma": tutte le attività future della persona e dei
+  gruppi a cui appartiene, dalla più vicina, con un quadratino da calendario (mese e giorno, o
+  il mese per gli incarichi mensili).
+- Un incarico è accettato per default: non si chiede più di accettare. Si può solo segnalare
+  "Non posso" (il responsabile viene avvisato come prima); l'editor mostra solo i rifiuti.
+  Gli incarichi non stanno più in "Da fare".

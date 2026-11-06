@@ -315,7 +315,7 @@
       </select>
       {#if v}<button class="clear" aria-label={`${t('clear')} · ${c.label}`} onclick={() => choose(c, '')}>×</button>{/if}
     {/if}
-    {#if c.assignee && !(keyOf(c) in pending)}<span class="zbadge badge" class:ok={c.response === 'accepted'}>{t(`response_${c.response}` as never)}</span>{/if}
+    {#if c.assignee && !(keyOf(c) in pending) && c.response === 'declined'}<span class="zbadge badge warn">{t('response_declined')}</span>{/if}
   </div>
   {/if}
 {/snippet}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { ask } from '../ask.svelte';
   import type { Home_Serialize as HomeData, Me, AssignmentItem } from '../bindings';
   import { api, run } from '../api';
   import { t } from '../i18n';
@@ -17,14 +18,16 @@
   }
   load();
 
-  const todo = $derived(home?.sections.filter((s) => s.kind !== 'board' && s.kind !== 'work') ?? []);
+  // Assignments are accepted unless one says otherwise: they live under
+  // "In programma", not among the things to do.
+  const todo = $derived(home?.sections.filter((s) => s.kind !== 'board' && s.kind !== 'work' && s.kind !== 'assignments') ?? []);
   const board = $derived(home?.sections.find((s) => s.kind === 'board'));
   // In "Da fare" only the assignments still to answer; all of them, from the
   // nearest, under "In programma".
   const count = $derived(
     todo.reduce(
       (n, s) =>
-        n + (s.kind === 'resources' ? s.items.filter((r) => r.open_request).length : s.kind === 'assignments' ? s.items.filter((a) => a.can_respond).length : s.items.length),
+        n + (s.kind === 'resources' ? s.items.filter((r) => r.open_request).length : s.items.length),
       0
     )
   );
@@ -39,9 +42,11 @@
   };
   const work = $derived(home?.sections.find((s) => s.kind === 'work'));
 
-  async function respond(a: AssignmentItem, accept: boolean) {
+  // "Non posso": the only answer, after asking.
+  async function cannot(a: AssignmentItem) {
+    if (!(await ask(t('cannot_confirm').replace('{what}', `${a.title} · ${a.subtitle}`), t('decline'), true))) return;
     try {
-      await run(api.respond(a.program_id, a.program_type, a.occurrence, a.slot, a.index, accept, null, null));
+      await run(api.respond(a.program_id, a.program_type, a.occurrence, a.slot, a.index, false, null, null));
       toast(t('saved'));
       await load();
       onchange();
@@ -76,18 +81,6 @@
               <button class="btn primary" onclick={() => go('form', { form: d.form, period: d.period })}>{t('fill')}</button>
             </div>
           {/each}
-        {:else if s.kind === 'assignments'}
-          {#each s.items.filter((a) => a.can_respond) as a (a.program_id + a.slot + a.occurrence + a.index)}
-            <div class="card spread">
-              <div class="stack tight grow"><h3>{a.title}</h3><span class="muted">{a.subtitle}</span></div>
-              {#if a.can_respond}
-                <div class="row">
-                  <button class="btn" onclick={() => respond(a, false)}>{t('decline')}</button>
-                  <button class="btn primary" onclick={() => respond(a, true)}>{t('accept')}</button>
-                </div>
-              {:else}<span class="badge">{t(`response_${a.response}` as never)}</span>{/if}
-            </div>
-          {/each}
         {:else if s.kind === 'resources'}
           {#each s.items.filter((r) => r.open_request) as r (r.resource_id)}
             <div class="card spread">
@@ -107,7 +100,8 @@
           <div class="card spread act">
             <div class="cal" class:month={a.monthly} aria-hidden="true"><span class="top">{q.top}</span><span class="main">{q.main}</span></div>
             <div class="stack tight grow"><h3>{a.title}</h3><span class="muted">{a.subtitle}</span></div>
-            {#if a.response !== 'pending'}<span class="badge" class:ok={a.response === 'accepted'}>{t(`response_${a.response}` as never)}</span>{/if}
+            {#if a.response === 'declined'}<span class="badge warn">{t('response_declined')}</span>
+            {:else if a.can_respond}<button class="btn small" onclick={() => cannot(a)}>{t('decline')}</button>{/if}
           </div>
         {/each}
       </section>

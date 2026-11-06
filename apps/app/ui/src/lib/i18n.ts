@@ -17,7 +17,7 @@ const it = {
   registered: 'Documenti registrati', period: 'Periodo', none_visible: 'Nessun dato visibile',
   new_program: 'Nuovo programma', dates: 'Date', previous: 'Precedente', next: 'Successivo', program_exists: 'Esiste già un programma per questo periodo', no_dates: 'Nessuna data: imposta i giorni in Calendario e turni', send: 'Invia le assegnazioni', draft_saved: 'Bozza salvata', unsaved_changes: '{n} modifiche da salvare', publish: 'Pubblica in bacheca',
   status_draft: 'Bozza', status_assigned: 'Assegnato', status_to_publish: 'Da pubblicare', status_published: 'Pubblicato', unassigned: '— non assegnato —',
-  response_pending: 'In attesa', response_accepted: 'Accettato', response_declined: 'Declinato', add_external: 'Aggiungi persona esterna',
+  response_pending: 'In attesa', response_accepted: 'Accettato', response_declined: 'Non può', cannot_confirm: 'Segnali che non puoi svolgere «{what}»? Il responsabile verrà avvisato.', add_external: 'Aggiungi persona esterna',
   available: 'Disponibile', assigned: 'Assegnata', holder: 'Detentore', history: 'Storico', add: 'Aggiungi', assign: 'Assegna',
   request: 'Richiedi', log: 'Registra', return: 'Restituisci', new_resource: 'Nuova risorsa',
   scan_card: 'Leggi da foto', scanning: 'Lettura della foto…', scan_done: 'Campi compilati dalla foto: controllali prima di salvare',
