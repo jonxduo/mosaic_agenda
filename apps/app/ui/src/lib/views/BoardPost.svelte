@@ -77,7 +77,7 @@
   .grid-card { padding: 0; overflow: hidden; }
   .scroll { overflow-x: auto; }
   .grid { font-size: 15px; }
-  .grid th, .grid td { padding: 14px 18px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; vertical-align: middle; line-height: 1.5; }
+  .grid th, .grid td { padding: 14px 18px; border-bottom: 1px solid var(--border); text-align: center; white-space: nowrap; vertical-align: middle; line-height: 1.5; }
   /* One date, one person per line: narrow columns. */
   .grid th span, .grid td span { display: block; }
   /* "Mercoledì" small and plain, the day below. */
