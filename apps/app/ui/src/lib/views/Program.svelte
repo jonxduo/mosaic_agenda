@@ -157,6 +157,23 @@
   // the groups when a slot of the week goes to a group.
   const sidePeople = $derived(!!p && p.can_edit && !p.assign_units && p.people.length > 0);
   const side = $derived(!!p && p.can_edit && (sidePeople || units.length > 0));
+  // The side column reaches down to the bar at the bottom wherever it is
+  // (in place at the top of the page, then stuck under the header).
+  let sideCol = $state<HTMLElement | null>(null);
+  let sideTop = $state(84);
+  $effect(() => {
+    const el = sideCol;
+    if (!el) return;
+    const fit = () => (sideTop = Math.max(0, el.getBoundingClientRect().top));
+    fit();
+    // Capture: the page may scroll inside a container.
+    addEventListener('scroll', fit, { passive: true, capture: true });
+    addEventListener('resize', fit);
+    return () => {
+      removeEventListener('scroll', fit, { capture: true });
+      removeEventListener('resize', fit);
+    };
+  });
   function drop(c: Cell, e: DragEvent) {
     e.preventDefault();
     const id = e.dataTransfer?.getData('text/plain') || dragging;
@@ -412,7 +429,7 @@
         {/each}
       </div>
       {#if side}
-        <aside class="side-col">
+        <aside class="side-col" class:both={sidePeople && units.length > 0} bind:this={sideCol} style={`height: calc(100vh - ${sideTop}px - 84px)`}>
           {#if sidePeople}
             <section class="people card" aria-label={t('people_side')}>
               <h3>{t('people_side')}</h3>
@@ -440,7 +457,7 @@
             </section>
           {/if}
           {#if units.length}
-            <section class="people card" aria-label={t('units_side')}>
+            <section class="people units-box card" aria-label={t('units_side')}>
               <h3>{t('units_side')}</h3>
               {#if group && !sidePeople}<p class="week-of">{group.label}</p>{/if}
               <p class="muted mini-hint">{t('units_side_hint')}</p>
@@ -560,8 +577,13 @@
   .details textarea { resize: vertical; font: inherit; font-size: 14px; }
   .editor { width: 100%; }
   .editor.side { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 18px; align-items: start; }
-  .side-col { position: sticky; top: 84px; max-height: calc(100vh - 170px); overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-  .people { padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  /* Height set from its place: down to the bar at the bottom (72px) and a gap. */
+  .side-col { position: sticky; top: 84px; min-height: 240px; display: flex; flex-direction: column; gap: 12px; }
+  .people { padding: 14px; display: flex; flex-direction: column; gap: 8px; flex: 1 1 0; min-height: 0; overflow-y: auto; }
+  /* Both boxes: persons three quarters, groups one quarter. */
+  .side-col.both > .people { flex-grow: 3; }
+  .side-col.both > .units-box { flex-grow: 1; }
+  .people > * { flex-shrink: 0; }
   .people h3 { font-size: 16px; }
   .week-of { margin: -4px 0 0; font-size: 13px; font-weight: 600; color: var(--primary-strong); }
   .mini-hint { font-size: 12px; margin: 0; }
