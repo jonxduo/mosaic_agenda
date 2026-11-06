@@ -38,6 +38,7 @@ regex.workspace = true
 reqwest.workspace = true
 rustls.workspace = true
 axum = { workspace = true, optional = true }
+serde_norway.workspace = true
 
 [dev-dependencies]
 image.workspace = true
@@ -45,7 +46,6 @@ push-service.workspace = true
 axum.workspace = true
 async-trait = "0.1"
 tempfile.workspace = true
-serde_norway.workspace = true
 core-testkit.workspace = true
 
 [[bin]]

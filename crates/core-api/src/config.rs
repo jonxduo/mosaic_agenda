@@ -92,7 +92,7 @@ fn issue(i: &core_config::Issue) -> ConfigIssue {
 }
 
 impl Core {
-    fn may_publish(&self, v: &View) -> ApiResult<bool> {
+    pub(crate) fn may_publish(&self, v: &View) -> ApiResult<bool> {
         let me = self.me()?;
         let c = cfg(v)?;
         Ok(v.proj.auth.is_root(me)

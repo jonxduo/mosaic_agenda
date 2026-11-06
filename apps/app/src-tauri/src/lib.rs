@@ -132,6 +132,9 @@ cmd!(sent_program(program: String) -> ProgramEditor => |c| c.sent_program(progra
 cmd!(calendar_series() -> SeriesList => |c| c.calendar_series());
 cmd!(save_series(id: Option<String>, event_type: String, weekday: u32, time: String, location: String, units: Vec<String>, conducted_by_unit: bool) -> String => |c| c.save_series(id, event_type, weekday, time, location, units, conducted_by_unit));
 cmd!(remove_series_item(id: String) -> () => |c| c.remove_series_item(id));
+cmd!(schedule_export(format: String) -> String => |c| c.schedule_export(format));
+cmd!(schedule_import(text: String) -> u32 => |c| c.schedule_import(text));
+cmd!(schedule_export_to(format: String, path: String) -> () => |c| c.schedule_export_to(format, &path));
 cmd!(add_dedicated(program: String, slot: String, date: String, person: String) -> ProgramEditor => |c| c.add_dedicated(program, slot, date, person));
 cmd!(program_group(group: String, period: String) -> ProgramGroupView => |c| c.program_group(group, period));
 cmd!(publish_program_group(group: String, period: String) -> ProgramGroupView => |c| c.publish_program_group(group, period));
@@ -232,6 +235,9 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         calendar_series,
         save_series,
         remove_series_item,
+        schedule_export,
+        schedule_import,
+        schedule_export_to,
         add_dedicated,
         publish_program_group,
         unit_reports,

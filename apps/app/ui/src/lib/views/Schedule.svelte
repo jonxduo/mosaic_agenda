@@ -9,6 +9,8 @@
   import { t, type Key } from '../i18n';
   import { fail, toast } from '../toast.svelte';
   import Icon from '../components/Icon.svelte';
+  import { save as saveDialog } from '@tauri-apps/plugin-dialog';
+  import { inBrowser, download } from '../backup';
   import { parseDoc, toText, toJs, setAt, addTo, addRetire, setText, flatTexts, type Js } from '../yamlEdit';
 
   let { onchange }: { onchange: () => void } = $props();
@@ -65,6 +67,40 @@
       seriesRows.splice(seriesRows.indexOf(m), 1);
     } catch (e) {
       fail(e);
+    }
+  }
+  // The whole calendar and rotations as a file (JSON or YAML), and back.
+  let fileFormat = $state<'json' | 'yaml'>('json');
+  async function exportFile() {
+    const name = `calendario-${new Date().toISOString().slice(0, 10)}.${fileFormat}`;
+    try {
+      if (!inBrowser()) {
+        const path = await saveDialog({ defaultPath: name, filters: [{ name: fileFormat.toUpperCase(), extensions: [fileFormat] }] });
+        if (!path) return;
+        await run(api.scheduleExportTo(fileFormat, path));
+      } else {
+        const text = await run(api.scheduleExport(fileFormat));
+        download(new TextEncoder().encode(text), name, fileFormat === 'json' ? 'application/json' : 'application/yaml');
+      }
+      toast(t('sch_exported'));
+    } catch (e) {
+      fail(e);
+    }
+  }
+  async function importFile(input: HTMLInputElement) {
+    const f = input.files?.[0];
+    input.value = '';
+    if (!f || !(await ask(t('sch_import_confirm'), t('sch_import'), true))) return;
+    busy = true;
+    try {
+      const n = await run(api.scheduleImport(await f.text()));
+      toast(t('sch_saved').replace('{n}', String(n)));
+      await Promise.all([load(), loadSeries()]);
+      onchange();
+    } catch (e) {
+      fail(e);
+    } finally {
+      busy = false;
     }
   }
   const toggleUnit = (m: SeriesRow, id: string) => (m.units = m.units.includes(id) ? m.units.filter((x) => x !== id) : [...m.units, id]);
@@ -417,12 +453,29 @@
         <button class="btn" disabled={busy || !dirty} onclick={load}>{t('config_discard')}</button>
         <button class="btn primary" disabled={busy || !dirty} onclick={save}>{t('sch_save')}</button>
       </div>
+
+      <section class="card stack" aria-labelledby="sch-file">
+        <h2 id="sch-file">{t('sch_file')}</h2>
+        <p class="muted">{t('sch_file_hint')}</p>
+        <div class="row wrap">
+          <select class="format" bind:value={fileFormat} aria-label={t('sch_format')}>
+            <option value="json">JSON</option>
+            <option value="yaml">YAML</option>
+          </select>
+          <button class="btn" disabled={busy || dirty} onclick={exportFile}>{t('sch_export')}</button>
+          <label class="btn" class:disabled={busy}>
+            {t('sch_import')}
+            <input type="file" accept=".json,.yaml,.yml,application/json,application/yaml" hidden disabled={busy} onchange={(e) => importFile(e.currentTarget)} />
+          </label>
+        </div>
+      </section>
     {/if}
   </div>
 {/if}
 
 <style>
   .page { gap: 28px; }
+  .format { width: auto; }
   .tight { gap: 4px; }
   .wrap { flex-wrap: wrap; gap: 12px; }
   .days { display: flex; gap: 6px; flex-wrap: wrap; }

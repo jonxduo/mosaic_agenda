@@ -577,3 +577,45 @@ async fn weekly_series_give_the_program_dates() {
     let d = a.program_dates("outings".into(), Some("2026-12".into())).unwrap();
     assert!(d.dates.iter().all(|x| x.as_str() != "2026-12-07"), "{:?}", d.dates);
 }
+
+/// Calendar and rotations exported (JSON and YAML) and imported into a
+/// second organization: same calendar and programs, the labels, the weekly
+/// series with the units matched by name.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn calendar_export_and_import() {
+    let dir = tempfile::tempdir().unwrap();
+    let a = core(dir.path());
+    a.create_org("Club".into(), "Alice".into()).await.unwrap();
+    let north = a.create_unit("team".into(), "North".into()).unwrap();
+    let mut files = a.config_files().unwrap().files;
+    let cal = files.iter_mut().find(|f| f.path == "calendar.yaml").unwrap();
+    cal.text.push_str("  - { id: outing, label: e.outing }\n");
+    let tx = files.iter_mut().find(|f| f.path.starts_with("texts/")).unwrap();
+    tx.text.push_str("e.outing: \"Outing\"\n");
+    a.config_publish(files).unwrap();
+    a.save_series(None, "outing".into(), 6, "10:00".into(), "Park".into(), vec![north], true).unwrap();
+
+    let json = a.schedule_export("json".into()).unwrap();
+    let yaml = a.schedule_export("yaml".into()).unwrap();
+    assert!(json.contains("\"e.outing\": \"Outing\""), "{json}");
+    assert!(yaml.contains("location: Park"), "{yaml}");
+    assert!(a.schedule_export("xml".into()).is_err());
+
+    // Another organization, with a unit of the same name.
+    let dir2 = tempfile::tempdir().unwrap();
+    let b = core(dir2.path());
+    b.create_org("Other".into(), "Bea".into()).await.unwrap();
+    let north2 = b.create_unit("team".into(), "North".into()).unwrap();
+    assert!(b.schedule_import("{\"kind\": \"other\"}".into()).is_err());
+    b.schedule_import(yaml).unwrap();
+    let cal = b.config_files().unwrap().files.into_iter().find(|f| f.path == "calendar.yaml").unwrap();
+    assert!(cal.text.contains("id: outing"));
+    let s = b.calendar_series().unwrap();
+    assert_eq!(s.items.len(), 1);
+    assert_eq!(s.items[0].units, [north2]);
+    assert!(s.items[0].conducted_by_unit);
+    assert!(s.event_types.iter().any(|c| c.id == "outing" && c.label == "Outing"), "{:?}", s.event_types);
+    // Imported again (JSON): the series are replaced, not added.
+    b.schedule_import(json).unwrap();
+    assert_eq!(b.calendar_series().unwrap().items.len(), 1);
+}

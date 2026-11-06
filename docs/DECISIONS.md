@@ -1190,3 +1190,14 @@ Piano di F11:
   ministero. Il sorvegliante e l'assistente vedono solo le adunanze.
 - In bacheca il nome di un'unità resta intero (le istantanee pubblicate tengono solo i nomi:
   si riconosce dal nome dell'unità).
+
+## 2026-11-06 — Calendario e turni: esporta e importa
+
+- Chi può pubblicare la configurazione esporta Calendario e turni in un file JSON o YAML
+  (`schedule_export` / `schedule_export_to`): `calendar.yaml` e `programs.yaml` per intero, i testi
+  (lingua predefinita) delle chiavi che usano e le serie settimanali, con le unità per nome così
+  che valgano anche in un'altra organizzazione.
+- L'importazione (`schedule_import`, JSON o YAML) pubblica una nuova versione della
+  configurazione con quei file e testi (le chiavi piatte si sostituiscono, le mancanti si
+  aggiungono in fondo) e mette le serie del file al posto delle attuali; le unità che non ci
+  sono si tralasciano. Il file passa la stessa validazione dell'editor di configurazione.
