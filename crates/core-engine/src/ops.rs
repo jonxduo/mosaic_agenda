@@ -245,6 +245,27 @@ pub struct CalendarEventCancelled {
     pub event: Id,
 }
 
+/// A weekly series of an event type without a fixed recurrence (e.g. the
+/// series of a program held in several places): its day, time and place,
+/// the units taking part (all of them: one series for everyone), and
+/// whether a unit rather than a person conducts it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalendarSeriesUpserted {
+    pub series: Id,
+    pub event_type: Slug,
+    /// 1 = Monday … 7 = Sunday.
+    pub weekday: u8,
+    pub time: String,
+    pub location: String,
+    pub units: Vec<core_model::UnitId>,
+    pub conducted_by_unit: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CalendarSeriesRemoved {
+    pub series: Id,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SlotKey {
     /// Index in the program's occurrences.
@@ -507,6 +528,8 @@ pub enum Op {
     AggregateGenerated(Box<AggregateSnapshot>),
     CalendarEventUpserted(CalendarEventUpserted),
     CalendarEventCancelled(CalendarEventCancelled),
+    CalendarSeriesUpserted(CalendarSeriesUpserted),
+    CalendarSeriesRemoved(CalendarSeriesRemoved),
     ProgramDrafted(ProgramDrafted),
     ProgramUpdated(ProgramUpdated),
     ProgramDetailsSet(ProgramDetailsSet),
@@ -592,6 +615,8 @@ impl Op {
             K::AdminQuarantineResolved => Op::QuarantineResolved(de(bytes)?),
             K::OrgBackupNodeSet => Op::BackupNodeSet(de(bytes)?),
             K::ProgramDaysAdded => Op::ProgramDaysAdded(de(bytes)?),
+            K::CalendarSeriesUpserted => Op::CalendarSeriesUpserted(de(bytes)?),
+            K::CalendarSeriesRemoved => Op::CalendarSeriesRemoved(de(bytes)?),
         })
     }
 

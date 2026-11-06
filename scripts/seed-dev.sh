@@ -16,6 +16,7 @@ for q in can_av can_microphones can_attendant can_cleaning can_prayer can_bible_
 c grant_role "{\"person\":\"$me\",\"role\":\"av_manager\",\"unit\":null}" >/dev/null
 c grant_role "{\"person\":\"$me\",\"role\":\"attendant_manager\",\"unit\":null}" >/dev/null
 c grant_role "{\"person\":\"$me\",\"role\":\"cleaning_manager\",\"unit\":null}" >/dev/null
+c grant_role "{\"person\":\"$me\",\"role\":\"service_overseer_assistant\",\"unit\":null}" >/dev/null
 u=$(c create_unit '{"unitType":"group","name":"Gruppo Centro"}' | tr -d '"')
 u2=$(c create_unit '{"unitType":"group","name":"Gruppo Nord"}' | tr -d '"')
 c set_membership "{\"person\":\"$me\",\"unit\":\"$u\",\"from\":\"2026-01-01\"}" >/dev/null
@@ -87,7 +88,22 @@ for period in ("2026-08", "2026-09"):
             call("batch_step", {"form": "service_report", "unit": u["id"], "period": period, "step": "register"})
 print("rapporti: agosto registrati, settembre inoltrati")
 
-for ty in ("midweek", "weekend", "av", "attendants", "cleaning"):
+# Weekly field service meetings: Sunday for everyone, Wednesday for the north
+# group, Saturday conducted by a group.
+ms = call("calendar_series", {})
+units = {u["label"]: u["id"] for u in ms["units"]}
+for day, time, place, us, by_unit in (
+    (7, "09:30", "Sala del Regno", list(units.values()), False),
+    (3, "09:30", "Casa Rossi, via Roma 12", [units["Gruppo Nord"]], False),
+    (6, "10:00", "Parcheggio di piazza Garibaldi", [units["Gruppo Centro"]], True),
+):
+    call("save_series", {"id": None, "eventType": "field_service_meeting", "weekday": day, "time": time,
+                          "location": place, "units": us, "conductedByUnit": by_unit})
+andreani = next(p["person_id"] for p in call("people", {})["persons"] if p["name"] == "Andreani Giovanni")
+call("grant_role", {"person": andreani, "role": "service_overseer", "unit": None})
+print("adunanze per il servizio di campo: 3")
+
+for ty in ("midweek", "weekend", "av", "attendants", "cleaning", "field_service"):
     for period in ("2026-09", "2026-10", "2026-11"):
         d = call("program_dates", {"programType": ty, "period": period})
         if not d["dates"] or d["exists"]:

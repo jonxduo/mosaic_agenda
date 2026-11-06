@@ -68,7 +68,7 @@ const it = {
   config_added: 'aggiunto', config_removed: 'ritirato', config_renamed: 'rinominato', config_changed: 'modificato',
   config_open_docs: '{n} documenti aperti restano con la versione con cui sono nati.', menu: 'Menu', more: 'Altro',
   sch_title: 'Calendario e turni', sch_hint: 'Giorni degli eventi e come si ripetono gli incarichi. Salvando, la configurazione passa alla versione successiva su tutti i dispositivi.',
-  sch_events: 'Giorni e orari', sch_days: 'Giorni', sch_time: 'Ora', sch_programs: 'Turni degli incarichi', sch_rotation: 'Ricorsività',
+  sch_days: 'Giorni', sch_time: 'Ora', sch_events: 'Giorni e orari', sch_programs: 'Incarichi', sch_rotation: 'Ricorsività', sch_place: 'Luogo', sch_series_hint: 'Ogni riga si salva da sola e vale per i programmi creati dopo.', sch_groups: 'Gruppi', sch_unified: 'Unificata', sch_series_add: 'Aggiungi', sch_series_remove: 'Togliere questa riga?', sch_conductor_person: 'Conduce una persona (tocca per un gruppo)', sch_conductor_unit: 'Conduce un gruppo (tocca per una persona)',
   rot_occurrence: 'Cambiano a ogni evento', rot_week: 'Per tutta la settimana', rot_month: 'Per tutto il mese', sch_slots: 'Incarichi da assegnare',
   sch_count: 'Persone', sch_count_units: 'Gruppi', sch_save: 'Salva e pubblica', sch_options: 'Opzioni dei programmi', sch_saved: 'Impostazioni salvate (versione {n})', sch_none: 'Seleziona almeno un incarico',
   sch_readonly: 'Solo chi può pubblicare la configurazione modifica queste impostazioni.',

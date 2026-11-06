@@ -253,8 +253,184 @@ impl Core {
         let mut d: Vec<time::Date> = dates.iter().map(|x| date(x)).collect::<ApiResult<_>>()?;
         d.sort();
         d.dedup();
-        let id = self.act(|c| c.draft_program(&t, d))?;
+        // With weekly series: one event per series on its day, its time,
+        // place and units written on the program (details of the slot that
+        // has those fields).
+        let series = {
+            let v = self.view()?;
+            let c = crate::views::cfg(&v)?;
+            let def = c.program_type(&t).ok_or_else(|| ApiError::not_found("program type"))?;
+            let series: Vec<core_engine::ops::CalendarSeriesUpserted> =
+                crate::schedule::series_of(&v.proj, def).into_iter().map(|(_, s)| s.clone()).collect();
+            let slot = def
+                .slots
+                .iter()
+                .find(|s| s.extra_fields.iter().any(|f| f.id.as_str() == "place"))
+                .map(|s| s.id.clone());
+            let texts = self.texts();
+            let unit_names = |s: &core_engine::ops::CalendarSeriesUpserted| -> String {
+                let org = &v.proj.auth.org;
+                let of_type: Vec<&core_model::UnitId> = s
+                    .units
+                    .first()
+                    .and_then(|u| org.units.get(u))
+                    .map(|first| {
+                        org.units
+                            .iter()
+                            .filter(|(_, x)| x.active && x.unit_type == first.unit_type)
+                            .map(|(id, _)| id)
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                if !s.units.is_empty() && of_type.iter().all(|u| s.units.contains(u)) {
+                    texts.get("core.unified")
+                } else {
+                    s.units
+                        .iter()
+                        .filter_map(|u| org.units.get(u).map(|x| x.name.clone()))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                }
+            };
+            (!series.is_empty()).then(|| {
+                let mut expanded: Vec<(time::Date, core_engine::ops::Values)> = Vec::new();
+                for day in &d {
+                    let n = day.weekday().number_from_monday();
+                    for s in series.iter().filter(|s| s.weekday == n) {
+                        let mut vals = core_engine::ops::Values::new();
+                        let put = |vals: &mut core_engine::ops::Values, k: &str, v: core_model::Scalar| {
+                            if let Ok(k) = core_model::Slug::new(k) {
+                                vals.insert(k, v);
+                            }
+                        };
+                        put(&mut vals, "time", core_model::Scalar::Str(s.time.clone()));
+                        put(&mut vals, "place", core_model::Scalar::Str(s.location.clone()));
+                        put(&mut vals, "groups", core_model::Scalar::Str(unit_names(s)));
+                        put(&mut vals, "by_unit", core_model::Scalar::Bool(s.conducted_by_unit));
+                        expanded.push((*day, vals));
+                    }
+                }
+                (slot, expanded)
+            })
+        };
+        let Some((slot, expanded)) = series.filter(|(_, e)| !e.is_empty()) else {
+            let id = self.act(|c| c.draft_program(&t, d))?;
+            return Ok(id.to_string());
+        };
+        let dates: Vec<time::Date> = expanded.iter().map(|(d, _)| *d).collect();
+        let id = self.act(|c| c.draft_program(&t, dates))?;
+        if let Some(slot) = slot {
+            let details: Vec<(SlotKey, core_engine::ops::Values)> = expanded
+                .into_iter()
+                .enumerate()
+                .map(|(i, (_, vals))| {
+                    (
+                        SlotKey {
+                            occurrence: u16::try_from(i).unwrap_or(u16::MAX),
+                            slot: slot.clone(),
+                            index: 0,
+                        },
+                        vals,
+                    )
+                })
+                .collect();
+            self.act_events(|c| c.set_program_details(id, details))?;
+        }
         Ok(id.to_string())
+    }
+
+    /// Weekly series of the event types without a fixed recurrence.
+    pub fn calendar_series(&self) -> ApiResult<crate::dto::SeriesList> {
+        let v = self.view()?;
+        let me = self.me()?;
+        let c = crate::views::cfg(&v)?;
+        let t = self.texts();
+        let now = date_of(self.now());
+        let may = |event_type: &core_model::Slug| {
+            v.proj.auth.is_allowed(c, me, core_model::Permission::CalendarManage, None, None, now)
+                || c.package().programs.program_types.iter().filter(|p| p.event_type.iter().any(|e| e == event_type)).any(|p| {
+                    v.proj.auth.is_allowed(
+                        c,
+                        me,
+                        core_model::Permission::ProgramDraft,
+                        Some(&core_model::strings::ObjectRef { kind: core_model::strings::ObjectKind::Program, id: p.id.clone() }),
+                        None,
+                        now,
+                    )
+                })
+        };
+        let event_types: Vec<crate::dto::Choice> = c
+            .package()
+            .calendar
+            .event_types
+            .iter()
+            .filter(|e| e.default_recurrence.is_none() && may(&e.id))
+            .map(|e| crate::dto::Choice { id: e.id.to_string(), label: t.get(e.label.as_str()) })
+            .collect();
+        let unit_type = c.package().units.unit_types.first().map(|u| u.id.clone());
+        let mut units: Vec<crate::dto::Choice> = v
+            .proj
+            .auth
+            .org
+            .units
+            .iter()
+            .filter(|(_, u)| u.active && Some(&u.unit_type) == unit_type.as_ref())
+            .map(|(id, u)| crate::dto::Choice { id: id.0.to_string(), label: u.name.clone() })
+            .collect();
+        units.sort_by(|a, b| a.label.cmp(&b.label));
+        let mut items: Vec<crate::dto::SeriesItem> = v
+            .proj
+            .series
+            .iter()
+            .filter(|(_, s)| event_types.iter().any(|e| e.id == s.event_type.as_str()))
+            .map(|(id, s)| crate::dto::SeriesItem {
+                id: id.to_string(),
+                event_type: s.event_type.to_string(),
+                weekday: u32::from(s.weekday),
+                time: s.time.clone(),
+                location: s.location.clone(),
+                units: s.units.iter().map(|u| u.0.to_string()).collect(),
+                conducted_by_unit: s.conducted_by_unit,
+            })
+            .collect();
+        items.sort_by(|a, b| (a.weekday, &a.time).cmp(&(b.weekday, &b.time)));
+        Ok(crate::dto::SeriesList { title: t.get("core.schedule.events"), event_types, units, items })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn save_series(
+        self: &Arc<Self>,
+        id: Option<String>,
+        event_type: String,
+        weekday: u32,
+        time: String,
+        location: String,
+        units: Vec<String>,
+        conducted_by_unit: bool,
+    ) -> ApiResult<String> {
+        let series = match id {
+            Some(i) => parse_id(&i)?,
+            None => core_model::Id::random().map_err(ApiError::internal)?,
+        };
+        let s = core_engine::ops::CalendarSeriesUpserted {
+            series,
+            event_type: slug(&event_type)?,
+            weekday: u8::try_from(weekday).map_err(ApiError::invalid)?,
+            time,
+            location,
+            units: units
+                .iter()
+                .map(|u| parse_id(u).map(core_model::UnitId))
+                .collect::<ApiResult<_>>()?,
+            conducted_by_unit,
+        };
+        self.act_events(|c| c.upsert_series(s))?;
+        Ok(series.to_string())
+    }
+
+    pub fn remove_series_item(self: &Arc<Self>, id: String) -> ApiResult<()> {
+        let series = parse_id(&id)?;
+        self.act_events(|c| c.remove_series(series))
     }
 
     /// Assigns a slot (an empty `person` empties it). In a program that

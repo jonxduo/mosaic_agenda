@@ -84,6 +84,9 @@ export const commands = {
 	setBackupNode: (node: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("set_backup_node", { node })),
 	programGroup: (group: string, period: string) => typedError<ProgramGroupView, ApiError>(__TAURI_INVOKE("program_group", { group, period })),
 	sentProgram: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("sent_program", { program })),
+	calendarSeries: () => typedError<SeriesList, ApiError>(__TAURI_INVOKE("calendar_series")),
+	saveSeries: (id: string | null, eventType: string, weekday: number, time: string, location: string, units: string[], conductedByUnit: boolean) => typedError<string, ApiError>(__TAURI_INVOKE("save_series", { id, eventType, weekday, time, location, units, conductedByUnit })),
+	removeSeriesItem: (id: string) => typedError<null, ApiError>(__TAURI_INVOKE("remove_series_item", { id })),
 	addDedicated: (program: string, slot: string, date: string, person: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("add_dedicated", { program, slot, date, person })),
 	publishProgramGroup: (group: string, period: string) => typedError<ProgramGroupView, ApiError>(__TAURI_INVOKE("publish_program_group", { group, period })),
 	unitReports: (workflow: string, unitType: string) => typedError<UnitReports_Serialize, ApiError>(__TAURI_INVOKE("unit_reports", { workflow, unitType })),
@@ -1420,6 +1423,29 @@ export type SectionView_Serialize = {
 	id: string,
 	label: string,
 	color: string | null,
+};
+
+export type SeriesItem = {
+	id: string,
+	event_type: string,
+	/**  1 = Monday … 7 = Sunday. */
+	weekday: number,
+	time: string,
+	location: string,
+	units: string[],
+	conducted_by_unit: boolean,
+};
+
+/**
+ *  The weekly series one may manage (event types without a fixed
+ *  recurrence), with the units that may take part.
+ */
+export type SeriesList = {
+	/**  The title of the days and times of the events (the package may name it). */
+	title: string,
+	event_types: Choice[],
+	units: Choice[],
+	items: SeriesItem[],
 };
 
 export type Settings = {

@@ -1603,6 +1603,11 @@ impl<'a> Validator<'a> {
                 if s.count == 0 {
                     self.err(PROGRAMS, format!("{sp}.count"), "count must be at least 1");
                 }
+                if let Some(ut) = &s.allow_units {
+                    if !self.pkg.units.unit_types.iter().any(|u| &u.id == ut) {
+                        self.err(PROGRAMS, format!("{sp}.allow_units"), format!("unknown unit type `{ut}`"));
+                    }
+                }
                 if s.each_event && s.mode != core_model::config::SlotMode::Program {
                     self.err(PROGRAMS, format!("{sp}.mode"), "`each_event` and `mode` say two things: keep `mode`");
                 }

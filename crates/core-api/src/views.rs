@@ -759,6 +759,13 @@ impl Core {
                 view: "config".into(),
                 params: Default::default(),
             });
+        } else if self.calendar_series().is_ok_and(|m| !m.event_types.is_empty()) {
+            // Who manages weekly series (e.g. the field service) sees that part.
+            items.push(MenuItem {
+                label: t.get("core.menu.schedule"),
+                view: "schedule".into(),
+                params: Default::default(),
+            });
         }
         Ok(items)
     }
@@ -2473,13 +2480,20 @@ impl Core {
                         // A part with details only has nobody.
                         .filter(|a| !a.display_name.is_empty())
                         .map(|a| {
-                            (
-                                a.key.clone(),
-                                (
+                            // The snapshot keeps names only: a unit's name is
+                            // told apart so it is shown whole.
+                            let who = v
+                                .proj
+                                .auth
+                                .org
+                                .units
+                                .iter()
+                                .find(|(_, u)| u.name == a.display_name)
+                                .map_or(
                                     Assignee::External(core_model::Id::from_bytes([0; 16])),
-                                    a.display_name.clone(),
-                                ),
-                            )
+                                    |(u, _)| Assignee::Unit(*u),
+                                );
+                            (a.key.clone(), (who, a.display_name.clone()))
                         })
                         .collect(),
                     if v.proj.published.contains_key(&id) {
@@ -2543,6 +2557,40 @@ impl Core {
         // Slots that change at every event get one cell per event.
         let dedicated_mode = |s: &core_model::config::SlotDef| s.mode == core_model::config::SlotMode::Dedicated;
         // A program assigned to units: the active units of that type.
+        let units_of_type = |ut: &Slug| -> Vec<Choice> {
+            let mut c: Vec<Choice> = v
+                .proj
+                .auth
+                .org
+                .units
+                .iter()
+                .filter(|(_, u)| u.active && &u.unit_type == ut)
+                .map(|(id, u)| Choice {
+                    id: format!("unit:{}", id.0),
+                    label: u.name.clone(),
+                })
+                .collect();
+            c.sort_by(|a, b| a.label.cmp(&b.label));
+            c
+        };
+        // A series' details (time, place, units, conducted by a unit) are on
+        // the slot that has a `place` field, at the series' occurrence.
+        let series_slot = def
+            .slots
+            .iter()
+            .find(|s| s.extra_fields.iter().any(|f| f.id.as_str() == "place"))
+            .map(|s| s.id.clone())
+            .filter(|_| !crate::schedule::series_of(&v.proj, def).is_empty());
+        let series_details = |occ: usize| -> Option<&core_engine::ops::Values> {
+            details.get(&core_engine::ops::SlotKey {
+                occurrence: u16::try_from(occ).ok()?,
+                slot: series_slot.clone()?,
+                index: 0,
+            })
+        };
+        let by_unit = |occ: usize| {
+            series_details(occ).is_some_and(|m| m.iter().any(|(k, v)| k.as_str() == "by_unit" && *v == Scalar::Bool(true)))
+        };
         let unit_choices: Vec<Choice> = def
             .assign_units
             .as_ref()
@@ -2584,6 +2632,12 @@ impl Core {
                     let current = assignments.get(&key);
                     let candidates = if can_edit && slot.assignable && def.assign_units.is_some() {
                         unit_choices.clone()
+                    } else if can_edit && slot.assignable && slot.allow_units.is_some() && by_unit(occ) {
+                        // This series is conducted by a unit.
+                        match &slot.allow_units {
+                            Some(u) => units_of_type(u),
+                            None => Vec::new(),
+                        }
                     } else if can_edit && slot.assignable {
                         let mut c: Vec<Choice> = v
                             .proj
@@ -2670,11 +2724,16 @@ impl Core {
                         }),
                         candidates,
                         per_event,
-                        details: slot
-                            .extra_fields
-                            .iter()
-                            .map(|f| field_dto(&t, f, details.get(&key).and_then(|d| d.get(&f.id))))
-                            .collect(),
+                        // A series' details already head its group: set in the
+                        // calendar, not edited or repeated on the slot.
+                        details: if series_slot.as_ref() == Some(&slot.id) {
+                            Vec::new()
+                        } else {
+                            slot.extra_fields
+                                .iter()
+                                .map(|f| field_dto(&t, f, details.get(&key).and_then(|d| d.get(&f.id))))
+                                .collect()
+                        },
                         row: placement(def, slot).0.to_string(),
                         column: placement(def, slot).1.map(ToString::to_string),
                         section: slot.section.as_ref().map(ToString::to_string),
@@ -2820,6 +2879,19 @@ impl Core {
                             .collect::<Vec<_>>()
                             .join(", ")
                     });
+                    // A series: its time, place and units beside the date.
+                    let detail = match series_details(first) {
+                        Some(m) => {
+                            let text = |k: &str| match m.iter().find(|(x, _)| x.as_str() == k) {
+                                Some((_, Scalar::Str(v))) if !v.is_empty() => Some(v.clone()),
+                                _ => None,
+                            };
+                            let parts: Vec<String> =
+                                ["time", "place", "groups"].iter().filter_map(|k| text(k)).collect();
+                            if parts.is_empty() { detail } else { Some(parts.join(" · ")) }
+                        }
+                        None => detail,
+                    };
                     Some(ProgramGroup {
                         occurrence: first as u32,
                         label: capitalize(&label),

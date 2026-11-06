@@ -1167,3 +1167,26 @@ Piano di F11:
   "Assegna <nome>" sull'incarico e lo assegna con un tocco.
 - L'avviso al responsabile ora ha chi, quale incarico e quando (prima mancavano), più
   " · sostituto: <nome>" se proposto.
+
+## 2026-11-06 — Adunanze per il servizio di campo
+
+- Nel pacchetto il "sorvegliante del servizio" (anziano) e il suo assistente (anziano o servitore
+  di ministero) al posto dell'organizzatore del servizio: preparano e assegnano il programma del
+  servizio di campo, che ora è mensile.
+- Nel nucleo le serie settimanali di un tipo di evento senza ricorrenza
+  (`CalendarSeriesUpserted` / `CalendarSeriesRemoved`, in coda agli eventi): giorno della
+  settimana, ora, luogo, unità che partecipano e se il conduttore è un'unità. Le gestisce chi
+  ha `calendar.manage` o chi prepara un programma di quel tipo di evento.
+- Le date di un programma includono un evento per serie e settimana; alla bozza i dettagli
+  (ora, luogo, gruppi — "Unificata" se ci sono tutti — e conduttore a gruppo) vanno sullo slot
+  con il campo `place` e fanno da intestazione al gruppo, senza ripetersi sullo slot. Se il
+  conduttore è un'unità, i candidati sono le unità ammesse dallo slot (`allow_units`).
+- Nel nucleo i comandi si chiamano `calendar_series` / `save_series` / `remove_series_item`
+  (nessuna parola del dominio); il titolo della sezione è il testo `core.schedule.events`
+  ("Giorni e orari"), che il pacchetto rinomina "Adunanze".
+- Calendario e turni: "Giorni e orari" diventa "Adunanze" e comprende i riquadri delle
+  adunanze per il servizio (uno per serie, con giorno, ora, luogo, persona/gruppo e gruppi);
+  "Turni degli incarichi" diventa "Incarichi"; "Classe supplementare" sta nel riquadro di Vita e
+  ministero. Il sorvegliante e l'assistente vedono solo le adunanze.
+- In bacheca il nome di un'unità resta intero (le istantanee pubblicate tengono solo i nomi:
+  si riconosce dal nome dell'unità).

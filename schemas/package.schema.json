@@ -3043,6 +3043,18 @@
           "default": false,
           "type": "boolean"
         },
+        "allow_units": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Slug"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Also a unit of this type may take the slot (e.g. a group conducting)."
+        },
         "assignable": {
           "default": true,
           "description": "Takes a person; when false the slot only holds details (e.g. a number).",

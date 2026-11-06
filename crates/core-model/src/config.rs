@@ -929,6 +929,9 @@ pub struct SlotDef {
     pub requires: Option<Cond>,
     #[serde(default)]
     pub allow_external: bool,
+    /// Also a unit of this type may take the slot (e.g. a group conducting).
+    #[serde(default)]
+    pub allow_units: Option<Slug>,
     #[serde(default)]
     pub extra_fields: Vec<FieldDef>,
     #[serde(default)]

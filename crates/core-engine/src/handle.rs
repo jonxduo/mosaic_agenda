@@ -231,6 +231,25 @@ pub(crate) fn handle(
                 "unknown calendar event",
             )
         }
+        Op::CalendarSeriesUpserted(c) => {
+            series_allowed(proj, &h, &c.event_type)?;
+            ensure((1..=7).contains(&c.weekday), "weekday is 1 (Monday) to 7 (Sunday)")?;
+            for u in &c.units {
+                ensure(h.auth.org.units.get(u).is_some_and(|x| x.active), "unknown unit")?;
+            }
+            proj.series.insert(c.series, c.clone());
+            Ok(())
+        }
+        Op::CalendarSeriesRemoved(c) => {
+            let ty = proj
+                .series
+                .get(&c.series)
+                .map(|s| s.event_type.clone())
+                .ok_or_else(|| Denied("unknown series".into()))?;
+            series_allowed(proj, &h, &ty)?;
+            proj.series.remove(&c.series);
+            Ok(())
+        }
         Op::ProgramDrafted(d) => program_drafted(proj, &h, d),
         Op::ProgramUpdated(u) => program_updated(proj, &h, u),
         Op::ProgramDetailsSet(d) => program_details_set(proj, &h, d),
@@ -1023,8 +1042,9 @@ fn program_drafted(proj: &mut Projection, h: &H<'_>, d: &ProgramDrafted) -> Resu
         "program id already used",
     )?;
     ensure(
-        !d.occurrences.is_empty() && d.occurrences.windows(2).all(|w| w[0] < w[1]),
-        "occurrences must be increasing dates",
+        // Equal dates: several series on the same day.
+        !d.occurrences.is_empty() && d.occurrences.windows(2).all(|w| w[0] <= w[1]),
+        "occurrences must be dates in order",
     )?;
     proj.programs.insert(
         d.program,
@@ -1042,6 +1062,28 @@ fn program_drafted(proj: &mut Projection, h: &H<'_>, d: &ProgramDrafted) -> Resu
         },
     );
     Ok(())
+}
+
+/// Weekly series of an event type: who manages the calendar, or who drafts
+/// a program held at that event type (e.g. its manager and assistant).
+fn series_allowed(proj: &Projection, h: &H<'_>, event_type: &Slug) -> Result<(), Denied> {
+    h.expect_channel(proj, &ChannelDescriptor::Organization)?;
+    ensure(
+        h.cfg.package().calendar.event_types.iter().any(|t| &t.id == event_type),
+        "unknown event type",
+    )?;
+    let drafts = h
+        .cfg
+        .package()
+        .programs
+        .program_types
+        .iter()
+        .filter(|p| p.event_type.iter().any(|e| e == event_type))
+        .any(|p| h.allowed(Permission::ProgramDraft, Some(&program_object(&p.id)), None));
+    ensure(
+        drafts || h.allowed(Permission::CalendarManage, None, None),
+        "permission calendar.manage or program.draft required",
+    )
 }
 
 fn program_days_added(proj: &mut Projection, h: &H<'_>, d: &ProgramDaysAdded) -> Result<(), Denied> {
@@ -1239,8 +1281,11 @@ fn program_updated(proj: &mut Projection, h: &H<'_>, u: &ProgramUpdated) -> Resu
             Assignee::Unit(u) => {
                 let unit = h.auth.org.units.get(u).filter(|x| x.active);
                 ensure(
-                    unit.is_some_and(|x| def.assign_units.as_ref() == Some(&x.unit_type)),
-                    "this program does not go to units of that type",
+                    unit.is_some_and(|x| {
+                        def.assign_units.as_ref() == Some(&x.unit_type)
+                            || slot.allow_units.as_ref() == Some(&x.unit_type)
+                    }),
+                    "this slot does not go to units of that type",
                 )?;
             }
         }

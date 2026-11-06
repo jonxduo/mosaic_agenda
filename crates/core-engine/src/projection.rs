@@ -221,6 +221,8 @@ pub struct Projection {
     pub batches: BTreeMap<BatchKey, Batch>,
     pub aggregates: BTreeMap<(Slug, PeriodKey), Aggregate>,
     pub calendar: BTreeMap<Id, crate::ops::CalendarEventUpserted>,
+    /// Weekly series of event types without a fixed recurrence.
+    pub series: BTreeMap<Id, crate::ops::CalendarSeriesUpserted>,
     pub programs: BTreeMap<Id, Program>,
     pub assigned_snapshots: BTreeMap<Id, ProgramSnapshot>,
     pub published: BTreeMap<Id, ProgramSnapshot>,
@@ -536,6 +538,7 @@ pub(crate) fn organizational_phase(ctx: &mut Ctx, configs: Configs, org: OrgId) 
         batches: BTreeMap::new(),
         aggregates: BTreeMap::new(),
         calendar: BTreeMap::new(),
+        series: BTreeMap::new(),
         programs: BTreeMap::new(),
         assigned_snapshots: BTreeMap::new(),
         published: BTreeMap::new(),

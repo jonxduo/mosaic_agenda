@@ -1001,6 +1001,15 @@ impl<'a> Client<'a> {
         self.finish(chain)
     }
 
+    /// Creates or changes a weekly series (CalendarSeriesUpserted).
+    pub fn upsert_series(&self, s: CalendarSeriesUpserted) -> Result<Vec<SignedEvent>, ActionError> {
+        self.org_event(EventKind::CalendarSeriesUpserted, &s)
+    }
+
+    pub fn remove_series(&self, series: Id) -> Result<Vec<SignedEvent>, ActionError> {
+        self.org_event(EventKind::CalendarSeriesRemoved, &CalendarSeriesRemoved { series })
+    }
+
     /// Adds days to a program for its dedicated slots.
     pub fn add_program_days(&self, program: Id, days: Vec<Date>) -> Result<Vec<SignedEvent>, ActionError> {
         let p = self

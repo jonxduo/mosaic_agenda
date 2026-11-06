@@ -106,6 +106,24 @@ pub(crate) fn groups(rotation: Rotation, occurrences: &[Date]) -> Vec<Vec<usize>
 }
 
 /// Weekdays of the events of a program type.
+/// The weekly series of a program type's event types, by day and time.
+pub(crate) fn series_of<'a>(
+    proj: &'a core_engine::Projection,
+    def: &ProgramTypeDef,
+) -> Vec<(&'a core_model::Id, &'a core_engine::ops::CalendarSeriesUpserted)> {
+    let mut v: Vec<_> = proj
+        .series
+        .iter()
+        .filter(|(_, s)| def.event_type.iter().any(|e| *e == s.event_type))
+        .collect();
+    v.sort_by(|a, b| (a.1.weekday, &a.1.time, a.0).cmp(&(b.1.weekday, &b.1.time, b.0)));
+    v
+}
+
+pub(crate) fn weekday_of(n: u8) -> Option<Weekday> {
+    (1..=7).contains(&n).then(|| Weekday::Monday.nth_next(n - 1))
+}
+
 pub(crate) fn weekdays(core_cfg: &core_engine::config::Cfg, def: &ProgramTypeDef) -> Vec<Weekday> {
     let mut days: Vec<Weekday> = def
         .event_type
@@ -171,7 +189,12 @@ impl Core {
         let Some((start, end)) = span(def, &key) else {
             return Err(ApiError::invalid("period"));
         };
-        let dates = dates_on(&weekdays(c, def), start, end);
+        // Days of the event types, and of their weekly series.
+        let mut days = weekdays(c, def);
+        days.extend(series_of(&v.proj, def).iter().filter_map(|(_, s)| weekday_of(s.weekday)));
+        days.sort_by_key(|d| d.number_from_monday());
+        days.dedup();
+        let dates = dates_on(&days, start, end);
         let previous = period_of(def, core_engine::time::add_days(start, -1));
         Ok(ProgramDates {
             period: key.to_string(),

@@ -165,12 +165,16 @@ program_types:
     label: p.field_service
     icon: route
     event_type: field_service_meeting
-    period: week
-    owner_role: field_service_organizer
+    period: month                        # un programma al mese con le adunanze di ogni settimana
+    owner_role: service_overseer
+    assistant_roles: [service_overseer_assistant]
     acceptance: true
     notify: publish # avvisi agli incaricati alla pubblicazione in bacheca
     publish_audience: board_public
     remind_before: { days: 2 }
     retention: { years: 2 }
     slots:
-      - { id: conductor, label: s.fs_conductor, requires: *elder_or_ms } # ⚙
+      # Orario, luogo e gruppi vengono dall'adunanza (Calendario e turni) quando si crea il programma.
+      - { id: conductor, label: s.fs_conductor, requires: *elder_or_ms, allow_units: group,   # ⚙
+          extra_fields: [ { id: time, type: text, label: fld.fs_time }, { id: place, type: text, label: fld.fs_place },
+                          { id: groups, type: text, label: fld.fs_groups }, { id: by_unit, type: boolean, label: fld.fs_by_unit } ] }

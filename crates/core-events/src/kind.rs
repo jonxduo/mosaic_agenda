@@ -88,6 +88,8 @@ kinds! {
     ProgramPartsShown => "program.parts_shown", false;
     OrgBackupNodeSet => "org.backup_node_set", true;
     ProgramDaysAdded => "program.days_added", false;
+    CalendarSeriesUpserted => "calendar.series_upserted", false;
+    CalendarSeriesRemoved => "calendar.series_removed", false;
 }
 
 #[cfg(test)]

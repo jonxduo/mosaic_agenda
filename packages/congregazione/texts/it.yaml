@@ -3,6 +3,7 @@
 
 app.name: "Congregazione"
 push.generic: "Ci sono aggiornamenti"
+core.schedule.events: "Adunanze"
 
 # --- onboarding ---
 onboarding.welcome: "Benvenuto"
@@ -61,7 +62,8 @@ r.cleaning_manager: "Responsabile delle pulizie"
 r.cleaning_assistant: "Assistente delle pulizie"
 r.territory_manager: "Responsabile dei territori"
 r.territory_assistant: "Assistente dei territori"
-r.field_service_organizer: "Organizzatore del servizio di campo"
+r.service_overseer: "Sorvegliante del servizio"
+r.service_overseer_assistant: "Assistente del sorvegliante del servizio"
 r.board_manager: "Responsabile della bacheca"
 r.app_admin: "Amministratore dell'app"
 
@@ -254,3 +256,7 @@ category.assignments: "Assegnazioni"
 category.board: "Bacheca"
 category.territories: "Territori"
 category.admin: "Amministrazione"
+fld.fs_time: "Orario"
+fld.fs_place: "Luogo"
+fld.fs_groups: "Gruppi"
+fld.fs_by_unit: "Conduce un gruppo"

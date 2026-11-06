@@ -4,7 +4,7 @@
   // programs that cover several events, how long the same persons keep a
   // slot and which slots are assigned. It edits calendar.yaml and
   // programs.yaml like the guided editors and publishes a new version.
-  import type { ConfigFile, ConfigIssue, ConfigVersion_Serialize as ConfigVersion } from '../bindings';
+  import type { ConfigFile, ConfigIssue, ConfigVersion_Serialize as ConfigVersion, SeriesList } from '../bindings';
   import { api, run } from '../api';
   import { t, type Key } from '../i18n';
   import { fail, toast } from '../toast.svelte';
@@ -21,12 +21,54 @@
   // units: the unit type its slots go to (groups), or '' for persons.
   type Prog = { i: number; id: string; label: string; rotation: string; period: string; slots: Slot[]; requires: unknown; adding: string; units: string };
   // An option of a program type (e.g. a second room): i program, k option.
-  type Opt = { i: number; k: number; id: string; program: string; label: string; enabled: boolean };
+  // events: the event types of its program (the option sits in that box).
+  type Opt = { i: number; k: number; id: string; program: string; label: string; enabled: boolean; events: string[] };
+  // Weekly series (data, saved one by one): day 1-7, time, place, units, who conducts.
+  type SeriesRow = { id: string | null; event_type: string; weekday: number; time: string; location: string; units: string[]; conducted_by_unit: boolean; saved: string };
 
   let current = $state<ConfigVersion | null>(null);
   let events = $state<Ev[]>([]);
   let programs = $state<Prog[]>([]);
   let options = $state<Opt[]>([]);
+  let seriesList = $state<SeriesList | null>(null);
+  let seriesRows = $state<SeriesRow[]>([]);
+  const rowKey = (m: SeriesRow) => JSON.stringify([m.weekday, m.time, m.location, [...m.units].sort(), m.conducted_by_unit]);
+  async function loadSeries() {
+    try {
+      seriesList = await run(api.calendarSeries());
+      seriesRows = seriesList.items.map((x) => {
+        const m: SeriesRow = { id: x.id, event_type: x.event_type, weekday: x.weekday, time: x.time, location: x.location, units: [...x.units], conducted_by_unit: x.conducted_by_unit, saved: '' };
+        m.saved = rowKey(m);
+        return m;
+      });
+    } catch {
+      seriesList = null;
+    }
+  }
+  loadSeries();
+  function addSeries(event_type: string) {
+    seriesRows.push({ id: null, event_type, weekday: 7, time: '09:30', location: '', units: seriesList?.units.map((u) => u.id) ?? [], conducted_by_unit: false, saved: '' });
+  }
+  async function saveSeries(m: SeriesRow) {
+    try {
+      m.id = await run(api.saveSeries(m.id, m.event_type, m.weekday, m.time, m.location, m.units, m.conducted_by_unit));
+      m.saved = rowKey(m);
+      toast(t('saved'));
+    } catch (e) {
+      fail(e);
+    }
+  }
+  async function removeSeries(m: SeriesRow) {
+    if (m.id && !(await ask(t('sch_series_remove'), t('g_remove'), true))) return;
+    try {
+      if (m.id) await run(api.removeSeriesItem(m.id));
+      seriesRows.splice(seriesRows.indexOf(m), 1);
+    } catch (e) {
+      fail(e);
+    }
+  }
+  const toggleUnit = (m: SeriesRow, id: string) => (m.units = m.units.includes(id) ? m.units.filter((x) => x !== id) : [...m.units, id]);
+  const unified = (m: SeriesRow) => !!seriesList && seriesList.units.length > 0 && seriesList.units.every((u) => m.units.includes(u.id));
   let busy = $state(false);
   let issues = $state<ConfigIssue[]>([]);
   let initial = '';
@@ -86,7 +128,10 @@
           }))
         }));
       options = list(prog?.program_types).flatMap((p, i) =>
-        list(p.options).map((o, k) => ({ i, k, id: `${String(p.id)}.${String(o.id)}`, program: label(p.label), label: label(o.label), enabled: o.enabled === true }))
+        list(p.options).map((o, k) => ({
+          i, k, id: `${String(p.id)}.${String(o.id)}`, program: label(p.label), label: label(o.label), enabled: o.enabled === true,
+          events: (Array.isArray(p.event_type) ? (p.event_type as unknown[]) : [p.event_type]).map(String)
+        }))
       );
       initial = snapshot();
     } catch (e) {
@@ -222,33 +267,76 @@
   <div class="stack page">
     <header class="stack tight">
       <h1>{t('sch_title')}</h1>
-      <p class="muted">{current.can_publish ? t('sch_hint') : t('sch_readonly')}</p>
+      <p class="muted">{current.can_publish ? t('sch_hint') : seriesList?.event_types.length ? t('sch_series_hint') : t('sch_readonly')}</p>
     </header>
 
-    {#if events.length}
+    {#if (current.can_publish && events.length) || seriesList?.event_types.length}
       <section class="stack" aria-labelledby="sch-events">
-        <h2 id="sch-events">{t('sch_events')}</h2>
-        {#each events as e (e.id)}
-          <div class="card stack">
-            <h3>{e.label}</h3>
-            <div class="row wrap">
-              <div class="days" role="group" aria-label={`${e.label} · ${t('sch_days')}`}>
-                {#each DAYS as d (d)}
-                  <button class="day" aria-pressed={e.days.includes(d)} disabled={!current.can_publish} onclick={() => toggleDay(e, d)}>{t(`wd_${d}` as Key)}</button>
-                {/each}
+        <h2 id="sch-events">{seriesList?.title ?? t('sch_events')}</h2>
+        {#if current.can_publish}
+          {#each events as e (e.id)}
+            <div class="card stack">
+              <h3>{e.label}</h3>
+              <div class="row wrap">
+                <div class="days" role="group" aria-label={`${e.label} · ${t('sch_days')}`}>
+                  {#each DAYS as d (d)}
+                    <button class="day" aria-pressed={e.days.includes(d)} disabled={!current.can_publish} onclick={() => toggleDay(e, d)}>{t(`wd_${d}` as Key)}</button>
+                  {/each}
+                </div>
+                <label class="inline time">{t('sch_time')} <input type="time" bind:value={e.time} disabled={!current.can_publish} /></label>
               </div>
-              <label class="inline time">{t('sch_time')} <input type="time" bind:value={e.time} disabled={!current.can_publish} /></label>
+              <!-- The options of the programs held at this event (e.g. an auxiliary class). -->
+              {#each options.filter((o) => o.events.includes(e.id)) as o (o.id)}
+                <label class="inline option">
+                  <input type="checkbox" bind:checked={o.enabled} disabled={!current.can_publish} />
+                  <span>{o.label}</span>
+                </label>
+              {/each}
             </div>
+          {/each}
+        {/if}
+        {#each seriesList?.event_types ?? [] as et (et.id)}
+          <!-- Weekly series of this kind: each with day, time, place, groups and who conducts. -->
+          <div class="card stack">
+            <h3>{et.label}</h3>
+            {#each seriesRows.filter((m) => m.event_type === et.id) as m, i (m.id ?? `new-${i}`)}
+              <div class="meet stack">
+                <div class="row wrap">
+                  <select aria-label={t('sch_days')} bind:value={m.weekday}>
+                    {#each DAYS as d, k (d)}<option value={k + 1}>{t(`wd_${d}` as Key)}</option>{/each}
+                  </select>
+                  <label class="inline time">{t('sch_time')} <input type="time" bind:value={m.time} /></label>
+                  <input class="grow place" placeholder={t('sch_place')} aria-label={t('sch_place')} bind:value={m.location} />
+                  <button class="who-btn" class:on={m.conducted_by_unit} title={m.conducted_by_unit ? t('sch_conductor_unit') : t('sch_conductor_person')} aria-label={m.conducted_by_unit ? t('sch_conductor_unit') : t('sch_conductor_person')} aria-pressed={m.conducted_by_unit} onclick={() => (m.conducted_by_unit = !m.conducted_by_unit)}>
+                    <Icon name={m.conducted_by_unit ? 'work_queue' : 'profile'} size={20} />
+                  </button>
+                  <button class="icon-btn" aria-label={`${t('g_remove')} · ${et.label}`} onclick={() => removeSeries(m)}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18 M8 6V4h8v2 M6 6l1 14h10l1-14" /></svg>
+                  </button>
+                </div>
+                <div class="row wrap units" role="group" aria-label={t('sch_groups')}>
+                  <span class="muted">{t('sch_groups')}</span>
+                  {#each seriesList?.units ?? [] as u (u.id)}
+                    <button class="day" aria-pressed={m.units.includes(u.id)} onclick={() => toggleUnit(m, u.id)}>{u.label}</button>
+                  {/each}
+                  {#if unified(m)}<span class="badge ok">{t('sch_unified')}</span>{/if}
+                  {#if rowKey(m) !== m.saved}
+                    <button class="btn small primary save-meet" disabled={!m.location.trim() || !m.time || !m.units.length} onclick={() => saveSeries(m)}>{t('save_plain')}</button>
+                  {/if}
+                </div>
+              </div>
+            {/each}
+            <div class="row"><button class="btn" onclick={() => addSeries(et.id)}>{t('sch_series_add')}</button></div>
           </div>
         {/each}
       </section>
     {/if}
 
-    {#if options.length}
+    {#if current.can_publish && options.some((o) => !events.some((e) => o.events.includes(e.id)))}
       <section class="stack" aria-labelledby="sch-options">
         <h2 id="sch-options">{t('sch_options')}</h2>
         <div class="card stack">
-          {#each options as o (o.id)}
+          {#each options.filter((o) => !events.some((e) => o.events.includes(e.id))) as o (o.id)}
             <label class="inline option">
               <input type="checkbox" bind:checked={o.enabled} disabled={!current.can_publish} />
               <span>{o.label}</span>
@@ -259,7 +347,7 @@
       </section>
     {/if}
 
-    {#if programs.length}
+    {#if current.can_publish && programs.length}
       <section class="stack" aria-labelledby="sch-programs">
         <h2 id="sch-programs">{t('sch_programs')}</h2>
         {#each programs as p (p.id)}
@@ -361,6 +449,11 @@
   .icon-btn { display: grid; place-items: center; width: 36px; height: 36px; border: none; border-radius: 8px; background: none; color: var(--muted); cursor: pointer; }
   .icon-btn:hover { background: var(--surface); color: var(--danger); }
   .add { margin-top: 12px; flex-wrap: nowrap; }
+  .meet { gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .meet select { width: auto; min-width: 90px; }
+  .meet .place { min-width: 180px; }
+  .units { gap: 6px; align-items: center; }
+  .save-meet { margin-left: auto; }
   .title { gap: 10px; align-items: center; flex-wrap: nowrap; }
   .title h3 { margin: 0; }
   .who-btn { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--muted); cursor: pointer; padding: 0; }

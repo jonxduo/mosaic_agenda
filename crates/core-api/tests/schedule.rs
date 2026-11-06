@@ -514,3 +514,66 @@ async fn decline_with_a_substitute() {
     assert_eq!(cell.response, "declined");
     assert_eq!(cell.substitute.map(|c| c.id), Some(bob));
 }
+
+/// Weekly series of an event type without a recurrence: the month's
+/// program has one event per series and week, headed by its time, place
+/// and units; a series conducted by a unit offers the units.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn weekly_series_give_the_program_dates() {
+    let dir = tempfile::tempdir().unwrap();
+    let a = core(dir.path());
+    a.create_org("Club".into(), "Alice".into()).await.unwrap();
+    let alice = a.people().unwrap().persons.into_iter().find(|p| p.name == "Alice").unwrap().person_id;
+    a.grant_qualification(alice.clone(), "member".into(), None, None).unwrap();
+    a.grant_role(alice.clone(), "keeper".into(), None).unwrap();
+    let north = a.create_unit("team".into(), "North".into()).unwrap();
+    let south = a.create_unit("team".into(), "South".into()).unwrap();
+    let mut files = a.config_files().unwrap().files;
+    let cal = files.iter_mut().find(|f| f.path == "calendar.yaml").unwrap();
+    cal.text.push_str("  - { id: outing, label: e.gathering }\n");
+    let f = files.iter_mut().find(|f| f.path == "programs.yaml").unwrap();
+    f.text.push_str(concat!(
+        "  - id: outings\n",
+        "    label: p.weekly_plan\n",
+        "    event_type: outing\n",
+        "    period: month\n",
+        "    owner_role: keeper\n",
+        "    publish_audience: all_members\n",
+        "    slots:\n",
+        "      - { id: lead, label: s.host, allow_units: team, extra_fields: [\n",
+        "          { id: time, type: text, label: fld.topic }, { id: place, type: text, label: fld.topic },\n",
+        "          { id: groups, type: text, label: fld.topic }, { id: by_unit, type: boolean, label: fld.done } ] }\n",
+    ));
+    a.config_publish(files).unwrap();
+
+    let m = a.calendar_series().unwrap();
+    assert!(m.event_types.iter().any(|c| c.id == "outing"), "{:?}", m.event_types);
+    assert!(m.items.is_empty());
+    // Monday 18:00 for everybody; Saturday 10:00 for North, led by a unit.
+    let all = a
+        .save_series(None, "outing".into(), 1, "18:00".into(), "Hall".into(), vec![north.clone(), south.clone()], false)
+        .unwrap();
+    a.save_series(None, "outing".into(), 6, "10:00".into(), "Park".into(), vec![north.clone()], true).unwrap();
+    assert_eq!(a.calendar_series().unwrap().items.len(), 2);
+    assert!(a.save_series(None, "outing".into(), 8, "10:00".into(), "x".into(), Vec::new(), false).is_err());
+
+    let d = a.program_dates("outings".into(), Some("2026-11".into())).unwrap();
+    // Weeks from Monday 2 to Monday 30 November: 5 Mondays, 4 Saturdays.
+    assert_eq!(d.dates.len(), 9, "{:?}", d.dates);
+    let id = a.draft_program("outings".into(), d.dates).unwrap();
+    let p = a.program(id.clone()).unwrap();
+    let mon = p.groups.iter().find(|g| g.occurrence == 0).unwrap();
+    assert!(mon.detail.as_deref().is_some_and(|x| x.contains("18:00") && x.contains("Hall")), "{:?}", mon.detail);
+    let sat = p.groups.iter().find(|g| g.occurrence == 1).unwrap();
+    assert!(sat.detail.as_deref().is_some_and(|x| x.contains("Park") && x.contains("North")), "{:?}", sat.detail);
+    // The details head the group: the slot does not repeat them.
+    let lead = |occ: u32| p.cells.iter().find(|c| c.slot == "lead" && c.occurrence == occ).unwrap();
+    assert!(lead(0).details.is_empty());
+    assert!(lead(0).candidates.iter().all(|c| !c.id.starts_with("unit:")), "a person leads");
+    assert!(lead(1).candidates.iter().any(|c| c.id == format!("unit:{north}")), "{:?}", lead(1).candidates);
+
+    // A series removed is gone from the next month.
+    a.remove_series_item(all).unwrap();
+    let d = a.program_dates("outings".into(), Some("2026-12".into())).unwrap();
+    assert!(d.dates.iter().all(|x| x.as_str() != "2026-12-07"), "{:?}", d.dates);
+}

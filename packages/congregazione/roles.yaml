@@ -80,7 +80,9 @@ roles:
       permissions: [ { permission: resource.manage, on: resource:territory }, { permission: resource.assign, on: resource:territory }, { permission: resource.request, on: resource:territory } ] }
   - { id: territory_assistant, label: r.territory_assistant, scope: organization, requires: *elder_or_ms, holders: { min: 0, max: null }, assistant_of: territory_manager,
       permissions: [ { permission: resource.assign, on: resource:territory }, { permission: resource.request, on: resource:territory } ] }
-  - { id: field_service_organizer, label: r.field_service_organizer, scope: organization, requires: *elder_or_ms, holders: { min: 0, max: null },   # ⚙
+  - { id: service_overseer, label: r.service_overseer, scope: organization, requires: { has_qualification: elder }, holders: { min: 1, max: 1 },   # ⚙
+      permissions: [ { permission: program.draft, on: program:field_service }, { permission: program.assign, on: program:field_service } ] }
+  - { id: service_overseer_assistant, label: r.service_overseer_assistant, scope: organization, requires: *elder_or_ms, holders: { min: 0, max: null }, assistant_of: service_overseer,
       permissions: [ { permission: program.draft, on: program:field_service }, { permission: program.assign, on: program:field_service } ] }
   # pubblica in bacheca i programmi assegnati (§13.10) e gli avvisi liberi
   - { id: board_manager, label: r.board_manager, scope: organization, requires: *elder_or_ms, holders: { min: 1, max: null },   # ⚙

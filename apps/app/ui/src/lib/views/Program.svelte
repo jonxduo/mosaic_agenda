@@ -68,6 +68,8 @@
     const w = name.trim().split(/\s+/);
     return w.length < 2 ? name : `${w[0]} ${w.slice(1).map((x) => `${x[0]}.`).join(' ')}`;
   };
+  // A group keeps its whole name.
+  const shortOf = (id: string | null | undefined, name: string) => (id?.startsWith('unit:') ? name : short(name));
   const occsOf = (g: ProgramGroup) => new Set([g.occurrence, ...g.days.map((d) => d.occurrence)]);
 
   // The week (group of events) on screen: the side list is about it.
@@ -285,7 +287,7 @@
 <!-- mate: chosen with the row's first person (an assistant): "con …", smaller. -->
 {#snippet zone(c: Cell, mate = false)}
   {#if readonly}
-    {#if c.assignee}<div class="ro-name" class:mate title={c.assignee_name}>{#if mate}<span class="with">{c.prefix ?? t('with_person')}</span> {/if}{short(c.assignee_name ?? '')}</div>{/if}
+    {#if c.assignee}<div class="ro-name" class:mate title={c.assignee_name}>{#if mate}<span class="with">{c.prefix ?? t('with_person')}</span> {/if}{shortOf(c.assignee, c.assignee_name ?? '')}</div>{/if}
   {:else}
   {@const v = valueOf(c)}
   {@const ok = !!dragging && accepts(c, dragging)}
@@ -304,7 +306,7 @@
       <button type="button" class="tap" aria-label={c.label} onclick={() => { if (narrow()) picking = c; }}></button>
     {/if}
     {#if v}
-      <span class="zname" title={nameOf(c, v)}>{short(nameOf(c, v))}</span>
+      <span class="zname" title={nameOf(c, v)}>{shortOf(v, nameOf(c, v))}</span>
     {:else}
       <span class="zempty">{c.label}</span>
     {/if}

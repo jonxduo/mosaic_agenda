@@ -566,6 +566,29 @@ pub struct ProgramEditor {
     pub assign_units: bool,
 }
 
+/// The weekly series one may manage (event types without a fixed
+/// recurrence), with the units that may take part.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct SeriesList {
+    /// The title of the days and times of the events (the package may name it).
+    pub title: String,
+    pub event_types: Vec<Choice>,
+    pub units: Vec<Choice>,
+    pub items: Vec<SeriesItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct SeriesItem {
+    pub id: String,
+    pub event_type: String,
+    /// 1 = Monday … 7 = Sunday.
+    pub weekday: u32,
+    pub time: String,
+    pub location: String,
+    pub units: Vec<String>,
+    pub conducted_by_unit: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct DedicatedRow {
     pub occurrence: u32,
