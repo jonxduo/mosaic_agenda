@@ -142,6 +142,25 @@ program_types:
       - { id: zoom_2, label: s.zoom_2, count: 1, requires: { has_qualification: can_attendant } }
       - { id: zoom_host, label: s.zoom_host, count: 1, requires: { has_qualification: can_attendant }, enabled: false }
     rotation: week
+  - id: cleaning
+    label: p.cleaning
+    icon: broom
+    color: "#5f6b2e"                     # intestazioni dove compare con altri programmi
+    event_type: [midweek_meeting, weekend_meeting]
+    period: month
+    rotation: week
+    # Incarichi aggiunti in Calendario e turni: pulizie.
+    slot_requires: { has_qualification: can_cleaning }
+    owner_role: cleaning_manager
+    assistant_roles: [cleaning_assistant]
+    acceptance: true
+    notify: publish                      # avvisi agli incaricati alla pubblicazione in bacheca
+    publish_audience: board_public
+    remind_before: { days: 2 }
+    retention: { years: 2 }
+    slots:
+      - { id: cleaning, label: s.cleaning, count: 2, requires: { has_qualification: can_cleaning } }
+      - { id: deep_cleaning, label: s.deep_cleaning, count: 2, requires: { has_qualification: can_cleaning }, enabled: false }
   - id: field_service
     label: p.field_service
     icon: route

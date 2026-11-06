@@ -12,9 +12,10 @@ c create_org '{"name":"Congregazione Centro","myName":"Monti Francesco"}' >/dev/
 me=$(c people '{}' | python3 -c "import sys,json; print(json.load(sys.stdin)['persons'][0]['person_id'])")
 c update_person "{\"person\":\"$me\",\"name\":null,\"attributes\":{\"sex\":\"m\",\"birth_date\":\"1982-04-14\",\"hope\":\"other_sheep\"}}" >/dev/null
 g "$me" publisher '"1995-01-01"'; g "$me" baptized '"1996-07-20"'; g "$me" ministerial_servant '"2010-03-01"'
-for q in can_av can_microphones can_attendant can_prayer can_bible_reading; do g "$me" $q '"2015-09-01"'; done
+for q in can_av can_microphones can_attendant can_cleaning can_prayer can_bible_reading; do g "$me" $q '"2015-09-01"'; done
 c grant_role "{\"person\":\"$me\",\"role\":\"av_manager\",\"unit\":null}" >/dev/null
 c grant_role "{\"person\":\"$me\",\"role\":\"attendant_manager\",\"unit\":null}" >/dev/null
+c grant_role "{\"person\":\"$me\",\"role\":\"cleaning_manager\",\"unit\":null}" >/dev/null
 u=$(c create_unit '{"unitType":"group","name":"Gruppo Centro"}' | tr -d '"')
 u2=$(c create_unit '{"unitType":"group","name":"Gruppo Nord"}' | tr -d '"')
 c set_membership "{\"person\":\"$me\",\"unit\":\"$u\",\"from\":\"2026-01-01\"}" >/dev/null
@@ -29,12 +30,12 @@ while IFS='|' read -r name sx birth hope bapt extra unit; do
 done <<'L'
 Andreani Giovanni|m|1958-02-11|other_sheep|1974-08-03|elder can_lmm_chairman can_public_chairman can_prayer can_treasures can_gems can_living can_cbs_conductor can_public_talk can_wt_conductor|c
 Bianchi Marco|m|1990-06-30|other_sheep|2006-04-22|ministerial_servant regular_pioneer can_av can_microphones can_prayer can_bible_reading can_cbs_reader can_wt_reader|c
-Neri Anna|f|1971-11-05|other_sheep|1988-07-16|regular_pioneer can_student|n
+Neri Anna|f|1971-11-05|other_sheep|1988-07-16|regular_pioneer can_student can_cleaning|n
 Rossi Paolo|m|1949-01-19|anointed|1966-07-09|elder can_public_chairman can_public_talk can_prayer can_attendant can_wt_conductor can_lmm_chairman can_treasures can_gems|n
-Gallo Sara|f|2009-03-12|other_sheep||can_student|n
+Gallo Sara|f|2009-03-12|other_sheep||can_student can_cleaning|n
 Verdi Luca|m|1985-09-25|other_sheep|2001-05-12|special_pioneer can_attendant can_microphones can_av can_bible_reading can_student|c
-Esposito Chiara|f|1994-02-08|other_sheep|2010-10-23|can_student|n
-Romano Davide|m|1998-12-01|other_sheep|2014-04-05|can_attendant can_microphones can_bible_reading can_student can_prayer can_wt_reader|n
+Esposito Chiara|f|1994-02-08|other_sheep|2010-10-23|can_student can_cleaning|n
+Romano Davide|m|1998-12-01|other_sheep|2014-04-05|can_attendant can_microphones can_bible_reading can_student can_prayer can_wt_reader can_cleaning|n
 L
 echo "ok: $(c people '{}' | python3 -c "import sys,json; print(len(json.load(sys.stdin)['persons']))") persone"
 
@@ -86,7 +87,7 @@ for period in ("2026-08", "2026-09"):
             call("batch_step", {"form": "service_report", "unit": u["id"], "period": period, "step": "register"})
 print("rapporti: agosto registrati, settembre inoltrati")
 
-for ty in ("midweek", "weekend", "av", "attendants"):
+for ty in ("midweek", "weekend", "av", "attendants", "cleaning"):
     for period in ("2026-09", "2026-10"):
         d = call("program_dates", {"programType": ty, "period": period})
         if not d["dates"] or d["exists"]:

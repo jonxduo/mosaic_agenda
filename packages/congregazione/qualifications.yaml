@@ -37,6 +37,7 @@ qualifications:
   # Si concedono dalla tabella "Incarichi" (una colonna ciascuna); gli slot dei
   # programmi le richiedono, così l'editor propone solo chi è abilitato. ⚙
   - { id: can_attendant, label: q.can_attendant, duration: permanent, requires: *q_baptized, visibility: elders }
+  - { id: can_cleaning, label: q.can_cleaning, duration: permanent, visibility: elders }
   - { id: can_av, label: q.can_av, duration: permanent, requires: *q_baptized, visibility: elders }
   - { id: can_microphones, label: q.can_microphones, duration: permanent, requires: *q_baptized, visibility: elders }
   - { id: can_lmm_chairman, label: q.can_lmm_chairman, duration: permanent, requires: { has_qualification: elder }, visibility: elders }

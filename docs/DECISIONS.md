@@ -1114,3 +1114,12 @@ Piano di F11:
 - Programmi mensili che tengono le stesse persone per tutta la settimana: una settimana
   appartiene al mese del suo lunedì. Il programma di un mese va dal primo lunedì del mese alla
   domenica prima del primo lunedì del mese dopo; in bacheca compare nel suo mese.
+
+## 2026-11-06 — Pulizie
+
+- Nel pacchetto: qualifica "Pulizie" (`can_cleaning`), ruoli "Responsabile delle pulizie" (uno)
+  e "Assistente delle pulizie", programma "Pulizie" come gli uscieri: mensile, le stesse persone
+  per la settimana, incarichi "Pulizia" (2 persone) e "Pulizia approfondita" (spento), requisito
+  pulizie per ogni incarico; passa dal responsabile della bacheca, programma a sé (non in
+  "Incarichi"). Si assegnano persone, non gruppi.
+- Icona `broom` nell'app; scenario 17 nei test del pacchetto; dati di prova con le pulizie.

@@ -1,0 +1,24 @@
+name: programma pulizie, responsabile e assistente, requisito pulizie, pubblicazione in bacheca
+given:
+  date: 2026-11-01
+  people:
+    - { id: resp, qualifications: [publisher, baptized, ministerial_servant], attributes: { sex: m }, roles: [cleaning_manager] }
+    - { id: assist, qualifications: [publisher, baptized, elder], attributes: { sex: m }, roles: [cleaning_assistant] }
+    - { id: bm, qualifications: [publisher, baptized, ministerial_servant], attributes: { sex: m }, roles: [board_manager] }
+    - { id: marta, qualifications: [publisher, baptized, can_cleaning], attributes: { sex: f } }
+    - { id: luigi, qualifications: [publisher, baptized, can_cleaning], attributes: { sex: m } }
+    - { id: paolo, qualifications: [publisher], attributes: { sex: m } }
+when:
+  - { as: resp, do: program.draft, name: nov, type: cleaning, dates: [2026-11-04, 2026-11-07] }
+  - { as: paolo, do: program.draft, name: other, type: cleaning, dates: [2026-11-04], expect: denied }
+  - { as: resp, do: program.assign, program: nov, slot: cleaning, person: paolo, expect: denied, reason: "requirements" }
+  - { as: resp, do: program.assign, program: nov, slot: cleaning, index: 0, person: marta }
+  # L'assistente prepara come il responsabile.
+  - { as: assist, do: program.assign, program: nov, slot: cleaning, index: 1, person: luigi }
+  - { as: resp, do: program.send, program: nov }
+  - { check: { notified: { who: marta, text: n.assignment_new, is: false } } }
+  - { as: resp, do: program.publish, program: nov, expect: denied }
+  - { as: bm, do: program.publish, program: nov }
+  - { check: { notified: { who: marta, text: n.assignment_new } } }
+then:
+  - { on_board: { who: paolo, program: nov } }

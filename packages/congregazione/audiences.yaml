@@ -21,6 +21,7 @@ audiences:
   - { id: report_registered_readers, select: { union: [ { audience: report_submitted_readers }, { audience: elders } ] } }
   - { id: av_team, select: { union: [ { role_holders: { role: av_manager, where: anywhere } }, { role_holders: { role: av_assistant, where: anywhere } } ] } }
   - { id: attendant_team, select: { union: [ { role_holders: { role: attendant_manager, where: anywhere } }, { role_holders: { role: attendant_assistant, where: anywhere } } ] } }
+  - { id: cleaning_team, select: { union: [ { role_holders: { role: cleaning_manager, where: anywhere } }, { role_holders: { role: cleaning_assistant, where: anywhere } } ] } }
   - { id: territory_team, select: { union: [ { role_holders: { role: territory_manager, where: anywhere } }, { role_holders: { role: territory_assistant, where: anywhere } } ] } }
   - { id: board_public, select: { audience: congregation } }           # ⚙
   - { id: contacts_readers, select: { union: [ { audience: elders }, { audience: group_oversight }, { subject: true } ] } }   # ⚙
