@@ -122,6 +122,8 @@ program_types:
     event_type: [midweek_meeting, weekend_meeting]
     period: month
     rotation: occurrence                 # ⚙ occurrence | week | month (Calendario e turni)
+    # Incarichi aggiunti in Calendario e turni: audio/video o microfonista.
+    slot_requires: { any: [ { has_qualification: can_av }, { has_qualification: can_microphones } ] }
     owner_role: av_manager
     assistant_roles: [av_assistant]
     acceptance: true
@@ -142,6 +144,8 @@ program_types:
     event_type: [midweek_meeting, weekend_meeting]
     period: month
     rotation: occurrence                 # ⚙
+    # Incarichi aggiunti in Calendario e turni: usciere.
+    slot_requires: { has_qualification: can_attendant }
     owner_role: attendant_manager
     assistant_roles: [attendant_assistant]
     acceptance: true
@@ -152,7 +156,7 @@ program_types:
     slots:
       - { id: entrance, label: s.entrance, count: 1, requires: { has_qualification: can_attendant } }
       - { id: hall, label: s.hall, count: 1, requires: { has_qualification: can_attendant } }
-      - { id: zoom_host, label: s.zoom_host, count: 1, requires: { has_qualification: can_av }, enabled: false }
+      - { id: zoom_host, label: s.zoom_host, count: 1, requires: { has_qualification: can_attendant }, enabled: false }
       - { id: parking, label: s.parking, count: 1, requires: { has_qualification: can_attendant }, enabled: false }
   - id: field_service
     label: p.field_service

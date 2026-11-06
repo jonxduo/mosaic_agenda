@@ -27,12 +27,36 @@ pub struct ProgramDates {
     pub exists: bool,
 }
 
-/// The period of a program type containing `date`.
+/// The period of a program type containing `date`. A monthly program that
+/// keeps the persons for the week takes whole weeks: a week belongs to the
+/// month of its Monday.
 pub(crate) fn period_of(def: &ProgramTypeDef, date: Date) -> PeriodKey {
     match def.period {
         ProgramPeriod::Week => PeriodKey::week_of(date),
+        ProgramPeriod::Month if def.rotation == Rotation::Week => {
+            PeriodKey::month_of(monday_of(date))
+        }
         ProgramPeriod::Month => PeriodKey::month_of(date),
     }
+}
+
+fn monday_of(date: Date) -> Date {
+    core_engine::time::add_days(date, -i64::from(date.weekday().number_days_from_monday()))
+}
+
+/// First and last day a program of `def` for `key` covers: the period, or,
+/// for whole weeks, from its first Monday to the Sunday before the next
+/// period's first Monday.
+fn span(def: &ProgramTypeDef, key: &PeriodKey) -> Option<(Date, Date)> {
+    let (start, end) = (key.start()?, key.last_day()?);
+    if def.period == ProgramPeriod::Month && def.rotation == Rotation::Week {
+        let first_monday = |d: Date| {
+            core_engine::time::add_days(d, i64::from((7 - d.weekday().number_days_from_monday()) % 7))
+        };
+        let next = core_engine::time::add_days(end, 1);
+        return Some((first_monday(start), core_engine::time::add_days(first_monday(next), -1)));
+    }
+    Some((start, end))
 }
 
 pub(crate) fn rotation_key(rotation: Rotation, d: Date) -> Option<PeriodKey> {
@@ -141,7 +165,7 @@ impl Core {
                 }
             }
         };
-        let (Some(start), Some(end)) = (key.start(), key.last_day()) else {
+        let Some((start, end)) = span(def, &key) else {
             return Err(ApiError::invalid("period"));
         };
         let dates = dates_on(&weekdays(c, def), start, end);
@@ -196,5 +220,19 @@ mod tests {
             groups(def(Rotation::Month).rotation, &occ),
             vec![vec![0, 1, 2, 3]]
         );
+    }
+
+    #[test]
+    fn whole_weeks_belong_to_the_month_of_their_monday() {
+        let d = def(Rotation::Week);
+        // Sunday 1 November is in the week of Monday 26 October.
+        assert_eq!(period_of(&d, date!(2026 - 11 - 01)), PeriodKey::month_of(date!(2026 - 10 - 01)));
+        assert_eq!(period_of(&d, date!(2026 - 11 - 02)), PeriodKey::month_of(date!(2026 - 11 - 01)));
+        // October: from Monday 5 to Sunday 1 November.
+        let oct = PeriodKey::month_of(date!(2026 - 10 - 01));
+        assert_eq!(span(&d, &oct), Some((date!(2026 - 10 - 05), date!(2026 - 11 - 01))));
+        // Other rotations keep the calendar month.
+        let m = def(Rotation::Occurrence);
+        assert_eq!(span(&m, &oct), Some((date!(2026 - 10 - 01), date!(2026 - 10 - 31))));
     }
 }

@@ -1996,6 +1996,18 @@
           "default": null,
           "description": "Short name (e.g. two letters), added to a slot named as one of\nanother program type, where the name alone is ambiguous."
         },
+        "slot_requires": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cond"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What a slot of this program requires when added from the editor\n(Calendario e turni), whatever its name."
+        },
         "slots": {
           "items": {
             "$ref": "#/$defs/SlotDef"

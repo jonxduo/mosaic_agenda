@@ -1160,7 +1160,15 @@ impl Core {
             let shown = match (month, &post.item) {
                 _ if post.withdrawn => false,
                 (None, _) => on_now,
-                (Some(m), PBoardItem::Program(s)) => s.occurrences.iter().any(|d| m.contains(*d)),
+                // A monthly program in the month it belongs to (whole weeks
+                // may spill over), a weekly one wherever it has an event.
+                (Some(m), PBoardItem::Program(s)) => match cfg.program_type(&s.program_type) {
+                    Some(d) if d.period == core_model::config::ProgramPeriod::Month => s
+                        .occurrences
+                        .first()
+                        .is_some_and(|f| crate::schedule::period_of(d, *f) == *m),
+                    _ => s.occurrences.iter().any(|d| m.contains(*d)),
+                },
                 (Some(m), PBoardItem::Notice { .. }) => on_now && *m == PeriodKey::month_of(now),
             };
             if !shown {

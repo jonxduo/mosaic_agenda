@@ -61,7 +61,9 @@
           label: label(p.label),
           rotation: String(p.rotation ?? 'occurrence'),
           period: String(p.period ?? 'week'),
-          requires: list(p.slots)[0]?.requires,
+          // New slots take the program's requirement (`slot_requires`),
+          // whatever their name.
+          requires: p.slot_requires ?? list(p.slots)[0]?.requires,
           adding: '',
           slots: list(p.slots).map((s, j) => ({
             j,

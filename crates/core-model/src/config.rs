@@ -858,6 +858,10 @@ pub struct ProgramTypeDef {
     /// Assignments shared by the events of the same week or month.
     #[serde(default)]
     pub rotation: Rotation,
+    /// What a slot of this program requires when added from the editor
+    /// (Calendario e turni), whatever its name.
+    #[serde(default)]
+    pub slot_requires: Option<Cond>,
     pub owner_role: Slug,
     #[serde(default)]
     pub assistant_roles: Vec<Slug>,

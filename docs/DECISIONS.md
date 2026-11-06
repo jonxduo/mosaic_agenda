@@ -1104,3 +1104,13 @@ Piano di F11:
 - In bacheca il post di un gruppo è una tabella: prima colonna le date, poi una colonna per ogni
   incarico di ogni programma (stessa riga per tutti). Una riga per evento, o per settimana
   ("1 · 4 ottobre") quando tutti i programmi del gruppo tengono le stesse persone per la settimana.
+
+## 2026-11-06 — Requisiti degli incarichi e settimane intere
+
+- `slot_requires` sul tipo di programma: il requisito degli incarichi aggiunti in Calendario e
+  turni, qualunque nome abbiano (prima prendevano quello del primo incarico). Nel pacchetto:
+  uscieri → usciere; audio/video → audio/video o microfonista. "Accoglienza Zoom" ora richiede
+  usciere, come tutto ciò che sta negli uscieri.
+- Programmi mensili che tengono le stesse persone per tutta la settimana: una settimana
+  appartiene al mese del suo lunedì. Il programma di un mese va dal primo lunedì del mese alla
+  domenica prima del primo lunedì del mese dopo; in bacheca compare nel suo mese.

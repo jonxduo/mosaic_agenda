@@ -106,6 +106,7 @@ program_types:
     icon: mic
     event_type: [ midweek_meeting, weekend_meeting ]
     period: month
+    slot_requires: { any: [ { has_qualification: can_av }, { has_qualification: can_microphones } ] }
     owner_role: av_manager
     assistant_roles: [ av_assistant ]
     acceptance: true
@@ -123,6 +124,7 @@ program_types:
     icon: door
     event_type: [ midweek_meeting, weekend_meeting ]
     period: month
+    slot_requires: { has_qualification: can_attendant }
     owner_role: attendant_manager
     assistant_roles: [ attendant_assistant ]
     acceptance: true
@@ -136,7 +138,7 @@ program_types:
       - { id: emergency, label: s.emergency, count: 3, requires: { has_qualification: can_attendant } }
       - { id: parking, label: s.parking, count: 1, requires: { has_qualification: can_attendant } }
       - { id: zoom_2, label: s.zoom_2, count: 1, requires: { has_qualification: can_attendant } }
-      - { id: zoom_host, label: s.zoom_host, count: 1, requires: { has_qualification: can_av }, enabled: false }
+      - { id: zoom_host, label: s.zoom_host, count: 1, requires: { has_qualification: can_attendant }, enabled: false }
     rotation: week
   - id: field_service
     label: p.field_service
