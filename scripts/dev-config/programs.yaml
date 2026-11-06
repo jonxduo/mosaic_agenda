@@ -1,0 +1,152 @@
+# Le chiavi di primo livello che iniziano con x- sono ignorate dal loader:
+# servono solo a contenere ancoraggi, validi solo in questo file.
+x-requirements:
+  elder: &elder { has_qualification: elder }
+  elder_or_ms: &elder_or_ms { any: [ { has_qualification: elder }, { has_qualification: ministerial_servant } ] }
+  male: &male { attribute: { name: sex, op: eq, value: m } }
+  baptized: &baptized { has_qualification: baptized }
+# Audio/video e uscieri arrivano al responsabile della bacheca come un unico programma
+# "Incarichi" per mese: lo pubblica in una volta; se uno dei due manca lo vede incompleto.
+publish_groups:
+  - { id: assignments, label: p.assignments, icon: door, program_types: [ av, attendants ] }
+program_types:
+  - id: midweek
+    label: p.midweek
+    icon: book
+    short: p.midweek_short
+    event_type: midweek_meeting
+    period: month # un programma al mese, una sezione per adunanza
+    owner_role: lmm_overseer
+    acceptance: true # ⚙
+    notify: publish # avvisi agli incaricati alla pubblicazione in bacheca
+    publish_audience: board_public
+    remind_before: { days: 2 }
+    retention: { years: 2 } # ⚙
+    # Precompilazione dalla Guida per l'adunanza della settimana (wol.jw.org): solo i campi vuoti,
+    # tutto resta modificabile. {year}/{week} = anno e settimana ISO dell'adunanza.
+    prefill:
+      url: "https://wol.jw.org/it/wol/meetings/r6/lp-i/{year}/{week}"
+      follow: "Guida per l.adunanza Vita e ministero" # il primo link: quello della settimana
+      rules:
+        # Cantici: d'apertura (con la preghiera), a metà di Vita cristiana, finale.
+        - { heading: '^Cantico (?<n>\d+) e preghiera', slot: opening_prayer, set: { song: "{n}" } }
+        - { heading: 'Commenti conclusivi.*Cantico (?<n>\d+)', slot: closing_song, set: { song: "{n}" } }
+        - { section: "VITA CRISTIANA", heading: '^Cantico (?<n>\d+)$', slot: middle_song, set: { song: "{n}" } }
+        - { section: "TESORI", heading: '^1\. (?<title>.+)$', slot: treasures_talk, set: { title: "{title}" } }
+        - { section: "TESORI", heading: "Gemme spirituali" }
+        - { section: "TESORI", heading: "Lettura biblica", text: '\(\d+ min\) (?<passage>[^(\n]+?) *(\(|$)', slot: bible_reading, set: { passage: "{passage}" } }
+        # (3 min) Sinossi della parte. (lezione tra parentesi, in fondo)
+        - { section: "MINISTERO", heading: '^\d+\. (?<title>.+)$', text: '(?m)\((?<min>\d+) min\)\s*(?<synopsis>.*?)\s*(?:\((?<lesson>[^()]*)\))?\s*$', slot: student_part, set: { title: "{title}", minutes: "{min}", synopsis: "{synopsis}", lesson: "{lesson}" } }
+        - { section: "VITA CRISTIANA", heading: "Studio biblico di congregazione", text: '\(\d+ min\) (?<what>[^\n]+)', slot: cbs_conductor, set: { material: "{what}" } }
+        - { section: "VITA CRISTIANA", heading: '^\d+\. (?<title>.+)$', text: '\((?<min>\d+) min\)', slot: living_part, set: { title: "{title}", minutes: "{min}" } }
+    # ⚙ Classe supplementare: l'amministratore la attiva in "Calendario e turni".
+    options:
+      - { id: aux_class, label: o.aux_class, enabled: true }
+    sections:
+      - { id: treasures, label: sec.treasures, color: "#575a5d" }
+      - { id: ministry, label: sec.ministry, color: "#b5892e" }
+      - { id: living, label: sec.living, color: "#7e1a26" }
+    slots:
+      # ⚙ struttura da verificare con il sorvegliante; requisiti modificabili
+      - { id: chairman, label: s.chairman, requires: { has_qualification: can_lmm_chairman } }
+      - { id: aux_counselor, label: s.aux_counselor, option: aux_class, requires: *elder }
+      - { id: opening_prayer, label: s.song_and_prayer, requires: { has_qualification: can_prayer }, extra_fields: [ { id: song, type: integer, min: 1 } ] }
+      # La fascia dice già "Tesori della Parola di Dio": a sinistra basta il tema.
+      - { id: treasures_talk, label: s.treasures_talk, section: treasures, row_name: false, requires: { has_qualification: can_treasures }, extra_fields: [ { id: title, type: text } ] }
+      - { id: spiritual_gems, label: s.spiritual_gems, section: treasures, requires: { has_qualification: can_gems } }
+      - { id: bible_reading, label: s.bible_reading, section: treasures, requires: { has_qualification: can_bible_reading }, extra_fields: [ { id: passage, type: text } ] }
+      - { id: aux_bible_reading, label: s.aux_bible_reading, section: treasures, option: aux_class, beside: bible_reading, requires: { has_qualification: can_bible_reading } }
+      # Senza nome a sinistra (bastano titolo e sinossi); tre parti di norma, la quarta si aggiunge.
+      - { id: student_part, label: s.student_part, section: ministry, repeat: { count: 4 }, default_shown: 3, numbered: false, row_name: false, requires: { has_qualification: can_student }, extra_fields: [ { id: title, type: text }, { id: minutes, type: integer, min: 0 }, { id: synopsis, type: long_text }, { id: lesson, type: text } ], pair_with: student_assistant }
+      - { id: student_assistant, label: s.student_assistant, prefix: pre.with, section: ministry, repeat: { count: 4 }, numbered: false, requires: { has_qualification: can_student } }
+      - { id: aux_student_part, label: s.aux_student_part, section: ministry, option: aux_class, beside: student_part, repeat: { count: 4 }, numbered: false, requires: { has_qualification: can_student }, pair_with: aux_student_assistant }
+      - { id: aux_student_assistant, label: s.aux_student_assistant, prefix: pre.with, section: ministry, option: aux_class, repeat: { count: 4 }, numbered: false, requires: { has_qualification: can_student } }
+      - { id: middle_song, label: s.song, section: living, assignable: false, extra_fields: [ { id: song, type: integer, min: 1 } ] }
+      # Di solito una parte; le altre si aggiungono quando servono.
+      - { id: living_part, label: s.living_part, section: living, repeat: { count: 3 }, default_shown: 1, numbered: false, row_name: false, requires: { has_qualification: can_living }, extra_fields: [ { id: title, type: text }, { id: minutes, type: integer, min: 0 } ] }
+      - { id: cbs_conductor, label: s.cbs_conductor, section: living, requires: { has_qualification: can_cbs_conductor }, extra_fields: [ { id: material, type: text } ] }
+      - { id: cbs_reader, label: s.cbs_reader, prefix: pre.reader, section: living, with: cbs_conductor, requires: { has_qualification: can_cbs_reader } }
+      - { id: closing_song, label: s.song, section: living, assignable: false, extra_fields: [ { id: song, type: integer, min: 1 } ] }
+      - { id: closing_prayer, label: s.closing_prayer, section: living, requires: { has_qualification: can_prayer } }
+  - id: weekend
+    label: p.weekend
+    icon: lectern
+    short: p.weekend_short
+    event_type: weekend_meeting
+    period: month
+    owner_role: public_meeting_coordinator
+    acceptance: true
+    notify: publish # avvisi agli incaricati alla pubblicazione in bacheca
+    publish_audience: board_public
+    remind_before: { days: 2 }
+    retention: { years: 2 }
+    # Titolo dello Studio Torre di Guardia della settimana (wol.jw.org).
+    prefill:
+      url: "https://wol.jw.org/it/wol/meetings/r6/lp-i/{year}/{week}"
+      rules:
+        - { heading: "^Studio Torre di Guardia$", text: '^(?<title>[^\n]+)', slot: wt_conductor, set: { wt_theme: "{title}" } }
+    sections:
+      - { id: public_talk, label: sec.public_talk, color: "#2f5d6b" }
+      - { id: watchtower, label: sec.watchtower, color: "#5f6b2e" }
+    slots:
+      # Il presidente fa anche la preghiera iniziale.
+      - { id: chairman, label: s.weekend_chairman, requires: { has_qualification: can_public_chairman } }
+      - { id: opening_song, label: s.song, assignable: false, extra_fields: [ { id: song, type: integer, min: 1 } ] }
+      # Una riga per sezione: il tema a sinistra (la fascia dice già cos'è), le persone a destra.
+      - { id: talk, label: s.public_talk, section: public_talk, row_name: false, allow_external: true, requires: { has_qualification: can_public_talk }, extra_fields: [ { id: theme, type: text }, { id: home_congregation, type: text } ] }
+      - { id: wt_conductor, label: s.wt_conductor, section: watchtower, row_name: false, requires: { has_qualification: can_wt_conductor }, extra_fields: [ { id: wt_theme, type: text } ] }
+      - { id: wt_reader, label: s.wt_reader, section: watchtower, prefix: pre.reader, with: wt_conductor, requires: { has_qualification: can_wt_reader } }
+      - { id: closing_song, label: s.song, section: watchtower, assignable: false, extra_fields: [ { id: song, type: integer, min: 1 } ] }
+      - { id: closing_prayer, label: s.closing_prayer, section: watchtower, requires: { has_qualification: can_prayer } }
+      # Non più in uso: restano per i programmi già fatti.
+      - { id: opening_prayer, label: s.opening_prayer, enabled: false, requires: { has_qualification: can_prayer } }
+      - { id: middle_song, label: s.song, enabled: false, assignable: false, extra_fields: [ { id: song, type: integer, min: 1 } ] }
+  - id: av
+    label: p.av
+    icon: mic
+    event_type: [ midweek_meeting, weekend_meeting ]
+    period: month
+    owner_role: av_manager
+    assistant_roles: [ av_assistant ]
+    acceptance: true
+    notify: publish # avvisi agli incaricati alla pubblicazione in bacheca
+    publish_audience: board_public
+    remind_before: { days: 2 }
+    retention: { years: 2 }
+    slots:
+      # ⚙ catalogo: l'amministratore sceglie quali assegnare e quante persone (Calendario e turni)
+      - { id: mixer, label: s.mixer, count: 1, requires: { has_qualification: can_av } }
+      - { id: microphones, label: s.microphones, count: 2, requires: { has_qualification: can_microphones } }
+    rotation: week
+  - id: attendants
+    label: p.attendants
+    icon: door
+    event_type: [ midweek_meeting, weekend_meeting ]
+    period: month
+    owner_role: attendant_manager
+    assistant_roles: [ attendant_assistant ]
+    acceptance: true
+    notify: publish # avvisi agli incaricati alla pubblicazione in bacheca
+    publish_audience: board_public
+    remind_before: { days: 2 }
+    retention: { years: 2 }
+    slots:
+      - { id: entrance, label: s.entrance, count: 1, requires: { has_qualification: can_attendant } }
+      - { id: hall, label: s.hall, count: 2, requires: { has_qualification: can_attendant } }
+      - { id: zoom_host, label: s.zoom_host, count: 3, requires: { has_qualification: can_av } }
+      - { id: parking, label: s.parking, count: 1, requires: { has_qualification: can_attendant } }
+      - { id: zoom_2, label: s.zoom_2, count: 1, requires: { has_qualification: can_attendant } }
+    rotation: week
+  - id: field_service
+    label: p.field_service
+    icon: route
+    event_type: field_service_meeting
+    period: week
+    owner_role: field_service_organizer
+    acceptance: true
+    notify: publish # avvisi agli incaricati alla pubblicazione in bacheca
+    publish_audience: board_public
+    remind_before: { days: 2 }
+    retention: { years: 2 }
+    slots:
+      - { id: conductor, label: s.fs_conductor, requires: *elder_or_ms } # ⚙

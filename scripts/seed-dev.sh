@@ -38,17 +38,20 @@ Romano Davide|m|1998-12-01|other_sheep|2014-04-05|can_attendant can_microphones 
 L
 echo "ok: $(c people '{}' | python3 -c "import sys,json; print(len(json.load(sys.stdin)['persons']))") persone"
 
-# For testing: the auxiliary class on (it is off in the package).
-python3 - "$API" <<'PY'
-import json, sys, urllib.request
-api = sys.argv[1]
+# Calendar and assignments as set up for testing (scripts/dev-config: meeting
+# days and times, auxiliary class on, weekly rotations, the slots in use):
+# published over the package before any program is made.
+python3 - "$API" "$(dirname "$0")/dev-config" <<'PY'
+import json, os, sys, urllib.request
+api, cfg = sys.argv[1], sys.argv[2]
 def call(cmd, body):
     r = urllib.request.Request(f"{api}/{cmd}", data=json.dumps(body).encode(), headers={"content-type": "application/json"})
     return json.load(urllib.request.urlopen(r, timeout=150))
 files = call("config_files", {})["files"]
 for f in files:
-    if f["path"] == "programs.yaml":
-        f["text"] = f["text"].replace("id: aux_class, label: o.aux_class, enabled: false", "id: aux_class, label: o.aux_class, enabled: true")
+    local = os.path.join(cfg, f["path"])
+    if os.path.isfile(local):
+        f["text"] = open(local, encoding="utf-8").read()
 print("configurazione", call("config_publish", {"files": files}))
 PY
 

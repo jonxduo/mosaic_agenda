@@ -1,0 +1,6 @@
+# Settimane speciali (visita del sorvegliante di circoscrizione, assemblee) = eccezioni
+# della ricorrenza, gestite da chi ha calendar.manage.
+event_types:
+  - { id: midweek_meeting, label: e.midweek, default_recurrence: "FREQ=WEEKLY;BYDAY=WE", default_time: "19:30", default_duration_min: 105 } # ⚙ giorno/ora
+  - { id: weekend_meeting, label: e.weekend, default_recurrence: "FREQ=WEEKLY;BYDAY=SA", default_time: "16:30", default_duration_min: 105 } # ⚙
+  - { id: field_service_meeting, label: e.field_service, default_recurrence: null, location_required: true, scope: organization }

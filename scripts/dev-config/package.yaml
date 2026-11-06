@@ -1,0 +1,46 @@
+id: congregazione
+version: 1.0.0
+core_compat: ">=1.0, <2.0"
+default_locale: it
+locales: [ it ]
+branding:
+  app_name: app.name
+  identifier: it.briccolab.congregazione # definitivo: non cambiarlo dopo la pubblicazione sugli store
+  icon: branding/icon.png
+  primary_color: "#6A4CE6" # viola-blu al centro del gradiente del logo (contrasto 5,5:1 con il bianco)
+files:
+  - qualifications.yaml
+  - units.yaml
+  - roles.yaml
+  - audiences.yaml
+  - forms.yaml
+  - workflows.yaml
+  - aggregates.yaml
+  - calendar.yaml
+  - programs.yaml
+  - resources.yaml
+  - board.yaml
+  - notifications.yaml
+  - ui.yaml
+person_attributes:
+  # serve per i requisiti di alcuni incarichi e parti
+  - { id: sex, type: choice, options: [ m, f ], read_audience: admins_and_elders }
+  - { id: given_name, type: text, max_length: 80, read_audience: congregation, self_edit: true }
+  - { id: family_name, type: text, max_length: 80, read_audience: congregation, self_edit: true }
+  - { id: birth_date, type: date, read_audience: admins_and_elders, self_edit: true }
+  - { id: hope, type: choice, options: [ other_sheep, anointed ], read_audience: admins_and_elders }
+  - { id: phone, type: text, max_length: 40, read_audience: contacts_readers, self_edit: true }
+  - { id: email, type: text, max_length: 120, read_audience: contacts_readers, self_edit: true }
+  - { id: address, type: text, max_length: 200, read_audience: contacts_readers, self_edit: true }
+  # contatto di emergenza: nominativo, telefono, note
+  - { id: emergency_name, type: text, max_length: 120, read_audience: contacts_readers, self_edit: true }
+  - { id: emergency_phone, type: text, max_length: 40, read_audience: contacts_readers, self_edit: true }
+  - { id: emergency_notes, type: long_text, max_length: 500, read_audience: contacts_readers, self_edit: true }
+  # false = un incaricato compila per conto
+  - { id: uses_app, type: boolean, read_audience: elders }
+privacy_notice: privacy/it.md
+domain_terms: [ anzian, elder, servitor, servant, pionier, pioneer, proclamator, publisher, congregaz, congregation, territor, uscier, attendant, rapporto, service_report, adunanz, meeting, sorvegliant, overseer, segretari, secretary, "torre di guardia", watchtower ]
+migrations:
+  - { retire: { id: video } }
+  - { retire: { id: zoom } }
+  - { retire: { id: stage } }
