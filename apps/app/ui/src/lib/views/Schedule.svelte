@@ -48,8 +48,15 @@
     }
   }
   loadSeries();
-  function addSeries(event_type: string) {
-    seriesRows.push({ id: null, event_type, weekday: 7, time: '09:30', location: '', units: seriesList?.units.map((u) => u.id) ?? [], conducted_by_unit: false, saved: '' });
+  // The day chosen in each box (1-7): at first the first one with a series.
+  let selDay = $state<Record<string, number>>({});
+  const dayOf = (et: string) => {
+    const days = seriesRows.filter((m) => m.event_type === et).map((m) => m.weekday);
+    return selDay[et] ?? (days.length ? Math.min(...days) : 1);
+  };
+  function addSeries(event_type: string, weekday: number) {
+    selDay[event_type] = weekday;
+    seriesRows.push({ id: null, event_type, weekday, time: '09:30', location: '', units: seriesList?.units.map((u) => u.id) ?? [], conducted_by_unit: false, saved: '' });
   }
   async function saveSeries(m: SeriesRow) {
     try {
@@ -332,37 +339,54 @@
           {/each}
         {/if}
         {#each seriesList?.event_types ?? [] as et (et.id)}
-          <!-- Weekly series of this kind: each with day, time, place, groups and who conducts. -->
+          <!-- Weekly series of this kind, by day: grey a day without, white a day with, the chosen one in colour. -->
+          {@const day = dayOf(et.id)}
+          {@const rows = seriesRows.filter((m) => m.event_type === et.id && m.weekday === day)}
           <div class="card stack">
             <h3>{et.label}</h3>
-            {#each seriesRows.filter((m) => m.event_type === et.id) as m, i (m.id ?? `new-${i}`)}
+            <div class="days" role="group" aria-label={`${et.label} · ${t('sch_days')}`}>
+              {#each DAYS as d, k (d)}
+                <button class="day" class:none={!seriesRows.some((m) => m.event_type === et.id && m.weekday === k + 1)}
+                  aria-pressed={day === k + 1} onclick={() => (selDay[et.id] = k + 1)}>{t(`wd_${d}` as Key)}</button>
+              {/each}
+            </div>
+            {#each rows as m, i (m.id ?? `new-${i}`)}
               <div class="meet stack">
-                <div class="row wrap">
-                  <select aria-label={t('sch_days')} bind:value={m.weekday}>
-                    {#each DAYS as d, k (d)}<option value={k + 1}>{t(`wd_${d}` as Key)}</option>{/each}
-                  </select>
-                  <label class="inline time">{t('sch_time')} <input type="time" bind:value={m.time} /></label>
-                  <input class="grow place" placeholder={t('sch_place')} aria-label={t('sch_place')} bind:value={m.location} />
-                  <button class="who-btn" class:on={m.conducted_by_unit} title={m.conducted_by_unit ? t('sch_conductor_unit') : t('sch_conductor_person')} aria-label={m.conducted_by_unit ? t('sch_conductor_unit') : t('sch_conductor_person')} aria-pressed={m.conducted_by_unit} onclick={() => (m.conducted_by_unit = !m.conducted_by_unit)}>
-                    <Icon name={m.conducted_by_unit ? 'work_queue' : 'profile'} size={20} />
-                  </button>
-                  <button class="icon-btn" aria-label={`${t('g_remove')} · ${et.label}`} onclick={() => removeSeries(m)}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18 M8 6V4h8v2 M6 6l1 14h10l1-14" /></svg>
-                  </button>
+                <div class="fields">
+                  <label class="field"><span class="muted">{t('sch_time')}</span><input type="time" bind:value={m.time} /></label>
+                  <label class="field grow"><span class="muted">{t('sch_place')}</span><input class="place" bind:value={m.location} /></label>
                 </div>
-                <div class="row wrap units" role="group" aria-label={t('sch_groups')}>
+                <div class="field">
+                  <span class="muted" id={`who-${et.id}-${i}`}>{t('sch_conductor')}</span>
+                  <div class="seg" role="radiogroup" aria-labelledby={`who-${et.id}-${i}`}>
+                    <button role="radio" aria-checked={!m.conducted_by_unit} onclick={() => (m.conducted_by_unit = false)}><Icon name="profile" size={18} />{t('sch_conductor_person')}</button>
+                    <button role="radio" aria-checked={m.conducted_by_unit} onclick={() => (m.conducted_by_unit = true)}><Icon name="work_queue" size={18} />{t('sch_conductor_unit')}</button>
+                  </div>
+                  <span class="muted small">{m.conducted_by_unit ? t('sch_conductor_unit_hint') : t('sch_conductor_person_hint')}</span>
+                </div>
+                <div class="field">
                   <span class="muted">{t('sch_groups')}</span>
-                  {#each seriesList?.units ?? [] as u (u.id)}
-                    <button class="day" aria-pressed={m.units.includes(u.id)} onclick={() => toggleUnit(m, u.id)}>{u.label}</button>
-                  {/each}
-                  {#if unified(m)}<span class="badge ok">{t('sch_unified')}</span>{/if}
+                  <div class="row wrap units" role="group" aria-label={t('sch_groups')}>
+                    {#each seriesList?.units ?? [] as u (u.id)}
+                      <button class="day" aria-pressed={m.units.includes(u.id)} onclick={() => toggleUnit(m, u.id)}>{u.label}</button>
+                    {/each}
+                    {#if unified(m)}<span class="badge ok">{t('sch_unified')}</span>{/if}
+                  </div>
+                </div>
+                <div class="row wrap actions">
+                  <button class="btn danger-outline" onclick={() => removeSeries(m)}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18 M8 6V4h8v2 M6 6l1 14h10l1-14" /></svg>
+                    {t('g_remove')}
+                  </button>
                   {#if rowKey(m) !== m.saved}
-                    <button class="btn small primary save-meet" disabled={!m.location.trim() || !m.time || !m.units.length} onclick={() => saveSeries(m)}>{t('save_plain')}</button>
+                    <button class="btn primary" disabled={!m.location.trim() || !m.time || !m.units.length} onclick={() => saveSeries(m)}>{t('save_plain')}</button>
                   {/if}
                 </div>
               </div>
+            {:else}
+              <p class="muted">{t('sch_series_none')}</p>
             {/each}
-            <div class="row"><button class="btn" onclick={() => addSeries(et.id)}>{t('sch_series_add')}</button></div>
+            <div class="row"><button class="btn" onclick={() => addSeries(et.id, day)}>{t('sch_series_add')}</button></div>
           </div>
         {/each}
       </section>
@@ -502,11 +526,19 @@
   .icon-btn { display: grid; place-items: center; width: 36px; height: 36px; border: none; border-radius: 8px; background: none; color: var(--muted); cursor: pointer; }
   .icon-btn:hover { background: var(--surface); color: var(--danger); }
   .add { margin-top: 12px; flex-wrap: nowrap; }
-  .meet { gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line); }
-  .meet select { width: auto; min-width: 90px; }
-  .meet .place { min-width: 180px; }
+  .meet { gap: 14px; padding: 14px 0; border-top: 1px solid var(--line); }
+  .day.none:not([aria-pressed='true']) { background: var(--page); color: var(--muted); border-color: transparent; }
+  .fields { display: flex; flex-wrap: wrap; gap: 12px; }
+  .field { display: flex; flex-direction: column; gap: 6px; font-weight: 500; }
+  .field.grow { flex: 1 1 220px; }
+  .field input[type='time'] { width: auto; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; width: fit-content; }
+  .seg button { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 6px 14px; border: 0; background: var(--bg); color: var(--text); font: inherit; font-size: 15px; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button[aria-checked='true'] { background: var(--primary); color: var(--on-primary); font-weight: 600; }
+  .actions { justify-content: space-between; }
+  .danger-outline { display: inline-flex; align-items: center; gap: 6px; color: var(--danger); border-color: var(--danger); }
   .units { gap: 6px; align-items: center; }
-  .save-meet { margin-left: auto; }
   .title { gap: 10px; align-items: center; flex-wrap: nowrap; }
   .title h3 { margin: 0; }
   .who-btn { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--muted); cursor: pointer; padding: 0; }
