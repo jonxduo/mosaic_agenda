@@ -532,6 +532,28 @@ pub(crate) fn notified_at_publish(cfg: &Cfg, program_type: &Slug) -> bool {
 
 /// `draft`, `assigned` (sent to the assignees), `to_publish` (handed to who
 /// publishes, waiting) or `published`.
+/// Who prepares or assigns a program type may change its programs; once on
+/// the board, only who publishes it (and the administrators). As the core.
+pub(crate) fn may_edit_program(
+    v: &View,
+    cfg: &Cfg,
+    me: PersonId,
+    program: &core_model::Id,
+    program_type: &Slug,
+    now: Date,
+) -> bool {
+    let obj = ObjectRef {
+        kind: ObjectKind::Program,
+        id: program_type.clone(),
+    };
+    let may = |p| v.proj.auth.is_allowed(cfg, me, p, Some(&obj), None, now);
+    if v.proj.published.contains_key(program) {
+        may(Permission::ProgramPublish)
+    } else {
+        may(Permission::ProgramAssign) || may(Permission::ProgramDraft)
+    }
+}
+
 pub(crate) fn program_status(
     v: &View,
     cfg: &Cfg,
@@ -1210,6 +1232,7 @@ impl Core {
                     }],
                     programs: Vec::new(),
                     grid: None,
+                    editable: Vec::new(),
                 }),
                 PBoardItem::Program(s) => {
                     let def = cfg.program_type(&s.program_type);
@@ -1285,6 +1308,7 @@ impl Core {
                             body: lines,
                             programs: vec![id.to_string()],
                             grid: None,
+                            editable: Vec::new(),
                         });
                         continue;
                     }
@@ -1296,6 +1320,7 @@ impl Core {
                         body: lines,
                         programs: vec![id.to_string()],
                         grid: None,
+                        editable: Vec::new(),
                     });
                 }
             }
@@ -1336,7 +1361,28 @@ impl Core {
             .map(|m| m.parse())
             .transpose()
             .map_err(ApiError::invalid)?;
-        let mut items = self.board_items(&v, &self.texts(), month.as_ref())?;
+        let t = self.texts();
+        let mut items = self.board_items(&v, &t, month.as_ref())?;
+        // The programs one may change, opened again from the board.
+        let c = cfg(&v)?;
+        let now = today(self);
+        if let Ok(me) = self.me() {
+            for item in &mut items {
+                item.editable = item
+                    .programs
+                    .iter()
+                    .filter_map(|pid| {
+                        let (id, p) = v.proj.programs.iter().find(|(id, _)| id.to_string() == *pid)?;
+                        may_edit_program(&v, c, me, id, &p.program_type, now).then(|| Choice {
+                            id: id.to_string(),
+                            label: c
+                                .program_type(&p.program_type)
+                                .map_or_else(|| p.program_type.to_string(), |d| t.get(d.label.as_str())),
+                        })
+                    })
+                    .collect();
+            }
+        }
         if month.is_some() {
             items.sort_by(|a, b| a.title.cmp(&b.title));
         }
@@ -2238,6 +2284,10 @@ impl Core {
             let first = first.unwrap_or(now);
             let period = crate::schedule::period_of(def, first);
             let status = program_status(&v, cfg, id, program_type);
+            // Published: on the board only (opened again from there).
+            if status == "published" {
+                continue;
+            }
             if let Some(g) = group_of(program_type) {
                 if status != "draft" {
                     let e = grouped
@@ -2513,19 +2563,8 @@ impl Core {
             kind: ObjectKind::Program,
             id: program_type.clone(),
         };
-        let can_edit = draft.is_some()
-            && (v
-                .proj
-                .auth
-                .is_allowed(cfg, me, Permission::ProgramAssign, Some(&obj), None, now)
-                || v.proj.auth.is_allowed(
-                    cfg,
-                    me,
-                    Permission::ProgramDraft,
-                    Some(&obj),
-                    None,
-                    now,
-                ));
+        // Once on the board, only who publishes it changes it.
+        let can_edit = draft.is_some() && may_edit_program(&v, cfg, me, &id, &program_type, now);
         // Details of each slot: the draft's, else those of the version sent.
         let details: BTreeMap<core_engine::ops::SlotKey, core_engine::ops::Values> = match draft {
             Some(p) => {
@@ -2959,15 +2998,10 @@ impl Core {
                     .get(&id)
                     .is_some_and(|p| p.details.is_empty()),
             // "Invia": to the assignees, or, notified at publication, to who publishes.
+            // On the board: who publishes sends its changes too.
             can_send: can_edit
-                && v.proj.auth.is_allowed(
-                    cfg,
-                    me,
-                    Permission::ProgramAssign,
-                    Some(&obj),
-                    None,
-                    now,
-                ),
+                && (v.proj.published.contains_key(&id)
+                    || v.proj.auth.is_allowed(cfg, me, Permission::ProgramAssign, Some(&obj), None, now)),
             can_publish,
             warnings,
         })

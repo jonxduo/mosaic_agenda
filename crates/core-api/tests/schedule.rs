@@ -620,9 +620,10 @@ async fn calendar_export_and_import() {
     assert_eq!(b.calendar_series().unwrap().items.len(), 1);
 }
 
-/// A program sent and then published stays in the list of programs.
+/// A program sent stays in the list of programs; once published it leaves
+/// it (it is on the board), where who publishes may open it again.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn published_programs_stay_listed() {
+async fn published_programs_leave_the_list() {
     let dir = tempfile::tempdir().unwrap();
     let a = core(dir.path());
     a.create_org("Club".into(), "Alice".into()).await.unwrap();
@@ -637,5 +638,8 @@ async fn published_programs_stay_listed() {
     a.send_program(id.clone()).unwrap();
     assert_eq!(status(&a).as_deref(), Some("assigned"));
     a.publish_program(id.clone()).unwrap();
-    assert_eq!(status(&a).as_deref(), Some("published"));
+    assert_eq!(status(&a), None);
+    let board = a.board(Some("2026-11".into())).unwrap();
+    let post = board.iter().find(|b| b.programs.contains(&id)).unwrap();
+    assert_eq!(post.editable.iter().map(|c| c.id.as_str()).collect::<Vec<_>>(), [id.as_str()]);
 }

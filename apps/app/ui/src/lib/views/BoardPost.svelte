@@ -25,8 +25,18 @@
 </script>
 
 <div class="stack page wide">
-  <header>
+  <header class="spread">
     <PageHeading title={item?.title ?? ''} subtitle={item?.subtitle ?? ''} onback={() => go('board')} />
+    <!-- Who may change a program on the board (who publishes it, the administrators) opens it from here. -->
+    {#if item?.editable.length}
+      <div class="row edit">
+        {#each item.editable as e (e.id)}
+          <button class="btn" onclick={() => go('program_editor', { program: e.id })}>
+            {item.editable.length > 1 ? `${t('edit')} · ${e.label}` : t('edit')}
+          </button>
+        {/each}
+      </div>
+    {/if}
   </header>
   {#if item?.grid}
     {@const g = item.grid}
@@ -74,6 +84,8 @@
 
 <style>
   .page { gap: 16px; }
+  header { flex-wrap: wrap; gap: 12px; }
+  .edit { flex-wrap: wrap; gap: 8px; }
   table { border-collapse: collapse; width: 100%; }
   td { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
   tr:last-child td { border-bottom: none; }

@@ -127,6 +127,9 @@ pub struct BoardItem {
     pub programs: Vec<String>,
     /// A publish group as one table: dates by rows, assignments by columns.
     pub grid: Option<BoardGrid>,
+    /// Programs of the post the viewer may change (id, name): the board is
+    /// where a published program is opened again.
+    pub editable: Vec<Choice>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

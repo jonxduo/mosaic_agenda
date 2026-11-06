@@ -289,6 +289,11 @@ export type BoardItem_Deserialize = {
 	programs: string[],
 	/**  A publish group as one table: dates by rows, assignments by columns. */
 	grid?: BoardGrid | null,
+	/**
+	 *  Programs of the post the viewer may change (id, name): the board is
+	 *  where a published program is opened again.
+	 */
+	editable: Choice[],
 };
 
 export type BoardItem_Serialize = {
@@ -302,6 +307,11 @@ export type BoardItem_Serialize = {
 	programs: string[],
 	/**  A publish group as one table: dates by rows, assignments by columns. */
 	grid: BoardGrid | null,
+	/**
+	 *  Programs of the post the viewer may change (id, name): the board is
+	 *  where a published program is opened again.
+	 */
+	editable: Choice[],
 };
 
 export type BoardLine = {

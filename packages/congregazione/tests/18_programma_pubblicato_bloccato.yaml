@@ -1,0 +1,21 @@
+name: programma pubblicato in bacheca, lo cambia solo chi pubblica
+given:
+  date: 2026-11-01
+  people:
+    - { id: resp, qualifications: [publisher, baptized, ministerial_servant], attributes: { sex: m }, roles: [cleaning_manager] }
+    - { id: bm, qualifications: [publisher, baptized, ministerial_servant], attributes: { sex: m }, roles: [board_manager] }
+    - { id: marta, qualifications: [publisher, baptized, can_cleaning], attributes: { sex: f } }
+    - { id: luigi, qualifications: [publisher, baptized, can_cleaning], attributes: { sex: m } }
+when:
+  - { as: resp, do: program.draft, name: nov, type: cleaning, dates: [2026-11-04, 2026-11-07] }
+  - { as: resp, do: program.assign, program: nov, slot: cleaning, index: 0, person: marta }
+  - { as: resp, do: program.send, program: nov }
+  - { as: bm, do: program.publish, program: nov }
+  # In bacheca: chi lo prepara non lo cambia più, chi pubblica sì.
+  - { as: resp, do: program.assign, program: nov, slot: cleaning, index: 1, person: luigi, expect: denied, reason: "publishes" }
+  - { as: bm, do: program.assign, program: nov, slot: cleaning, index: 1, person: luigi }
+  - { as: resp, do: program.send, program: nov, expect: denied }
+  - { as: bm, do: program.send, program: nov }
+  - { as: bm, do: program.publish, program: nov }
+then:
+  - { on_board: { who: marta, program: nov } }

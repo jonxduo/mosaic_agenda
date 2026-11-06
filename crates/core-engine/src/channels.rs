@@ -82,10 +82,12 @@ pub fn members(
         }
         ChannelDescriptor::Program {
             program_type,
-            stage,
+            stage: _,
         } => {
             let mut out = program_team(auth, cfg, program_type, date)?;
-            if stage.as_str() == STAGE_ASSIGNED {
+            // Who publishes reads the version sent and, as the only one who
+            // may change a program once on the board, its draft too.
+            {
                 let obj = program_object(program_type);
                 out.extend(auth.org.active_persons().filter(|p| {
                     auth.is_allowed(cfg, *p, Permission::ProgramPublish, Some(&obj), None, date)

@@ -1201,3 +1201,16 @@ Piano di F11:
   configurazione con quei file e testi (le chiavi piatte si sostituiscono, le mancanti si
   aggiungono in fondo) e mette le serie del file al posto delle attuali; le unità che non ci
   sono si tralasciano. Il file passa la stessa validazione dell'editor di configurazione.
+
+## 2026-11-06 — Programmi pubblicati: solo in bacheca, li cambia solo chi pubblica
+
+- L'elenco Programmi mostra solo bozze, inviati e da pubblicare: un programma pubblicato sta
+  solo in bacheca.
+- Un programma in bacheca lo cambia solo chi ha `program.publish` (il responsabile della
+  bacheca) e gli amministratori: il nucleo lo verifica su parti, dettagli, assegnazioni, giorni
+  dedicati e invio (`may_change_program` / `may_send_program`); chi lo prepara o assegna non può
+  più cambiarlo né reinviarlo.
+- Per questo chi pubblica entra anche nel canale della bozza di quel tipo di programma (prima
+  solo in quello dell'inviato): senza quella chiave non potrebbe scrivere le modifiche.
+- In bacheca, a chi può cambiarlo, "Modifica" apre l'editor; le modifiche si inviano e si
+  ripubblicano come al solito.

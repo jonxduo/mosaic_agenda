@@ -1086,17 +1086,42 @@ fn series_allowed(proj: &Projection, h: &H<'_>, event_type: &Slug) -> Result<(),
     )
 }
 
+/// Changes to a program: who prepares or assigns it; once on the board,
+/// only who publishes it (and the administrators, who may everything).
+fn may_change_program(proj: &Projection, h: &H<'_>, program: &core_model::Id, program_type: &Slug) -> Result<(), Denied> {
+    let obj = program_object(program_type);
+    if proj.published.contains_key(program) {
+        return ensure(
+            h.allowed(Permission::ProgramPublish, Some(&obj), None),
+            "a program on the board is changed only by who publishes it",
+        );
+    }
+    ensure(
+        h.allowed(Permission::ProgramDraft, Some(&obj), None)
+            || h.allowed(Permission::ProgramAssign, Some(&obj), None),
+        "permission program.draft or program.assign required",
+    )
+}
+
+/// Sending a program's assignments: who assigns it; once on the board, who
+/// publishes it.
+fn may_send_program(proj: &Projection, h: &H<'_>, program: &core_model::Id, program_type: &Slug) -> Result<(), Denied> {
+    let obj = program_object(program_type);
+    if proj.published.contains_key(program) {
+        return ensure(
+            h.allowed(Permission::ProgramPublish, Some(&obj), None),
+            "a program on the board is changed only by who publishes it",
+        );
+    }
+    h.need(Permission::ProgramAssign, Some(&obj), None)
+}
+
 fn program_days_added(proj: &mut Projection, h: &H<'_>, d: &ProgramDaysAdded) -> Result<(), Denied> {
     let p = proj
         .programs
         .get(&d.program)
         .ok_or_else(|| Denied("unknown program".into()))?;
-    let obj = program_object(&p.program_type);
-    ensure(
-        h.allowed(Permission::ProgramDraft, Some(&obj), None)
-            || h.allowed(Permission::ProgramAssign, Some(&obj), None),
-        "permission program.draft or program.assign required",
-    )?;
+    may_change_program(proj, h, &d.program, &p.program_type)?;
     h.expect_channel(proj, &program_draft_descriptor(&p.program_type))?;
     let p = proj
         .programs
@@ -1126,12 +1151,7 @@ fn program_parts_shown(
         .cfg
         .program_type(&p.program_type)
         .ok_or_else(|| Denied("unknown program type".into()))?;
-    let obj = program_object(&p.program_type);
-    ensure(
-        h.allowed(Permission::ProgramDraft, Some(&obj), None)
-            || h.allowed(Permission::ProgramAssign, Some(&obj), None),
-        "permission program.draft or program.assign required",
-    )?;
+    may_change_program(proj, h, &d.program, &p.program_type)?;
     h.expect_channel(proj, &program_draft_descriptor(&p.program_type))?;
     for (key, _) in &d.parts {
         let slot = def
@@ -1174,12 +1194,7 @@ fn program_details_set(
         .cfg
         .program_type(&p.program_type)
         .ok_or_else(|| Denied("unknown program type".into()))?;
-    let obj = program_object(&p.program_type);
-    ensure(
-        h.allowed(Permission::ProgramDraft, Some(&obj), None)
-            || h.allowed(Permission::ProgramAssign, Some(&obj), None),
-        "permission program.draft or program.assign required",
-    )?;
+    may_change_program(proj, h, &d.program, &p.program_type)?;
     h.expect_channel(proj, &program_draft_descriptor(&p.program_type))?;
     for (key, values) in &d.details {
         let slot = def
@@ -1225,12 +1240,7 @@ fn program_updated(proj: &mut Projection, h: &H<'_>, u: &ProgramUpdated) -> Resu
         .program_type(&p.program_type)
         .ok_or_else(|| Denied("unknown program type".into()))?
         .clone();
-    let obj = program_object(&p.program_type);
-    ensure(
-        h.allowed(Permission::ProgramDraft, Some(&obj), None)
-            || h.allowed(Permission::ProgramAssign, Some(&obj), None),
-        "permission program.draft or program.assign required",
-    )?;
+    may_change_program(proj, h, &u.program, &p.program_type)?;
     h.expect_channel(proj, &program_draft_descriptor(&p.program_type))?;
     let mut warnings = Vec::new();
     for a in &u.assignments {
@@ -1312,11 +1322,7 @@ fn program_updated(proj: &mut Projection, h: &H<'_>, u: &ProgramUpdated) -> Resu
 fn assignments_sent(proj: &mut Projection, h: &H<'_>, s: &AssignmentsSent) -> Result<(), Denied> {
     match s {
         AssignmentsSent::Team { program, snapshot } => {
-            h.need(
-                Permission::ProgramAssign,
-                Some(&program_object(&snapshot.program_type)),
-                None,
-            )?;
+            may_send_program(proj, h, program, &snapshot.program_type)?;
             h.expect_channel(proj, &program_assigned_descriptor(&snapshot.program_type))?;
             ensure(&snapshot.program == program, "snapshot of another program")?;
             if let Some(p) = proj.programs.get(program) {
@@ -1356,7 +1362,7 @@ fn assignments_sent(proj: &mut Projection, h: &H<'_>, s: &AssignmentsSent) -> Re
                         .map(|s| s.program_type.clone())
                 })
                 .ok_or_else(|| Denied("unknown program".into()))?;
-            h.need(Permission::ProgramAssign, Some(&program_object(&p)), None)?;
+            may_send_program(proj, h, program, &p)?;
             h.expect_channel(proj, &program_assigned_descriptor(&p))?;
             ensure(
                 proj.assigned_snapshots
