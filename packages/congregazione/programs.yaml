@@ -178,7 +178,7 @@ program_types:
     retention: { years: 2 }
     slots:
       - { id: cleaning, label: s.cleaning, count: 2, requires: { has_qualification: can_cleaning } }
-      - { id: deep_cleaning, label: s.deep_cleaning, count: 2, requires: { has_qualification: can_cleaning }, enabled: false }
+      - { id: deep_cleaning, label: s.deep_cleaning, count: 2, requires: { has_qualification: can_cleaning }, mode: dedicated, enabled: false }
   - id: field_service
     label: p.field_service
     icon: route

@@ -1123,3 +1123,15 @@ Piano di F11:
   pulizie per ogni incarico; passa dal responsabile della bacheca, programma a sé (non in
   "Incarichi"). Si assegnano persone, non gruppi.
 - Icona `broom` nell'app; scenario 17 nei test del pacchetto; dati di prova con le pulizie.
+
+## 2026-11-06 — Turno di ogni incarico e giorni dedicati
+
+- In Calendario e turni ogni incarico ha un turno (`mode`): segue il programma (predefinito),
+  cambia a ogni evento, mensile, giorno dedicato. `each_event` resta valido come sinonimo.
+- Giorno dedicato: l'incarico non sta negli eventi; nell'editor del programma c'è il riquadro
+  "Giorni dedicati" dove si aggiungono righe con incarico, data e persona (e si tolgono).
+  I giorni si aggiungono al programma con il nuovo evento `program.days_added` e seguono gli
+  eventi nella numerazione delle occorrenze (`Program::date_of`): avvisi, risposte, bacheca e
+  "I miei incarichi" usano la data del giorno.
+- Nel pacchetto "Pulizia approfondita" è un incarico a giorno dedicato (spento; acceso nei dati
+  di prova).

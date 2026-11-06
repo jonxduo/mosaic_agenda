@@ -445,14 +445,12 @@ pub(crate) fn people_load(
             continue;
         }
         for (k, (a, _)) in &p.assignments {
-            let (Assignee::Person(person), Some(d)) =
-                (a, p.occurrences.get(usize::from(k.occurrence)))
-            else {
+            let (Assignee::Person(person), Some(d)) = (a, p.date_of(k.occurrence)) else {
                 continue;
             };
-            if *d < from {
-                let e = last.entry(*person).or_insert(*d);
-                *e = (*e).max(*d);
+            if d < from {
+                let e = last.entry(*person).or_insert(d);
+                *e = (*e).max(d);
             }
         }
     }
@@ -2528,7 +2526,8 @@ impl Core {
         let groups = crate::schedule::groups(def.rotation, &occurrences);
         let mut cells = Vec::new();
         // Slots that change at every event get one cell per event.
-        for slot in def.slots.iter().filter(|s| def.slot_active(s)) {
+        let dedicated_mode = |s: &core_model::config::SlotDef| s.mode == core_model::config::SlotMode::Dedicated;
+        for slot in def.slots.iter().filter(|s| def.slot_active(s) && !dedicated_mode(s)) {
             let rotation = crate::schedule::slot_rotation(def, &slot.id);
             let per_event = rotation != def.rotation;
             for group in &crate::schedule::groups(rotation, &occurrences) {
@@ -2658,7 +2657,87 @@ impl Core {
             .filter(|a| a.kind == core_engine::projection::AlertKind::DoubleAssignment)
             .map(|a| a.message.clone())
             .collect();
+        // Slots on dedicated days: rows of date, slot and person, added by hand.
+        let dedicated_slots_def: Vec<&core_model::config::SlotDef> =
+            def.slots.iter().filter(|s| def.slot_active(s) && dedicated_mode(s)).collect();
+        let is_dedicated = |slot: &Slug| dedicated_slots_def.iter().any(|s| &s.id == slot);
+        let rows: Vec<(core_engine::ops::SlotKey, Date, String)> = match draft {
+            Some(p) => p
+                .assignments
+                .iter()
+                .filter(|(k, _)| is_dedicated(&k.slot))
+                .filter_map(|(k, (a, _))| {
+                    Some((k.clone(), p.date_of(k.occurrence)?, core_engine::rules::display_name(&v.proj.auth, a)))
+                })
+                .collect(),
+            None => {
+                let s = if published_only {
+                    v.proj.published.get(&id)
+                } else {
+                    v.proj.assigned_snapshots.get(&id).or_else(|| v.proj.published.get(&id))
+                };
+                s.map(|s| {
+                    s.assignments
+                        .iter()
+                        .filter(|a| is_dedicated(&a.key.slot) && !a.display_name.is_empty())
+                        .map(|a| (a.key.clone(), a.date, a.display_name.clone()))
+                        .collect()
+                })
+                .unwrap_or_default()
+            }
+        };
+        let slot_rank = |slot: &Slug| def.slots.iter().position(|s| &s.id == slot).unwrap_or(usize::MAX);
+        let mut rows = rows;
+        rows.sort_by_key(|(k, d, _)| (*d, slot_rank(&k.slot), k.index));
+        let dedicated: Vec<DedicatedRow> = rows
+            .into_iter()
+            .map(|(k, d, name)| DedicatedRow {
+                occurrence: u32::from(k.occurrence),
+                label: dedicated_slots_def
+                    .iter()
+                    .find(|s| s.id == k.slot)
+                    .map_or_else(|| k.slot.to_string(), |s| t.get(s.label.as_str())),
+                slot: k.slot.to_string(),
+                index: u32::from(k.index),
+                date: d.to_string(),
+                date_label: capitalize(&t.long_date(d)),
+                assignee: name,
+            })
+            .collect();
+        let dedicated_slots: Vec<DedicatedSlot> = if can_edit {
+            dedicated_slots_def
+                .iter()
+                .map(|slot| {
+                    let mut candidates: Vec<Choice> = v
+                        .proj
+                        .auth
+                        .org
+                        .persons
+                        .iter()
+                        .filter(|(p, r)| {
+                            r.active
+                                && !v.proj.erasure.persons.contains(p)
+                                && v.proj.auth.satisfies(cfg, **p, slot.requires.as_ref(), now)
+                        })
+                        .map(|(p, r)| Choice {
+                            id: p.to_string(),
+                            label: r.display_name.clone(),
+                        })
+                        .collect();
+                    candidates.sort_by(|a, b| a.label.cmp(&b.label));
+                    DedicatedSlot {
+                        id: slot.id.to_string(),
+                        label: t.get(slot.label.as_str()),
+                        candidates,
+                    }
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
         Ok(ProgramEditor {
+            dedicated,
+            dedicated_slots,
             program_id: program,
             program_type: program_type.to_string(),
             title: format!(

@@ -3067,7 +3067,7 @@
         },
         "each_event": {
           "default": false,
-          "description": "A new person at every event, whatever the program's `rotation`.",
+          "description": "A new person at every event, whatever the program's `rotation`\n(same as `mode: each_event`).",
           "type": "boolean"
         },
         "enabled": {
@@ -3087,6 +3087,11 @@
         },
         "label": {
           "$ref": "#/$defs/TextKey"
+        },
+        "mode": {
+          "$ref": "#/$defs/SlotMode",
+          "default": "program",
+          "description": "How the persons of this slot change: with the program (default), at\nevery event, every month, or on dedicated days set in the program."
         },
         "numbered": {
           "default": true,
@@ -3185,6 +3190,28 @@
         "label"
       ],
       "type": "object"
+    },
+    "SlotMode": {
+      "description": "How the persons of a slot change (Calendario e turni).",
+      "oneOf": [
+        {
+          "enum": [
+            "each_event",
+            "month"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "program",
+          "description": "As the program's `rotation`.",
+          "type": "string"
+        },
+        {
+          "const": "dedicated",
+          "description": "Not at the events: rows of date and person added in the program.",
+          "type": "string"
+        }
+      ]
     },
     "Slug": {
       "pattern": "^[a-z][a-z0-9_]*$",

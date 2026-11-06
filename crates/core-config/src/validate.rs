@@ -1598,6 +1598,9 @@ impl<'a> Validator<'a> {
                 if s.count == 0 {
                     self.err(PROGRAMS, format!("{sp}.count"), "count must be at least 1");
                 }
+                if s.each_event && s.mode != core_model::config::SlotMode::Program {
+                    self.err(PROGRAMS, format!("{sp}.mode"), "`each_event` and `mode` say two things: keep `mode`");
+                }
                 if let Some(c) = &s.requires {
                     self.cond(c, PROGRAMS, &format!("{sp}.requires"), None);
                     if !self.satisfiable(c, 0) {

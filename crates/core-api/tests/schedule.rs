@@ -392,3 +392,52 @@ async fn programs_listed_newest_first() {
     made.reverse();
     assert_eq!(listed, made);
 }
+
+/// A slot on dedicated days: not in the events' rows, rows of date and
+/// person added in the program, dated on the board.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn dedicated_days_rows() {
+    let dir = tempfile::tempdir().unwrap();
+    let a = core(dir.path());
+    a.create_org("Club".into(), "Alice".into()).await.unwrap();
+    let bob = a.add_person("Bob".into(), Default::default()).unwrap();
+    let alice = a.people().unwrap().persons.into_iter().find(|p| p.name == "Alice").unwrap().person_id;
+    a.grant_qualification(alice.clone(), "member".into(), None, None).unwrap();
+    a.grant_role(alice, "keeper".into(), None).unwrap();
+    let mut files = a.config_files().unwrap().files;
+    let f = files.iter_mut().find(|f| f.path == "programs.yaml").unwrap();
+    let from = "{ id: helper, label: s.helper, repeat: { count: 2 } }";
+    assert!(f.text.contains(from));
+    f.text = f.text.replacen(from, "{ id: helper, label: s.helper, repeat: { count: 2 }, mode: dedicated }", 1);
+    a.config_publish(files).unwrap();
+
+    let d = a.program_dates("weekly_plan".into(), Some("week-2026-11-02".into())).unwrap();
+    let id = a.draft_program("weekly_plan".into(), d.dates).unwrap();
+    let p = a.program(id.clone()).unwrap();
+    assert!(p.cells.iter().all(|c| c.slot != "helper"), "not at the events");
+    assert_eq!(p.dedicated_slots.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(), ["helper"]);
+    assert!(p.dedicated.is_empty());
+
+    // Saturday 7: a day of its own; the second row takes the next place.
+    let p = a.add_dedicated(id.clone(), "helper".into(), "2026-11-07".into(), bob.clone()).unwrap();
+    assert_eq!(p.dedicated.len(), 1);
+    assert_eq!(p.dedicated[0].date, "2026-11-07");
+    assert_eq!(p.dedicated[0].assignee, "Bob");
+    let p = a.add_dedicated(id.clone(), "helper".into(), "2026-11-07".into(), bob.clone()).unwrap();
+    assert_eq!(p.dedicated.len(), 2);
+    assert_eq!(p.dedicated[1].index, 1);
+    // Removing a row empties its place.
+    let r = &p.dedicated[1];
+    let p = a
+        .assign_slots(
+            id.clone(),
+            vec![core_api::dto::SlotChange { occurrence: r.occurrence, slot: r.slot.clone(), index: r.index, person: String::new() }],
+            Vec::new(),
+            Vec::new(),
+        )
+        .unwrap();
+    assert_eq!(p.dedicated.len(), 1);
+    // Bob's assignment carries the dedicated day.
+    let export = a.export_person(bob).unwrap();
+    assert_eq!(export.assignments.len(), 1, "{:?}", export.assignments);
+}

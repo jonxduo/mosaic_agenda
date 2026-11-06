@@ -116,6 +116,25 @@ pub struct Program {
     pub sent_version: u32,
     /// Declared time (ms) of the draft event: lists show the newest first.
     pub created: i64,
+    /// Days added for the dedicated slots; occurrence `occurrences.len() + i`.
+    pub dedicated_days: Vec<Date>,
+}
+
+impl Program {
+    /// The date of occurrence `occ`: an event, or a dedicated day after them.
+    pub fn date_of(&self, occ: u16) -> Option<Date> {
+        let i = usize::from(occ);
+        self.occurrences
+            .get(i)
+            .or_else(|| self.dedicated_days.get(i.checked_sub(self.occurrences.len())?))
+            .copied()
+    }
+
+    /// Occurrence number of a dedicated day, if added.
+    pub fn dedicated_occurrence(&self, day: Date) -> Option<u16> {
+        let i = self.dedicated_days.iter().position(|d| *d == day)?;
+        u16::try_from(self.occurrences.len() + i).ok()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

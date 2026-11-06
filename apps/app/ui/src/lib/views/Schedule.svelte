@@ -15,7 +15,8 @@
   const DAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
   type Ev = { i: number; id: string; label: string; days: string[]; time: string };
   // j: position in programs.yaml (null for a slot added here).
-  type Slot = { j: number | null; id: string; key: string; label: string; enabled: boolean; count: number; repeated: boolean; eachEvent: boolean; removed: boolean };
+  const SLOT_MODES = ['program', 'each_event', 'month', 'dedicated'];
+  type Slot = { j: number | null; id: string; key: string; label: string; enabled: boolean; count: number; repeated: boolean; mode: string; removed: boolean };
   type Prog = { i: number; id: string; label: string; rotation: string; period: string; slots: Slot[]; requires: unknown; adding: string };
   // An option of a program type (e.g. a second room): i program, k option.
   type Opt = { i: number; k: number; id: string; program: string; label: string; enabled: boolean };
@@ -73,7 +74,8 @@
             enabled: s.enabled !== false,
             count: Number(s.count ?? 1),
             repeated: s.repeat !== undefined,
-            eachEvent: s.each_event === true,
+            // How the persons change: program (default), each_event, month, dedicated.
+            mode: String(s.mode ?? (s.each_event === true ? 'each_event' : 'program')),
             removed: false
           }))
         }));
@@ -107,7 +109,7 @@
     const name = p.adding.trim();
     if (!name) return;
     const id = slugFor(name);
-    p.slots.push({ j: null, id, key: `s.${id}`, label: name, enabled: true, count: 1, repeated: false, eachEvent: false, removed: false });
+    p.slots.push({ j: null, id, key: `s.${id}`, label: name, enabled: true, count: 1, repeated: false, mode: 'program', removed: false });
     p.adding = '';
   }
 
@@ -141,12 +143,13 @@
           const slot: Js = { id: s.id, label: s.key, count: s.count };
           if (p.requires !== undefined) slot.requires = p.requires;
           if (!s.enabled) slot.enabled = false;
-          if (s.eachEvent) slot.each_event = true;
+          if (s.mode !== 'program') slot.mode = s.mode;
           addTo(prog, [...base, 'slots'], slot);
           continue;
         }
         setAt(prog, [...base, 'slots', s.j, 'enabled'], s.enabled ? undefined : false);
-        setAt(prog, [...base, 'slots', s.j, 'each_event'], s.eachEvent ? true : undefined);
+        setAt(prog, [...base, 'slots', s.j, 'each_event'], undefined);
+        setAt(prog, [...base, 'slots', s.j, 'mode'], s.mode === 'program' ? undefined : s.mode);
         if (!s.repeated) setAt(prog, [...base, 'slots', s.j, 'count'], s.count);
       }
       // Removals last, from the end, so the positions above stay valid.
@@ -277,10 +280,9 @@
                       <input type="number" min="1" max="9" bind:value={s.count} disabled={!current.can_publish || !s.enabled} aria-label={`${s.label} · ${t('sch_count')}`} />
                     </label>
                   {/if}
-                  <label class="inline each" title={t('sch_each_hint')}>
-                    <input type="checkbox" bind:checked={s.eachEvent} disabled={!current.can_publish || !s.enabled || p.rotation === 'occurrence'} />
-                    <span>{t('sch_each')}</span>
-                  </label>
+                  <select class="each" bind:value={s.mode} disabled={!current.can_publish || !s.enabled} aria-label={`${s.label} · ${t('sch_mode')}`} title={t('sch_mode_hint')}>
+                    {#each SLOT_MODES as m (m)}<option value={m}>{t(`sch_mode_${m}` as never)}</option>{/each}
+                  </select>
                   {#if current.can_publish}
                     <button class="icon-btn" aria-label={`${t('g_remove')} ${s.label}`} onclick={() => removeSlot(p, s)}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18 M8 6V4h8v2 M6 6l1 14h10l1-14" /></svg>
@@ -338,9 +340,9 @@
   .option input { width: 18px; height: 18px; min-height: 0; margin: 0; }
   .slot { display: grid; grid-template-columns: auto minmax(140px, 1fr) auto auto auto; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
   .slot.off .name, .slot.off .count, .slot.off .each { opacity: 0.5; }
-  .on, .each input { width: 20px; height: 20px; min-height: 20px; margin: 0; accent-color: var(--primary); flex: none; }
+  .on { width: 20px; height: 20px; min-height: 20px; margin: 0; accent-color: var(--primary); flex: none; }
   .name { min-height: 38px; padding: 6px 10px; }
-  .each { font-size: 14px; white-space: nowrap; }
+  .each { font-size: 14px; width: auto; min-width: 200px; min-height: 38px; }
   .icon-btn { display: grid; place-items: center; width: 36px; height: 36px; border: none; border-radius: 8px; background: none; color: var(--muted); cursor: pointer; }
   .icon-btn:hover { background: var(--surface); color: var(--danger); }
   .add { margin-top: 12px; flex-wrap: nowrap; }

@@ -322,6 +322,14 @@ pub struct ProgramDetailsSet {
     pub details: Vec<(SlotKey, Values)>,
 }
 
+/// Days added to a program for its dedicated slots (§ "Giorno dedicato"):
+/// they follow its events in the occurrence numbering, in the order added.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProgramDaysAdded {
+    pub program: Id,
+    pub days: Vec<Date>,
+}
+
 /// Parts of a program shown or removed for one event (`true`: shown).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProgramPartsShown {
@@ -491,6 +499,7 @@ pub enum Op {
     ProgramUpdated(ProgramUpdated),
     ProgramDetailsSet(ProgramDetailsSet),
     ProgramPartsShown(ProgramPartsShown),
+    ProgramDaysAdded(ProgramDaysAdded),
     ProgramAssignmentsSent(AssignmentsSent),
     AssignmentResponded(AssignmentResponded),
     ProgramPublished(ProgramSnapshot),
@@ -570,6 +579,7 @@ impl Op {
             K::RetentionApplied => Op::RetentionApplied(de(bytes)?),
             K::AdminQuarantineResolved => Op::QuarantineResolved(de(bytes)?),
             K::OrgBackupNodeSet => Op::BackupNodeSet(de(bytes)?),
+            K::ProgramDaysAdded => Op::ProgramDaysAdded(de(bytes)?),
         })
     }
 

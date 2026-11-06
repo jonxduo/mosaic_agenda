@@ -1001,6 +1001,24 @@ impl<'a> Client<'a> {
         self.finish(chain)
     }
 
+    /// Adds days to a program for its dedicated slots.
+    pub fn add_program_days(&self, program: Id, days: Vec<Date>) -> Result<Vec<SignedEvent>, ActionError> {
+        let p = self
+            .proj
+            .programs
+            .get(&program)
+            .ok_or_else(|| nf("program"))?;
+        let mut chain = self.chain();
+        self.sealed(
+            &mut chain,
+            EventKind::ProgramDaysAdded,
+            &program_draft_descriptor(&p.program_type),
+            Self::header(ObjectType::Program, program, &p.program_type),
+            &ProgramDaysAdded { program, days },
+        )?;
+        self.finish(chain)
+    }
+
     /// Sets the details (extra fields) of slots, assigned or not.
     pub fn set_program_details(
         &self,

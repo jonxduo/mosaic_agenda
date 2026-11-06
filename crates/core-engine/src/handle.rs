@@ -235,6 +235,7 @@ pub(crate) fn handle(
         Op::ProgramUpdated(u) => program_updated(proj, &h, u),
         Op::ProgramDetailsSet(d) => program_details_set(proj, &h, d),
         Op::ProgramPartsShown(d) => program_parts_shown(proj, &h, d),
+        Op::ProgramDaysAdded(d) => program_days_added(proj, &h, d),
         Op::ProgramAssignmentsSent(s) => assignments_sent(proj, &h, s),
         Op::AssignmentResponded(r) => assignment_responded(proj, &h, r),
         Op::ProgramPublished(s) => program_published(proj, &h, s, false),
@@ -1035,11 +1036,39 @@ fn program_drafted(proj: &mut Projection, h: &H<'_>, d: &ProgramDrafted) -> Resu
             status: ProgramStatus::Draft,
             sent_version: 0,
             created: h.time,
+            dedicated_days: Vec::new(),
             details: BTreeMap::new(),
             shown: BTreeMap::new(),
         },
     );
     Ok(())
+}
+
+fn program_days_added(proj: &mut Projection, h: &H<'_>, d: &ProgramDaysAdded) -> Result<(), Denied> {
+    let p = proj
+        .programs
+        .get(&d.program)
+        .ok_or_else(|| Denied("unknown program".into()))?;
+    let obj = program_object(&p.program_type);
+    ensure(
+        h.allowed(Permission::ProgramDraft, Some(&obj), None)
+            || h.allowed(Permission::ProgramAssign, Some(&obj), None),
+        "permission program.draft or program.assign required",
+    )?;
+    h.expect_channel(proj, &program_draft_descriptor(&p.program_type))?;
+    let p = proj
+        .programs
+        .get_mut(&d.program)
+        .ok_or_else(|| Denied("unknown program".into()))?;
+    for day in &d.days {
+        if !p.dedicated_days.contains(day) {
+            p.dedicated_days.push(*day);
+        }
+    }
+    ensure(
+        p.occurrences.len() + p.dedicated_days.len() <= usize::from(u16::MAX),
+        "too many days",
+    )
 }
 
 fn program_parts_shown(
@@ -1168,9 +1197,8 @@ fn program_updated(proj: &mut Projection, h: &H<'_>, u: &ProgramUpdated) -> Resu
             .iter()
             .find(|s| s.id == a.key.slot)
             .ok_or_else(|| Denied(format!("unknown slot `{}`", a.key.slot)))?;
-        let date = *p
-            .occurrences
-            .get(usize::from(a.key.occurrence))
+        let date = p
+            .date_of(a.key.occurrence)
             .ok_or_else(|| Denied("unknown occurrence".into()))?;
         let reps = match &slot.repeat {
             None => 1,
@@ -1333,7 +1361,7 @@ fn assignments_sent(proj: &mut Projection, h: &H<'_>, s: &AssignmentsSent) -> Re
                         .assignments
                         .get(&it.key)
                         .is_some_and(|(a, _)| a == &Assignee::Person(*person))
-                        && p.occurrences.get(usize::from(it.key.occurrence)) == Some(&it.date);
+                        && p.date_of(it.key.occurrence) == Some(it.date);
                     ensure(ok, "the notice does not match the program")?;
                 }
             }

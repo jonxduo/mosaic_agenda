@@ -3,7 +3,7 @@
 //! events that share the same persons (`rotation`).
 
 use core_engine::time::{PeriodKey, dates_on, weekly_days};
-use core_model::config::{ProgramPeriod, ProgramTypeDef, Rotation};
+use core_model::config::{ProgramPeriod, ProgramTypeDef, Rotation, SlotMode};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use time::{Date, Weekday};
@@ -70,7 +70,10 @@ pub(crate) fn rotation_key(rotation: Rotation, d: Date) -> Option<PeriodKey> {
 /// The rotation of a slot: the program's, unless the slot changes at every event.
 pub(crate) fn slot_rotation(def: &ProgramTypeDef, slot: &core_model::Slug) -> Rotation {
     match def.slots.iter().find(|s| &s.id == slot) {
-        Some(s) if s.each_event => Rotation::Occurrence,
+        Some(s) if s.each_event || s.mode == SlotMode::EachEvent => Rotation::Occurrence,
+        Some(s) if s.mode == SlotMode::Month => Rotation::Month,
+        // Each dedicated day is its own date.
+        Some(s) if s.mode == SlotMode::Dedicated => Rotation::Occurrence,
         _ => def.rotation,
     }
 }

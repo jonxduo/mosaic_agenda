@@ -552,6 +552,29 @@ pub struct ProgramEditor {
     pub can_send: bool,
     pub can_publish: bool,
     pub warnings: Vec<String>,
+    /// Rows of the dedicated days (slots in that mode): date, slot, person.
+    pub dedicated: Vec<DedicatedRow>,
+    /// The slots one may add a dedicated row for, with who can take them.
+    pub dedicated_slots: Vec<DedicatedSlot>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct DedicatedRow {
+    pub occurrence: u32,
+    pub slot: String,
+    pub index: u32,
+    pub label: String,
+    /// YYYY-MM-DD.
+    pub date: String,
+    pub date_label: String,
+    pub assignee: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct DedicatedSlot {
+    pub id: String,
+    pub label: String,
+    pub candidates: Vec<Choice>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

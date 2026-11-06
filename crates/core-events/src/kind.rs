@@ -87,6 +87,7 @@ kinds! {
     ProgramDetailsSet => "program.details_set", false;
     ProgramPartsShown => "program.parts_shown", false;
     OrgBackupNodeSet => "org.backup_node_set", true;
+    ProgramDaysAdded => "program.days_added", false;
 }
 
 #[cfg(test)]

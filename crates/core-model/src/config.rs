@@ -761,6 +761,19 @@ pub enum Rotation {
     Month,
 }
 
+/// How the persons of a slot change (Calendario e turni).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SlotMode {
+    /// As the program's `rotation`.
+    #[default]
+    Program,
+    EachEvent,
+    Month,
+    /// Not at the events: rows of date and person added in the program.
+    Dedicated,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ProgramOptionDef {
@@ -921,9 +934,14 @@ pub struct SlotDef {
     /// Disabled slots stay in the package but are not assigned.
     #[serde(default = "yes")]
     pub enabled: bool,
-    /// A new person at every event, whatever the program's `rotation`.
+    /// A new person at every event, whatever the program's `rotation`
+    /// (same as `mode: each_event`).
     #[serde(default)]
     pub each_event: bool,
+    /// How the persons of this slot change: with the program (default), at
+    /// every event, every month, or on dedicated days set in the program.
+    #[serde(default)]
+    pub mode: SlotMode,
     /// Section of the program (see `ProgramTypeDef::sections`): a heading is
     /// shown where the section changes.
     #[serde(default)]

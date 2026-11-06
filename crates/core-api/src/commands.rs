@@ -278,6 +278,64 @@ impl Core {
     }
 
     /// Saves the draft: several slot choices in one change of the program.
+    /// Adds a dedicated-day row: the day joins the program if new, the
+    /// person takes the slot's first free place on that day.
+    pub fn add_dedicated(
+        self: &Arc<Self>,
+        program: String,
+        slot: String,
+        date: String,
+        person: String,
+    ) -> ApiResult<ProgramEditor> {
+        let id = parse_id(&program)?;
+        let day = core_engine::time::parse_date(&date).ok_or_else(|| ApiError::invalid("date"))?;
+        let slot_id = slug(&slot)?;
+        let known = {
+            let v = self.view()?;
+            let p = v.proj.programs.get(&id).ok_or_else(|| ApiError::not_found("program"))?;
+            p.dedicated_occurrence(day).is_some()
+        };
+        if !known {
+            self.act_events(|c| c.add_program_days(id, vec![day]))?;
+        }
+        let (occurrence, index) = {
+            let v = self.view()?;
+            let p = v.proj.programs.get(&id).ok_or_else(|| ApiError::not_found("program"))?;
+            let occ = p
+                .dedicated_occurrence(day)
+                .ok_or_else(|| ApiError::internal("day not added"))?;
+            let c = crate::views::cfg(&v)?;
+            let def = c
+                .program_type(&p.program_type)
+                .and_then(|d| d.slots.iter().find(|s| s.id == slot_id))
+                .ok_or_else(|| ApiError::not_found("slot"))?;
+            let places = def.count
+                * match def.repeat {
+                    Some(core_model::config::Repeat::Count(n)) => n,
+                    _ => 1,
+                };
+            let free = (0..places).find(|i| {
+                !p.assignments.contains_key(&core_engine::ops::SlotKey {
+                    occurrence: occ,
+                    slot: slot_id.clone(),
+                    index: *i as u16,
+                })
+            });
+            (occ, free.ok_or_else(|| ApiError::invalid("every place of this slot is taken on that day"))?)
+        };
+        self.assign_slots(
+            program,
+            vec![SlotChange {
+                occurrence: u32::from(occurrence),
+                slot,
+                index,
+                person,
+            }],
+            Vec::new(),
+            Vec::new(),
+        )
+    }
+
     pub fn assign_slots(
         self: &Arc<Self>,
         program: String,

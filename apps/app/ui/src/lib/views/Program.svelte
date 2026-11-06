@@ -187,6 +187,36 @@
     d.values[id] = value;
     details[k] = d;
   }
+  // Dedicated days: rows added and removed at once (not with "Salva").
+  let dSlot = $state('');
+  let dDate = $state('');
+  let dPerson = $state('');
+  const dCandidates = $derived(p?.dedicated_slots.find((x) => x.id === (dSlot || p?.dedicated_slots[0]?.id))?.candidates ?? []);
+  async function addDedicated() {
+    const slot = dSlot || p?.dedicated_slots[0]?.id;
+    if (!slot || !dDate || !dPerson) return;
+    busy = true;
+    try {
+      p = await run(api.addDedicated(program, slot, dDate, dPerson));
+      dPerson = '';
+      toast(t('draft_saved'));
+    } catch (e) {
+      fail(e);
+    } finally {
+      busy = false;
+    }
+  }
+  async function removeDedicated(r: { occurrence: number; slot: string; index: number }) {
+    busy = true;
+    try {
+      p = await run(api.assignSlots(program, [{ occurrence: r.occurrence, slot: r.slot, index: r.index, person: '' }], [], []));
+    } catch (e) {
+      fail(e);
+    } finally {
+      busy = false;
+    }
+  }
+
   async function save(quiet = false) {
     if (!changed && !p?.unsent) return true;
     busy = true;
@@ -388,6 +418,43 @@
         </aside>
       {/if}
     </div>
+    {#if p.dedicated.length || (p.can_edit && p.dedicated_slots.length)}
+      <!-- Slots on dedicated days: rows of date, slot and person added by hand. -->
+      <section class="card stack dedicated">
+        <h3>{t('dedicated_title')}</h3>
+        {#if p.dedicated.length}
+          <table class="drows"><tbody>
+            {#each p.dedicated as r (`${r.occurrence}-${r.slot}-${r.index}`)}
+              <tr>
+                <td class="ddate">{r.date_label}</td>
+                <td>{r.label}</td>
+                <td class="ro-name">{short(r.assignee)}</td>
+                {#if p.can_edit}<td class="dact"><button class="remove-row" aria-label={`${t('part_remove')} · ${r.label} ${r.date_label}`} disabled={busy} onclick={() => removeDedicated(r)}>−</button></td>{/if}
+              </tr>
+            {/each}
+          </tbody></table>
+        {:else}
+          <p class="muted">{t('dedicated_none')}</p>
+        {/if}
+        {#if p.can_edit && p.dedicated_slots.length}
+          <form class="row dadd" onsubmit={(e) => { e.preventDefault(); addDedicated(); }}>
+            {#if p.dedicated_slots.length > 1}
+              <select aria-label={t('dedicated_slot')} bind:value={dSlot}>
+                {#each p.dedicated_slots as x (x.id)}<option value={x.id}>{x.label}</option>{/each}
+              </select>
+            {:else}
+              <span class="dslot">{p.dedicated_slots[0].label}</span>
+            {/if}
+            <input type="date" aria-label={t('dedicated_date')} bind:value={dDate} />
+            <select aria-label={t('dedicated_person')} bind:value={dPerson}>
+              <option value="">{t('dedicated_person')}</option>
+              {#each dCandidates as c (c.id)}<option value={c.id}>{c.label}</option>{/each}
+            </select>
+            <button class="btn" type="submit" disabled={busy || !dDate || !dPerson}>{t('add')}</button>
+          </form>
+        {/if}
+      </section>
+    {/if}
     {#if !readonly}
     <div class="row actions">
       {#if p.can_edit}
@@ -548,5 +615,16 @@
   /* Phone: the bar's background runs behind the floating menu. */
   @media (max-width: 760px) { .actions { padding-bottom: calc(100px + var(--inset-bottom, env(safe-area-inset-bottom, 0px))); } }
   .part-title { margin: 8px 0 0; font-size: 20px; }
+  .dedicated h3 { margin: 0; }
+  .drows { width: 100%; border-collapse: collapse; }
+  .drows td { padding: 10px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .drows tr:last-child td { border-bottom: none; }
+  .ddate { font-weight: 600; white-space: nowrap; }
+  .dact { width: 36px; text-align: right; }
+  .remove-row { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg); color: var(--muted); cursor: pointer; padding: 0; }
+  .remove-row:hover { color: var(--danger); border-color: var(--danger); }
+  .dadd { gap: 10px; flex-wrap: wrap; align-items: center; }
+  .dadd select, .dadd input { width: auto; min-width: 160px; }
+  .dslot { font-weight: 600; }
   .day { margin-top: 10px; font-size: 14px; color: var(--muted); font-weight: 600; }
 </style>

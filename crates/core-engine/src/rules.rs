@@ -404,7 +404,7 @@ pub fn notice_items(p: &Program) -> Option<BTreeMap<PersonId, Vec<NoticeItem>>> 
     let mut by_person: BTreeMap<PersonId, Vec<NoticeItem>> = BTreeMap::new();
     for (k, (a, _)) in &p.assignments {
         if let Assignee::Person(person) = a {
-            let date = p.occurrences.get(usize::from(k.occurrence)).copied()?;
+            let date = p.date_of(k.occurrence)?;
             by_person.entry(*person).or_default().push(NoticeItem {
                 key: k.clone(),
                 date,
@@ -439,11 +439,7 @@ pub fn program_snapshot(auth: &AuthState, id: Id, p: &Program, version: u32) -> 
                 let assigned = p.assignments.get(k);
                 PublishedAssignment {
                     key: k.clone(),
-                    date: p
-                        .occurrences
-                        .get(usize::from(k.occurrence))
-                        .copied()
-                        .unwrap_or(Date::MIN),
+                    date: p.date_of(k.occurrence).unwrap_or(Date::MIN),
                     // Empty for a part with details only.
                     display_name: assigned
                         .map(|(a, _)| display_name(auth, a))

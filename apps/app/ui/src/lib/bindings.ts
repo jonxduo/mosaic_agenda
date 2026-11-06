@@ -83,6 +83,7 @@ export const commands = {
 	setBackupNode: (node: string | null) => typedError<null, ApiError>(__TAURI_INVOKE("set_backup_node", { node })),
 	programGroup: (group: string, period: string) => typedError<ProgramGroupView, ApiError>(__TAURI_INVOKE("program_group", { group, period })),
 	sentProgram: (program: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("sent_program", { program })),
+	addDedicated: (program: string, slot: string, date: string, person: string) => typedError<ProgramEditor_Serialize, ApiError>(__TAURI_INVOKE("add_dedicated", { program, slot, date, person })),
 	publishProgramGroup: (group: string, period: string) => typedError<ProgramGroupView, ApiError>(__TAURI_INVOKE("publish_program_group", { group, period })),
 	unitReports: (workflow: string, unitType: string) => typedError<UnitReports_Serialize, ApiError>(__TAURI_INVOKE("unit_reports", { workflow, unitType })),
 	exportPerson: (person: string) => typedError<PersonExport_Serialize, ApiError>(__TAURI_INVOKE("export_person", { person })),
@@ -390,6 +391,23 @@ export type ConfigVersion_Serialize = {
 	can_publish: boolean,
 	/**  The app carries a newer version of the package than the active one. */
 	app_update: string | null,
+};
+
+export type DedicatedRow = {
+	occurrence: number,
+	slot: string,
+	index: number,
+	label: string,
+	/**  YYYY-MM-DD. */
+	date: string,
+	date_label: string,
+	assignee: string,
+};
+
+export type DedicatedSlot = {
+	id: string,
+	label: string,
+	candidates: Choice[],
 };
 
 /**
@@ -1084,6 +1102,10 @@ export type ProgramEditor_Deserialize = {
 	can_send: boolean,
 	can_publish: boolean,
 	warnings: string[],
+	/**  Rows of the dedicated days (slots in that mode): date, slot, person. */
+	dedicated: DedicatedRow[],
+	/**  The slots one may add a dedicated row for, with who can take them. */
+	dedicated_slots: DedicatedSlot[],
 };
 
 export type ProgramEditor_Serialize = {
@@ -1113,6 +1135,10 @@ export type ProgramEditor_Serialize = {
 	can_send: boolean,
 	can_publish: boolean,
 	warnings: string[],
+	/**  Rows of the dedicated days (slots in that mode): date, slot, person. */
+	dedicated: DedicatedRow[],
+	/**  The slots one may add a dedicated row for, with who can take them. */
+	dedicated_slots: DedicatedSlot[],
 };
 
 /**
