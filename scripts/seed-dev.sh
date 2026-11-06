@@ -88,7 +88,7 @@ for period in ("2026-08", "2026-09"):
 print("rapporti: agosto registrati, settembre inoltrati")
 
 for ty in ("midweek", "weekend", "av", "attendants", "cleaning"):
-    for period in ("2026-09", "2026-10"):
+    for period in ("2026-09", "2026-10", "2026-11"):
         d = call("program_dates", {"programType": ty, "period": period})
         if not d["dates"] or d["exists"]:
             continue
@@ -111,5 +111,5 @@ for ty in ("midweek", "weekend", "av", "attendants", "cleaning"):
         call("assign_slots", {"program": pid, "changes": changes, "details": [], "parts": []})
         call("send_program", {"program": pid})
         call("publish_program", {"program": pid})
-print("programmi: settembre e ottobre pubblicati")
+print("programmi: settembre, ottobre e novembre pubblicati")
 PY

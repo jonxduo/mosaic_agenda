@@ -208,6 +208,10 @@ export type AssignmentItem = {
 	/**  `pending`, `accepted`, `declined`. */
 	response: string,
 	can_respond: boolean,
+	/**  First date it is held (YYYY-MM-DD). */
+	date: string,
+	/**  Held for the whole month (the calendar square shows the month). */
+	monthly: boolean,
 };
 
 export type AudienceChange = {

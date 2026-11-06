@@ -1081,9 +1081,15 @@ impl Core {
                     ),
                     response: response.into(),
                     can_respond: def.is_some_and(|d| d.acceptance) && response == "pending",
+                    date: all.iter().map(|x| x.date).min().unwrap_or(it.date).to_string(),
+                    monthly: matches!(g, Some(PeriodKey::Month { .. })),
                 });
             }
         }
+        // The nearest first; two places of the same slot on the same day are
+        // one activity.
+        out.sort_by(|a, b| a.date.cmp(&b.date).then(a.title.cmp(&b.title)));
+        out.dedup_by(|b, a| a.program_id == b.program_id && a.slot == b.slot && a.date == b.date);
         Ok(out)
     }
 

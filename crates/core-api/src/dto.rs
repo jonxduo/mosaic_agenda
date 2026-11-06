@@ -93,6 +93,10 @@ pub struct AssignmentItem {
     /// `pending`, `accepted`, `declined`.
     pub response: String,
     pub can_respond: bool,
+    /// First date it is held (YYYY-MM-DD).
+    pub date: String,
+    /// Held for the whole month (the calendar square shows the month).
+    pub monthly: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

@@ -19,7 +19,24 @@
 
   const todo = $derived(home?.sections.filter((s) => s.kind !== 'board' && s.kind !== 'work') ?? []);
   const board = $derived(home?.sections.find((s) => s.kind === 'board'));
-  const count = $derived(todo.reduce((n, s) => n + (s.kind === 'resources' ? s.items.filter((r) => r.open_request).length : s.items.length), 0));
+  // In "Da fare" only the assignments still to answer; all of them, from the
+  // nearest, under "In programma".
+  const count = $derived(
+    todo.reduce(
+      (n, s) =>
+        n + (s.kind === 'resources' ? s.items.filter((r) => r.open_request).length : s.kind === 'assignments' ? s.items.filter((a) => a.can_respond).length : s.items.length),
+      0
+    )
+  );
+  const upcoming = $derived(home?.sections.flatMap((s) => (s.kind === 'assignments' ? s.items : [])) ?? []);
+  // The calendar square: month on top, the day below; a monthly one, the month.
+  const square = (a: { date: string; monthly: boolean }) => {
+    const d = new Date(`${a.date}T12:00:00`);
+    const month = d.toLocaleDateString('it', { month: 'short' }).replace('.', '');
+    return a.monthly
+      ? { top: String(d.getFullYear()), main: month.charAt(0).toUpperCase() + month.slice(1) }
+      : { top: month.toUpperCase(), main: String(d.getDate()) };
+  };
   const work = $derived(home?.sections.find((s) => s.kind === 'work'));
 
   async function respond(a: AssignmentItem, accept: boolean) {
@@ -60,7 +77,7 @@
             </div>
           {/each}
         {:else if s.kind === 'assignments'}
-          {#each s.items as a (a.program_id + a.slot + a.occurrence + a.index)}
+          {#each s.items.filter((a) => a.can_respond) as a (a.program_id + a.slot + a.occurrence + a.index)}
             <div class="card spread">
               <div class="stack tight grow"><h3>{a.title}</h3><span class="muted">{a.subtitle}</span></div>
               {#if a.can_respond}
@@ -81,6 +98,20 @@
         {/if}
       {/each}
     </section>
+
+    {#if upcoming.length}
+      <section class="stack" aria-labelledby="upcoming">
+        <h2 id="upcoming">{t('upcoming')} · {upcoming.length}</h2>
+        {#each upcoming as a (a.program_id + a.slot + a.occurrence + a.index)}
+          {@const q = square(a)}
+          <div class="card spread act">
+            <div class="cal" class:month={a.monthly} aria-hidden="true"><span class="top">{q.top}</span><span class="main">{q.main}</span></div>
+            <div class="stack tight grow"><h3>{a.title}</h3><span class="muted">{a.subtitle}</span></div>
+            {#if a.response !== 'pending'}<span class="badge" class:ok={a.response === 'accepted'}>{t(`response_${a.response}` as never)}</span>{/if}
+          </div>
+        {/each}
+      </section>
+    {/if}
 
     {#if work && work.kind === 'work' && work.items.length}
       <section class="stack" aria-labelledby="work">
@@ -117,6 +148,12 @@
   .empty p { position: relative; }
   .page { gap: 36px; }
   .head { gap: 6px; }
+  /* Activity: a calendar page on the left (month band, day below). */
+  .act { gap: 14px; align-items: center; flex-wrap: nowrap; }
+  .cal { flex: none; display: flex; flex-direction: column; width: 54px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); background: var(--bg); text-align: center; }
+  .cal .top { background: var(--primary); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; padding: 2px 0; }
+  .cal .main { font-size: 22px; font-weight: 700; line-height: 1; padding: 6px 0 8px; font-variant-numeric: tabular-nums; }
+  .cal.month .main { font-size: 16px; padding: 9px 0 10px; }
   .tight { gap: 4px; }
   .link { color: var(--text); text-decoration: none; }
 </style>
