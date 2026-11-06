@@ -113,19 +113,6 @@ pub(crate) fn today(core: &Core) -> Date {
 }
 
 /// The last complete period of a periodicity, relative to `today`.
-/// Dates of one row: "1 · 4 ottobre" in the same month, else each in full.
-fn dates_label(t: &Texts, ds: &[Date]) -> String {
-    match ds {
-        [] => String::new(),
-        [one] => t.day_month(*one),
-        [.., last] if ds.iter().all(|d| d.month() == last.month()) => {
-            let days: Vec<String> = ds[..ds.len() - 1].iter().map(|d| d.day().to_string()).collect();
-            format!("{} · {}", days.join(" · "), t.day_month(*last))
-        }
-        _ => ds.iter().map(|d| t.day_month(*d)).collect::<Vec<_>>().join(" · "),
-    }
-}
-
 /// A publish group's programs as one table: a column per assignment
 /// (program types in the group's order, slots in their order, "Name 2" for
 /// the second of a slot), a row per event, or per week when every program
@@ -188,20 +175,20 @@ fn board_grid(t: &Texts, cfg: &Cfg, snaps: &[&core_engine::ops::ProgramSnapshot]
         rows: rows
             .into_iter()
             .map(|ds| BoardGridRow {
-                label: dates_label(t, &ds),
+                dates: ds.iter().map(|d| t.day_month(*d)).collect(),
                 cells: columns
                     .iter()
                     .map(|(pt, slot, i, _)| {
-                        let mut names: Vec<&str> = ordered
+                        let mut names: Vec<String> = ordered
                             .iter()
                             .filter(|s| &s.program_type == pt)
                             .flat_map(|s| s.assignments.iter())
                             .filter(|a| &a.key.slot == slot && a.key.index == *i && ds.contains(&a.date))
-                            .map(|a| a.display_name.as_str())
+                            .map(|a| a.display_name.clone())
                             .filter(|n| !n.is_empty())
                             .collect();
                         names.dedup();
-                        names.join(", ")
+                        names
                     })
                     .collect(),
             })

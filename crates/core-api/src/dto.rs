@@ -133,9 +133,11 @@ pub struct BoardGrid {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct BoardGridRow {
-    /// The dates of the row: one event, or those sharing the persons (a week).
-    pub label: String,
-    pub cells: Vec<String>,
+    /// The dates of the row, one per line: one event, or those sharing the
+    /// persons (a week).
+    pub dates: Vec<String>,
+    /// For each column, the persons, one per line.
+    pub cells: Vec<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

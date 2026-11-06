@@ -6,6 +6,11 @@
   import { go } from '../router.svelte';
   import { fail } from '../toast.svelte';
   import PageHeading from '../components/PageHeading.svelte';
+  // Names as in the other programs: surname and initials.
+  const short = (name: string) => {
+    const w = name.trim().split(/\s+/);
+    return w.length < 2 ? name : `${w[0]} ${w.slice(1).map((x) => `${x[0]}.`).join(' ')}`;
+  };
   import Program from './Program.svelte';
 
   let { post, month }: { post: string; month?: string } = $props();
@@ -33,7 +38,10 @@
           <thead><tr><th scope="col">{t('dates')}</th>{#each g.columns as c, i (i)}<th scope="col">{c}</th>{/each}</tr></thead>
           <tbody>
             {#each g.rows as r, i (i)}
-              <tr><th scope="row" class="when">{r.label}</th>{#each r.cells as c, j (j)}<td>{c || '–'}</td>{/each}</tr>
+              <tr>
+                <th scope="row" class="when">{#each r.dates as d (d)}<span>{d}</span>{/each}</th>
+                {#each r.cells as c, j (j)}<td>{#each c as n (n)}<span>{short(n)}</span>{:else}–{/each}</td>{/each}
+              </tr>
             {/each}
           </tbody>
         </table>
@@ -64,7 +72,9 @@
   .grid-card { padding: 0; overflow: hidden; }
   .scroll { overflow-x: auto; }
   .grid { font-size: 15px; }
-  .grid th, .grid td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+  .grid th, .grid td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; vertical-align: top; }
+  /* One date, one person per line: narrow columns. */
+  .grid th span, .grid td span { display: block; }
   .grid thead th { font-size: 13px; font-weight: 600; color: var(--muted); }
   .grid td { font-style: italic; }
   /* The dates stay in view while the columns scroll. */

@@ -253,9 +253,13 @@ export type BoardGrid = {
 };
 
 export type BoardGridRow = {
-	/**  The dates of the row: one event, or those sharing the persons (a week). */
-	label: string,
-	cells: string[],
+	/**
+	 *  The dates of the row, one per line: one event, or those sharing the
+	 *  persons (a week).
+	 */
+	dates: string[],
+	/**  For each column, the persons, one per line. */
+	cells: string[][],
 };
 
 export type BoardItem = BoardItem_Serialize | BoardItem_Deserialize;
